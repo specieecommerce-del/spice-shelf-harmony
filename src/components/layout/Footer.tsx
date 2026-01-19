@@ -14,7 +14,7 @@ const Footer = () => {
               receitas em experiências gastronômicas únicas.
             </p>
             <div className="flex gap-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
+              <a href="https://instagram.com/speciesalimentos" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
                 <Instagram size={18} />
               </a>
               <a href="#" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
