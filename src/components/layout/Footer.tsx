@@ -1,8 +1,6 @@
 import { Facebook, Instagram, Youtube, MapPin, Phone, Mail, CreditCard, Shield } from "lucide-react";
-
 const Footer = () => {
-  return (
-    <footer className="bg-spice-brown text-spice-cream">
+  return <footer className="bg-spice-brown text-spice-cream">
       {/* Main footer */}
       <div className="container-species py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
@@ -16,22 +14,13 @@ const Footer = () => {
               receitas em experiências gastronômicas únicas.
             </p>
             <div className="flex gap-4">
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors"
-              >
+              <a href="#" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
                 <Instagram size={18} />
               </a>
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors"
-              >
+              <a href="#" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
                 <Facebook size={18} />
               </a>
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors"
-              >
+              <a href="#" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
                 <Youtube size={18} />
               </a>
             </div>
@@ -108,7 +97,7 @@ const Footer = () => {
               <li className="flex items-start gap-3">
                 <MapPin size={18} className="flex-shrink-0 mt-1 text-spice-gold" />
                 <span className="text-spice-cream/80">
-                  Rua dos Temperos, 123
+                  Rua Peixoto gomide 448      
                   <br />
                   São Paulo, SP - 01234-567
                 </span>
@@ -156,8 +145,6 @@ const Footer = () => {
           </div>
         </div>
       </div>
-    </footer>
-  );
+    </footer>;
 };
-
 export default Footer;
