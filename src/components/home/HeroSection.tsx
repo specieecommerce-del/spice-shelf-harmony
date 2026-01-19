@@ -3,44 +3,39 @@ import heroImage from "@/assets/hero-spices.jpg";
 
 const HeroSection = () => {
   return (
-    <section className="relative min-h-[85vh] flex items-center pt-32">
-      {/* Background image with overlay */}
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${heroImage})` }}
-      >
-        <div className="absolute inset-0 bg-gradient-hero" />
-      </div>
+    <section className="relative min-h-[85vh] flex items-center pt-32 bg-spice-cream">
+      {/* Background */}
+      <div className="absolute inset-0 bg-spice-cream" />
 
       {/* Content */}
       <div className="container-species relative z-10">
-        <div className="max-w-2xl text-spice-warm-white">
-          <span className="inline-block px-4 py-2 bg-spice-gold/20 backdrop-blur-sm rounded-full text-spice-gold font-medium text-sm mb-6 animate-fade-in">
+        <div className="max-w-2xl text-foreground">
+          <span className="inline-block px-4 py-2 bg-primary/10 rounded-full text-primary font-medium text-sm mb-6 animate-fade-in">
             ✨ Temperos Premium & Artesanais
           </span>
 
           <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 animate-slide-up">
             Receitas incríveis
             <br />
-            <span className="text-gradient-gold">começam aqui</span>
+            <span className="text-primary">começam aqui</span>
           </h1>
 
-          <p className="text-lg md:text-xl text-spice-cream/90 mb-8 max-w-lg animate-slide-up" style={{ animationDelay: "0.1s" }}>
+          <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-lg animate-slide-up" style={{ animationDelay: "0.1s" }}>
             Descubra nossa seleção de temperos, ervas e especiarias artesanais
             que transformam qualquer prato em uma experiência gastronômica única.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            <Button variant="hero" size="xl">
+            <Button variant="default" size="xl">
               Compre Agora
             </Button>
-            <Button variant="heroOutline" size="xl">
+            <Button variant="outline" size="xl">
               Ver Receitas
             </Button>
           </div>
 
           {/* Trust badges */}
-          <div className="mt-12 flex flex-wrap items-center gap-6 text-spice-cream/80 text-sm animate-fade-in" style={{ animationDelay: "0.3s" }}>
+          <div className="mt-12 flex flex-wrap items-center gap-6 text-muted-foreground text-sm animate-fade-in" style={{ animationDelay: "0.3s" }}>
             <div className="flex items-center gap-2">
               <span className="text-xl">🚚</span>
               <span>Frete Grátis +R$150</span>
