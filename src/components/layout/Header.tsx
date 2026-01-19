@@ -65,7 +65,7 @@ const Header = () => {
                   <Input
                     type="text"
                     placeholder="Buscar temperos..."
-                    className="w-48 lg:w-64"
+                    className="w-48 lg:w-64 bg-spice-cream border-spice-cream"
                     autoFocus
                   />
                   <button onClick={() => setIsSearchOpen(false)}>
@@ -119,7 +119,7 @@ const Header = () => {
                 <Input
                   type="text"
                   placeholder="Buscar temperos..."
-                  className="flex-1"
+                  className="flex-1 bg-spice-cream border-spice-cream"
                 />
               </div>
 
