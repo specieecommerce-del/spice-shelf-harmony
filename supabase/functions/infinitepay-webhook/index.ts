@@ -8,11 +8,16 @@ const corsHeaders = {
 };
 
 // InfinitePay known IP ranges for webhook validation
-// These should be verified with InfinitePay documentation
+// AWS São Paulo region IPs commonly used by Brazilian payment providers
+// Note: Contact InfinitePay support to confirm their exact IP ranges
 const ALLOWED_IP_PREFIXES = [
-  '54.207.', // AWS São Paulo region (commonly used by Brazilian payment providers)
-  '18.231.', // AWS São Paulo
-  '52.67.',  // AWS São Paulo
+  '54.207.',   // AWS São Paulo region
+  '18.231.',   // AWS São Paulo
+  '52.67.',    // AWS São Paulo
+  '177.71.',   // AWS São Paulo
+  '15.228.',   // AWS São Paulo
+  '18.229.',   // AWS São Paulo
+  '18.230.',   // AWS São Paulo
 ];
 
 // Webhook payload validation schema
@@ -44,19 +49,32 @@ function getClientIP(req: Request): string {
     return realIP;
   }
   
+  const cfConnectingIP = req.headers.get('cf-connecting-ip');
+  if (cfConnectingIP) {
+    return cfConnectingIP;
+  }
+  
   return 'unknown';
 }
 
 function isAllowedIP(ip: string): boolean {
-  // In production, this should validate against InfinitePay's actual IP ranges
-  // For now, we log the IP for monitoring but don't block
-  // Once you confirm InfinitePay's IPs, enable strict validation
+  // Log all webhook requests for audit trail
   console.log('Webhook request from IP:', ip);
   
-  // Uncomment to enable strict IP validation:
-  // return ALLOWED_IP_PREFIXES.some(prefix => ip.startsWith(prefix));
+  // If IP is unknown, reject the request
+  if (ip === 'unknown') {
+    console.warn('Rejecting request with unknown IP');
+    return false;
+  }
   
-  return true; // Allow all for now, but log for monitoring
+  // Check if IP matches any allowed prefix
+  const isAllowed = ALLOWED_IP_PREFIXES.some(prefix => ip.startsWith(prefix));
+  
+  if (!isAllowed) {
+    console.warn('IP not in allowed list:', ip);
+  }
+  
+  return isAllowed;
 }
 
 serve(async (req) => {
@@ -113,16 +131,24 @@ serve(async (req) => {
     const payload = validationResult.data;
     const { order_nsu, transaction_nsu, invoice_slug, capture_method, paid_amount, installments, receipt_url } = payload;
     
-    console.log('Processing validated webhook for order:', order_nsu);
+    console.log('Processing validated webhook for order:', order_nsu, 'from IP:', clientIP);
 
     // Verify the order exists before updating
     const { data: existingOrder, error: checkError } = await supabase
       .from('orders')
       .select('id, status')
       .eq('order_nsu', order_nsu)
-      .single();
+      .maybeSingle();
 
-    if (checkError || !existingOrder) {
+    if (checkError) {
+      console.error('Database error checking order:', order_nsu, checkError);
+      return new Response(
+        JSON.stringify({ success: false, message: 'Database error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!existingOrder) {
       console.error('Order not found for webhook:', order_nsu);
       return new Response(
         JSON.stringify({ success: false, message: 'Order not found' }),
@@ -161,7 +187,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Order updated successfully:', order_nsu);
+    console.log('Order updated successfully:', order_nsu, 'Payment method:', capture_method);
 
     // Return success response to InfinitePay
     return new Response(
