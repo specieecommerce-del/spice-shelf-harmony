@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Search, ShoppingCart, Menu, X, User, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import logoSpecies from "@/assets/logo-species.jpeg";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -35,9 +36,11 @@ const Header = () => {
 
           {/* Logo */}
           <a href="/" className="flex items-center">
-            <h1 className="font-serif text-2xl lg:text-3xl font-bold text-spice-terracotta tracking-wide">
-              SPECIES
-            </h1>
+            <img 
+              src={logoSpecies} 
+              alt="Species" 
+              className="h-10 lg:h-14 w-auto"
+            />
           </a>
 
           {/* Desktop navigation */}
