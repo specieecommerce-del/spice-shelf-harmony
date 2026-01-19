@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Search, ShoppingCart, Menu, X, User, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import logoSpecies from "@/assets/logo-species.jpeg";
+import { useCart } from "@/contexts/CartContext";
+
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const cartItems = 3;
+  const { getCartCount, setIsCartOpen } = useCart();
   const navLinks = [{
     name: "Produtos",
     href: "#produtos"
@@ -73,11 +74,16 @@ const Header = () => {
             </button>
 
             {/* Cart */}
-            <button className="relative p-2 text-foreground hover:text-primary transition-colors">
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2 text-foreground hover:text-primary transition-colors"
+            >
               <ShoppingCart size={22} />
-              {cartItems > 0 && <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {cartItems}
-                </span>}
+              {getCartCount() > 0 && (
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {getCartCount()}
+                </span>
+              )}
             </button>
 
             {/* WhatsApp Button */}

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ShoppingCart, Heart, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useCart, Product } from "@/contexts/CartContext";
+import { toast } from "sonner";
 
 import productHerbs from "@/assets/product-herbs.jpg";
 import productSalt from "@/assets/product-salt.jpg";
@@ -57,9 +59,17 @@ const products = [
   },
 ];
 
-const ProductCard = ({ product }: { product: typeof products[0] }) => {
+const ProductCard = ({ product }: { product: Product }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const { addToCart } = useCart();
+
+  const handleAddToCart = () => {
+    addToCart(product);
+    toast.success(`${product.name} adicionado ao carrinho!`, {
+      description: `R$ ${product.price.toFixed(2).replace(".", ",")}`,
+    });
+  };
 
   return (
     <div
@@ -107,7 +117,7 @@ const ProductCard = ({ product }: { product: typeof products[0] }) => {
             isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}
         >
-          <Button variant="hero" className="w-full" size="sm">
+          <Button variant="hero" className="w-full" size="sm" onClick={handleAddToCart}>
             <ShoppingCart size={16} />
             Adicionar
           </Button>
