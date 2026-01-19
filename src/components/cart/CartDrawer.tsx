@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ShoppingCart, X, Plus, Minus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,7 +9,7 @@ import {
 } from "@/components/ui/sheet";
 import { useCart } from "@/contexts/CartContext";
 import { Separator } from "@/components/ui/separator";
-
+import CheckoutDialog from "@/components/checkout/CheckoutDialog";
 const CartDrawer = () => {
   const {
     items,
@@ -19,6 +20,7 @@ const CartDrawer = () => {
     isCartOpen,
     setIsCartOpen,
   } = useCart();
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   const formatPrice = (price: number) => {
     return `R$ ${price.toFixed(2).replace(".", ",")}`;
@@ -148,7 +150,12 @@ const CartDrawer = () => {
               </div>
 
               {/* Checkout Button */}
-              <Button variant="hero" className="w-full" size="lg">
+              <Button 
+                variant="hero" 
+                className="w-full" 
+                size="lg"
+                onClick={() => setIsCheckoutOpen(true)}
+              >
                 Finalizar Compra
               </Button>
 
@@ -159,6 +166,12 @@ const CartDrawer = () => {
               >
                 Continuar Comprando
               </Button>
+
+              {/* Checkout Dialog */}
+              <CheckoutDialog 
+                open={isCheckoutOpen} 
+                onOpenChange={setIsCheckoutOpen} 
+              />
             </div>
           </>
         )}
