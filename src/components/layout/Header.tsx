@@ -38,7 +38,7 @@ const Header = () => {
 
           {/* Logo */}
           <a href="/" className="flex items-center">
-            <img src={logoSpecies} alt="Species - Especialista na Harmonia dos Sabores da Natureza" className="h-12 lg:h-16 w-auto" />
+            <img alt="Species - Especialista na Harmonia dos Sabores da Natureza" className="h-12 lg:h-16 w-auto" src="/lovable-uploads/c333c3cf-8857-4c92-85ef-62b3af5c2685.jpg" />
           </a>
 
           {/* Desktop navigation */}
