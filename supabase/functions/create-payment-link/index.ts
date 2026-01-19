@@ -1,31 +1,33 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  quantity: number;
-  image: string;
-  category: string;
-}
+// Input validation schemas
+const CartItemSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().min(1).max(200),
+  price: z.number().positive().max(1000000),
+  quantity: z.number().int().positive().max(100),
+  image: z.string().max(500),
+  category: z.string().max(100),
+});
 
-interface CustomerInfo {
-  name?: string;
-  email?: string;
-  phone?: string;
-}
+const CustomerSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  email: z.string().email().max(255).optional(),
+  phone: z.string().regex(/^[0-9\s\-()]+$/).max(20).optional(),
+}).optional();
 
-interface RequestBody {
-  items: CartItem[];
-  customer?: CustomerInfo;
-  redirectUrl: string;
-}
+const RequestSchema = z.object({
+  items: z.array(CartItemSchema).min(1).max(50),
+  customer: CustomerSchema,
+  redirectUrl: z.string().url().max(500),
+});
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -47,19 +49,49 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { items, customer, redirectUrl }: RequestBody = await req.json();
-    
-    console.log('Received payment request:', { items, customer, redirectUrl });
-
-    if (!items || items.length === 0) {
+    // Parse and validate input
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      console.error('Invalid JSON in request body');
       return new Response(
-        JSON.stringify({ error: 'No items in cart' }),
+        JSON.stringify({ error: 'Invalid request format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Calculate total in cents
-    const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity * 100), 0);
+    const validationResult = RequestSchema.safeParse(rawBody);
+    if (!validationResult.success) {
+      console.error('Validation errors:', validationResult.error.errors);
+      return new Response(
+        JSON.stringify({ error: 'Invalid input data' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { items, customer, redirectUrl } = validationResult.data;
+    
+    console.log('Validated payment request:', { 
+      itemCount: items.length, 
+      hasCustomer: !!customer,
+      redirectUrl 
+    });
+
+    // Calculate total in cents with validation
+    const totalAmount = items.reduce((sum, item) => {
+      const itemTotal = Math.round(item.price * item.quantity * 100);
+      return sum + itemTotal;
+    }, 0);
+
+    // Validate total amount is reasonable
+    if (totalAmount <= 0 || totalAmount > 100000000) { // Max R$ 1.000.000,00
+      console.error('Invalid total amount:', totalAmount);
+      return new Response(
+        JSON.stringify({ error: 'Invalid order amount' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // Generate unique order NSU
     const orderNsu = `ORDER_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -67,8 +99,8 @@ serve(async (req) => {
     // Format items for InfinitePay
     const infinitePayItems = items.map(item => ({
       quantity: item.quantity,
-      price: Math.round(item.price * 100), // Convert to cents
-      description: item.name,
+      price: Math.round(item.price * 100),
+      description: item.name.substring(0, 200), // Limit description length
     }));
 
     // Build webhook URL
@@ -83,16 +115,16 @@ serve(async (req) => {
       items: infinitePayItems,
     };
 
-    // Add customer info if provided
+    // Add sanitized customer info if provided
     if (customer) {
       infinitePayBody.customer = {
-        name: customer.name || '',
-        email: customer.email || '',
-        phone_number: customer.phone ? `+55${customer.phone.replace(/\D/g, '')}` : '',
+        name: customer.name?.substring(0, 100) || '',
+        email: customer.email?.substring(0, 255) || '',
+        phone_number: customer.phone ? `+55${customer.phone.replace(/\D/g, '').substring(0, 15)}` : '',
       };
     }
 
-    console.log('Calling InfinitePay API:', JSON.stringify(infinitePayBody, null, 2));
+    console.log('Calling InfinitePay API for order:', orderNsu);
 
     // Call InfinitePay API
     const infinitePayResponse = await fetch('https://api.infinitepay.io/invoices/public/checkout/links', {
@@ -104,37 +136,34 @@ serve(async (req) => {
     });
 
     const infinitePayData = await infinitePayResponse.json();
-    console.log('InfinitePay response:', JSON.stringify(infinitePayData, null, 2));
 
     if (!infinitePayResponse.ok) {
-      console.error('InfinitePay API error:', infinitePayData);
+      console.error('InfinitePay API error for order:', orderNsu, infinitePayData);
       return new Response(
-        JSON.stringify({ error: 'Failed to create payment link', details: infinitePayData }),
+        JSON.stringify({ error: 'Unable to create payment link' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Save order to database
-    const { data: order, error: orderError } = await supabase
+    const { error: orderError } = await supabase
       .from('orders')
       .insert({
         order_nsu: orderNsu,
-        customer_name: customer?.name,
-        customer_email: customer?.email,
-        customer_phone: customer?.phone,
+        customer_name: customer?.name?.substring(0, 100),
+        customer_email: customer?.email?.substring(0, 255),
+        customer_phone: customer?.phone?.substring(0, 20),
         items: items,
         total_amount: Math.round(totalAmount),
         status: 'pending',
         payment_link: infinitePayData.url,
-      })
-      .select()
-      .single();
+      });
 
     if (orderError) {
-      console.error('Error saving order:', orderError);
+      console.error('Error saving order:', orderNsu, orderError);
       // Still return the payment link even if we couldn't save the order
     } else {
-      console.log('Order saved:', order);
+      console.log('Order saved successfully:', orderNsu);
     }
 
     return new Response(
@@ -147,10 +176,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error creating payment link:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error creating payment link:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: errorMessage }),
+      JSON.stringify({ error: 'An unexpected error occurred' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
