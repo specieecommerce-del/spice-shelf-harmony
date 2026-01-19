@@ -1,8 +1,15 @@
 import { useState } from "react";
-import { Search, ShoppingCart, Menu, X, User, Heart } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Search, ShoppingCart, Menu, X, User, Heart, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCart } from "@/contexts/CartContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -63,10 +70,22 @@ const Header = () => {
                 </button>}
             </div>
 
-            {/* User */}
-            <button className="hidden sm:flex p-2 text-foreground hover:text-primary transition-colors">
-              <User size={22} />
-            </button>
+            {/* User Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="hidden sm:flex p-2 text-foreground hover:text-primary transition-colors">
+                  <User size={22} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link to="/configuracoes" className="flex items-center gap-2 cursor-pointer">
+                    <Settings size={16} />
+                    Configurações
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Wishlist */}
             <button className="hidden sm:flex p-2 text-foreground hover:text-primary transition-colors">
