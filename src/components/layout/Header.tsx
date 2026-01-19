@@ -39,7 +39,7 @@ const Header = () => {
             <img 
               src={logoSpecies} 
               alt="Species - Especialista na Harmonia dos Sabores da Natureza" 
-              className="h-20 lg:h-28 w-auto"
+              className="h-12 lg:h-16 w-auto"
             />
           </a>
 
