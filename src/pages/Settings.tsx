@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet } from "lucide-react";
+import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
@@ -25,11 +26,14 @@ const Settings = () => {
   
   // Bank account settings
   const [bankName, setBankName] = useState("");
+  const [bankCode, setBankCode] = useState("");
   const [accountType, setAccountType] = useState("corrente");
   const [agency, setAgency] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [accountHolder, setAccountHolder] = useState("");
+  const [isSavingBank, setIsSavingBank] = useState(false);
+  const [bankSaved, setBankSaved] = useState(false);
 
   useEffect(() => {
     // Load saved settings from localStorage (for demo purposes)
@@ -92,7 +96,7 @@ const Settings = () => {
   };
 
   const handleSaveBankAccount = async () => {
-    if (!bankName.trim() || !agency.trim() || !accountNumber.trim() || !cpfCnpj.trim() || !accountHolder.trim()) {
+    if (!bankName.trim() || !bankCode.trim() || !agency.trim() || !accountNumber.trim() || !cpfCnpj.trim() || !accountHolder.trim()) {
       toast({
         title: "Campos obrigatórios",
         description: "Por favor, preencha todos os campos da conta bancária.",
@@ -101,32 +105,52 @@ const Settings = () => {
       return;
     }
 
-    setIsLoading(true);
+    if (!user) {
+      toast({
+        title: "Login necessário",
+        description: "Faça login para vincular sua conta bancária.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingBank(true);
 
     try {
-      const bankData = {
-        bankName,
-        accountType,
-        agency,
-        accountNumber,
-        cpfCnpj,
-        accountHolder,
-      };
-      
-      localStorage.setItem('bank_account_settings', JSON.stringify(bankData));
-
-      toast({
-        title: "Conta bancária salva!",
-        description: "Os dados da sua conta foram salvos. Configure sua conta InfinitePay para receber os pagamentos.",
+      const { data, error } = await supabase.functions.invoke("save-bank-account", {
+        body: {
+          bank_code: bankCode,
+          bank_name: bankName,
+          agency: agency,
+          account_number: accountNumber,
+          account_type: accountType,
+          holder_name: accountHolder,
+          holder_document: cpfCnpj,
+        },
       });
-    } catch {
+
+      if (error) {
+        throw new Error(error.message || "Erro ao salvar conta bancária");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      setBankSaved(true);
       toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível salvar os dados bancários. Tente novamente.",
+        title: "Conta bancária vinculada!",
+        description: "Sua conta foi registrada com sucesso na InfinitePay.",
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Erro ao salvar conta bancária";
+      toast({
+        title: "Erro ao vincular conta",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSavingBank(false);
     }
   };
 
@@ -209,9 +233,32 @@ const Settings = () => {
                     </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  {bankSaved && (
+                    <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 border border-green-200">
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="font-medium text-green-700">Conta bancária vinculada</p>
+                        <p className="text-sm text-green-600">
+                          Sua conta foi registrada na InfinitePay com sucesso.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid gap-4 md:grid-cols-3">
                     <div className="space-y-2">
-                      <Label htmlFor="bank-name">Banco</Label>
+                      <Label htmlFor="bank-code">Código do Banco</Label>
+                      <Input
+                        id="bank-code"
+                        placeholder="Ex: 001, 341, 260"
+                        value={bankCode}
+                        onChange={(e) => setBankCode(e.target.value.replace(/\D/g, ''))}
+                        maxLength={3}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="bank-name">Nome do Banco</Label>
                       <Input
                         id="bank-name"
                         placeholder="Ex: Banco do Brasil, Itaú, Nubank"
@@ -281,21 +328,45 @@ const Settings = () => {
 
                   <Button 
                     onClick={handleSaveBankAccount} 
-                    disabled={isLoading}
+                    disabled={isSavingBank || !user}
                     className="w-full bg-spice-forest hover:bg-spice-forest/90"
                   >
-                    {isLoading ? "Salvando..." : "Salvar dados bancários"}
+                    {isSavingBank ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Vinculando conta...
+                      </>
+                    ) : (
+                      "Vincular conta bancária na InfinitePay"
+                    )}
                   </Button>
 
+                  {!user && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-amber-800">Login necessário</h4>
+                          <p className="text-sm text-amber-700 mt-1">
+                            Faça login para vincular sua conta bancária diretamente com a InfinitePay.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-medium text-blue-800 mb-2">Próximos passos</h4>
-                    <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-                      <li>Salve os dados da sua conta bancária acima</li>
-                      <li>Crie uma conta na <a href="https://infinitepay.io" target="_blank" rel="noopener noreferrer" className="underline">InfinitePay</a></li>
-                      <li>No painel da InfinitePay, configure a mesma conta bancária</li>
-                      <li>Copie o Handle de integração e cole na aba "InfinitePay"</li>
-                      <li>Pronto! Os pagamentos serão depositados automaticamente</li>
-                    </ol>
+                    <h4 className="font-medium text-blue-800 mb-2">Códigos dos principais bancos</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
+                      <span>001 - Banco do Brasil</span>
+                      <span>033 - Santander</span>
+                      <span>104 - Caixa Econômica</span>
+                      <span>237 - Bradesco</span>
+                      <span>260 - Nubank</span>
+                      <span>341 - Itaú</span>
+                      <span>077 - Inter</span>
+                      <span>336 - C6 Bank</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
