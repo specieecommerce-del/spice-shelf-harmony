@@ -38,8 +38,8 @@ const Header = () => {
           <a href="/" className="flex items-center">
             <img 
               src={logoSpecies} 
-              alt="Species" 
-              className="h-16 lg:h-20 w-auto"
+              alt="Species - Especialista na Harmonia dos Sabores da Natureza" 
+              className="h-20 lg:h-28 w-auto"
             />
           </a>
 
