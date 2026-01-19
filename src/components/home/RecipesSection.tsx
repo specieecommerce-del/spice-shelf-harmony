@@ -40,7 +40,7 @@ const recipes = [
 
 const RecipesSection = () => {
   return (
-    <section className="py-16 lg:py-24 bg-spice-cream" id="receitas">
+    <section className="py-16 lg:py-24 bg-spice-warm-white" id="receitas">
       <div className="container-species">
         {/* Header */}
         <div className="text-center mb-12">
