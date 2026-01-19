@@ -28,20 +28,20 @@ serve(async (req) => {
       );
     }
 
-    // Get order from database
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('order_nsu', orderNsu)
-      .maybeSingle();
+    // Use the secure function to check order status
+    // This uses service role but only returns minimal, safe data
+    const { data: orders, error: orderError } = await supabase
+      .rpc('check_order_status', { p_order_nsu: orderNsu });
 
     if (orderError) {
       console.error('Error fetching order:', orderError);
       return new Response(
-        JSON.stringify({ error: 'Error fetching order', details: orderError }),
+        JSON.stringify({ error: 'Error fetching order', details: orderError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const order = orders && orders.length > 0 ? orders[0] : null;
 
     if (!order) {
       return new Response(
@@ -52,6 +52,7 @@ serve(async (req) => {
 
     console.log('Order found:', order);
 
+    // Return only safe, minimal order information
     return new Response(
       JSON.stringify({
         success: true,
