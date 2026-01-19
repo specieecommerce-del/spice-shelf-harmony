@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCPFCNPJ, validateCPFCNPJ } from "@/lib/cpf-cnpj";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
@@ -34,6 +35,7 @@ const Settings = () => {
   const [accountHolder, setAccountHolder] = useState("");
   const [isSavingBank, setIsSavingBank] = useState(false);
   const [bankSaved, setBankSaved] = useState(false);
+  const [cpfCnpjValidation, setCpfCnpjValidation] = useState<{ valid: boolean; type: 'cpf' | 'cnpj' | null; message: string } | null>(null);
 
   useEffect(() => {
     // Load saved settings from localStorage (for demo purposes)
@@ -100,6 +102,16 @@ const Settings = () => {
       toast({
         title: "Campos obrigatórios",
         description: "Por favor, preencha todos os campos da conta bancária.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validation = validateCPFCNPJ(cpfCnpj);
+    if (!validation.valid) {
+      toast({
+        title: "CPF/CNPJ inválido",
+        description: validation.message,
         variant: "destructive",
       });
       return;
@@ -321,9 +333,28 @@ const Settings = () => {
                       id="cpf-cnpj"
                       placeholder="000.000.000-00 ou 00.000.000/0000-00"
                       value={cpfCnpj}
-                      onChange={(e) => setCpfCnpj(e.target.value)}
+                      onChange={(e) => {
+                        const formatted = formatCPFCNPJ(e.target.value);
+                        setCpfCnpj(formatted);
+                        if (formatted.replace(/\D/g, '').length >= 11) {
+                          setCpfCnpjValidation(validateCPFCNPJ(formatted));
+                        } else {
+                          setCpfCnpjValidation(null);
+                        }
+                      }}
                       maxLength={18}
+                      className={cpfCnpjValidation ? (cpfCnpjValidation.valid ? "border-green-500 focus-visible:ring-green-500" : "border-red-500 focus-visible:ring-red-500") : ""}
                     />
+                    {cpfCnpjValidation && (
+                      <p className={`text-sm flex items-center gap-1 ${cpfCnpjValidation.valid ? "text-green-600" : "text-red-600"}`}>
+                        {cpfCnpjValidation.valid ? (
+                          <CheckCircle2 className="h-3 w-3" />
+                        ) : (
+                          <AlertCircle className="h-3 w-3" />
+                        )}
+                        {cpfCnpjValidation.message}
+                      </p>
+                    )}
                   </div>
 
                   <Button 
