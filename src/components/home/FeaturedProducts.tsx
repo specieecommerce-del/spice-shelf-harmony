@@ -1,3 +1,4 @@
+// Cart functionality for Species store
 import { useState } from "react";
 import { ShoppingCart, Heart, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
