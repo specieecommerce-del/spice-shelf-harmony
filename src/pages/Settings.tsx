@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
+import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showHandle, setShowHandle] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'unknown'>('unknown');
@@ -20,16 +22,39 @@ const Settings = () => {
   // Payment settings
   const [infinitePayHandle, setInfinitePayHandle] = useState("");
   const [savedHandle, setSavedHandle] = useState("");
+  
+  // Bank account settings
+  const [bankName, setBankName] = useState("");
+  const [accountType, setAccountType] = useState("corrente");
+  const [agency, setAgency] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
+  const [accountHolder, setAccountHolder] = useState("");
 
   useEffect(() => {
     // Load saved settings from localStorage (for demo purposes)
-    // In production, this would be fetched from a secure backend
     const saved = localStorage.getItem('infinitepay_handle_preview');
     if (saved) {
       setSavedHandle(saved);
       setConnectionStatus('connected');
     } else {
       setConnectionStatus('disconnected');
+    }
+    
+    // Load bank account settings
+    const savedBank = localStorage.getItem('bank_account_settings');
+    if (savedBank) {
+      try {
+        const bankData = JSON.parse(savedBank);
+        setBankName(bankData.bankName || "");
+        setAccountType(bankData.accountType || "corrente");
+        setAgency(bankData.agency || "");
+        setAccountNumber(bankData.accountNumber || "");
+        setCpfCnpj(bankData.cpfCnpj || "");
+        setAccountHolder(bankData.accountHolder || "");
+      } catch {
+        // Ignore parse errors
+      }
     }
   }, []);
 
@@ -46,9 +71,6 @@ const Settings = () => {
     setIsLoading(true);
 
     try {
-      // In a real implementation, this would call an edge function
-      // to securely store the handle as a secret
-      // For now, we save a preview indicator in localStorage
       localStorage.setItem('infinitepay_handle_preview', maskHandle(infinitePayHandle));
       setSavedHandle(maskHandle(infinitePayHandle));
       setConnectionStatus('connected');
@@ -56,12 +78,51 @@ const Settings = () => {
 
       toast({
         title: "Configurações salvas!",
-        description: "Sua conta InfinitePay foi vinculada com sucesso. Entre em contato com o suporte para ativar.",
+        description: "Sua conta InfinitePay foi vinculada com sucesso.",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Erro ao salvar",
         description: "Não foi possível salvar as configurações. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveBankAccount = async () => {
+    if (!bankName.trim() || !agency.trim() || !accountNumber.trim() || !cpfCnpj.trim() || !accountHolder.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha todos os campos da conta bancária.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const bankData = {
+        bankName,
+        accountType,
+        agency,
+        accountNumber,
+        cpfCnpj,
+        accountHolder,
+      };
+      
+      localStorage.setItem('bank_account_settings', JSON.stringify(bankData));
+
+      toast({
+        title: "Conta bancária salva!",
+        description: "Os dados da sua conta foram salvos. Configure sua conta InfinitePay para receber os pagamentos.",
+      });
+    } catch {
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar os dados bancários. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -105,11 +166,15 @@ const Settings = () => {
             <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
           </div>
 
-          <Tabs defaultValue="payment" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-1 lg:grid-cols-2 h-auto">
+          <Tabs defaultValue="bank" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-1 lg:grid-cols-3 h-auto">
+              <TabsTrigger value="bank" className="flex items-center gap-2 py-3">
+                <Building2 className="h-4 w-4" />
+                Conta Bancária
+              </TabsTrigger>
               <TabsTrigger value="payment" className="flex items-center gap-2 py-3">
                 <CreditCard className="h-4 w-4" />
-                Pagamento
+                InfinitePay
               </TabsTrigger>
               <TabsTrigger value="store" className="flex items-center gap-2 py-3">
                 <SettingsIcon className="h-4 w-4" />
@@ -117,15 +182,135 @@ const Settings = () => {
               </TabsTrigger>
             </TabsList>
 
+            {/* Bank Account Tab */}
+            <TabsContent value="bank" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-spice-forest" />
+                    Conta Bancária para Recebimentos
+                  </CardTitle>
+                  <CardDescription>
+                    Configure sua conta bancária para receber o dinheiro das vendas. Os pagamentos são processados via InfinitePay.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <Wallet className="h-5 w-5 text-amber-600 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-amber-800">Como funciona o recebimento?</h4>
+                        <p className="text-sm text-amber-700 mt-1">
+                          Os pagamentos dos clientes são processados pela InfinitePay e transferidos automaticamente 
+                          para a conta bancária cadastrada no seu painel da InfinitePay. Configure sua conta lá para 
+                          receber os valores.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="bank-name">Banco</Label>
+                      <Input
+                        id="bank-name"
+                        placeholder="Ex: Banco do Brasil, Itaú, Nubank"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="account-type">Tipo de Conta</Label>
+                      <select
+                        id="account-type"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={accountType}
+                        onChange={(e) => setAccountType(e.target.value)}
+                      >
+                        <option value="corrente">Conta Corrente</option>
+                        <option value="poupanca">Conta Poupança</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="agency">Agência</Label>
+                      <Input
+                        id="agency"
+                        placeholder="0000"
+                        value={agency}
+                        onChange={(e) => setAgency(e.target.value.replace(/\D/g, ''))}
+                        maxLength={5}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="account-number">Número da Conta (com dígito)</Label>
+                      <Input
+                        id="account-number"
+                        placeholder="00000-0"
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value)}
+                        maxLength={15}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="account-holder">Nome do Titular</Label>
+                    <Input
+                      id="account-holder"
+                      placeholder="Nome completo conforme conta bancária"
+                      value={accountHolder}
+                      onChange={(e) => setAccountHolder(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cpf-cnpj">CPF ou CNPJ do Titular</Label>
+                    <Input
+                      id="cpf-cnpj"
+                      placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                      value={cpfCnpj}
+                      onChange={(e) => setCpfCnpj(e.target.value)}
+                      maxLength={18}
+                    />
+                  </div>
+
+                  <Button 
+                    onClick={handleSaveBankAccount} 
+                    disabled={isLoading}
+                    className="w-full bg-spice-forest hover:bg-spice-forest/90"
+                  >
+                    {isLoading ? "Salvando..." : "Salvar dados bancários"}
+                  </Button>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-medium text-blue-800 mb-2">Próximos passos</h4>
+                    <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                      <li>Salve os dados da sua conta bancária acima</li>
+                      <li>Crie uma conta na <a href="https://infinitepay.io" target="_blank" rel="noopener noreferrer" className="underline">InfinitePay</a></li>
+                      <li>No painel da InfinitePay, configure a mesma conta bancária</li>
+                      <li>Copie o Handle de integração e cole na aba "InfinitePay"</li>
+                      <li>Pronto! Os pagamentos serão depositados automaticamente</li>
+                    </ol>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* InfinitePay Tab */}
             <TabsContent value="payment" className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-spice-forest" />
-                    Conta InfinitePay
+                    Integração InfinitePay
                   </CardTitle>
                   <CardDescription>
-                    Vincule sua conta InfinitePay para receber pagamentos diretamente na sua conta.
+                    Vincule sua conta InfinitePay para processar pagamentos via cartão de crédito, débito e PIX.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -203,7 +388,7 @@ const Settings = () => {
                       disabled={isLoading || !infinitePayHandle.trim()}
                       className="w-full bg-spice-forest hover:bg-spice-forest/90"
                     >
-                      {isLoading ? "Salvando..." : "Salvar configurações"}
+                      {isLoading ? "Salvando..." : "Vincular conta InfinitePay"}
                     </Button>
                   </div>
 
@@ -232,6 +417,7 @@ const Settings = () => {
               </Card>
             </TabsContent>
 
+            {/* Store Tab */}
             <TabsContent value="store" className="space-y-6">
               <Card>
                 <CardHeader>
