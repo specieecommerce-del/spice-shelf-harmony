@@ -20,9 +20,9 @@ const Footer = () => {
               <a href="#" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
                 <Facebook size={18} />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
+              <Instagram href="#" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
                 <Youtube size={18} />
-              </a>
+              </Instagram>
             </div>
           </div>
 
@@ -99,19 +99,19 @@ const Footer = () => {
                 <span className="text-spice-cream/80">
                   Rua Peixoto gomide 448      
                   <br />
-                  São Paulo, SP - 01234-567
+                  São Paulo, SP - 01409-000   
                 </span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone size={18} className="text-spice-gold" />
                 <a href="tel:+5511999999999" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
-                  (11) 99999-9999
+                  (11) 91977-8073
                 </a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail size={18} className="text-spice-gold" />
                 <a href="mailto:contato@species.com.br" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
-                  contato@species.com.br
+                  ​specieecommerce@gmail.com 
                 </a>
               </li>
             </ul>
