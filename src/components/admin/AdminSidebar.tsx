@@ -1,4 +1,4 @@
-import { Package, Home, LogOut } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -22,6 +22,7 @@ interface AdminSidebarProps {
 
 const menuItems = [
   { id: "orders", title: "Pedidos", icon: Package },
+  { id: "shipping", title: "Histórico & Envios", icon: PackageOpen },
 ];
 
 const AdminSidebar = ({ activeSection, onSectionChange }: AdminSidebarProps) => {
