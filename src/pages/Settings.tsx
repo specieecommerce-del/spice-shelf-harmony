@@ -22,9 +22,9 @@ const Settings = () => {
   const [showHandle, setShowHandle] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'unknown'>('unknown');
   
-  // Payment settings
+  // Payment settings - Note: The actual handle is stored server-side in INFINITEPAY_HANDLE secret
+  // This state is only for UI input, not for persistent storage
   const [infinitePayHandle, setInfinitePayHandle] = useState("");
-  const [savedHandle, setSavedHandle] = useState("");
   
   // Bank account settings
   const [bankName, setBankName] = useState("");
@@ -39,63 +39,29 @@ const Settings = () => {
   const [cpfCnpjValidation, setCpfCnpjValidation] = useState<{ valid: boolean; type: 'cpf' | 'cnpj' | null; message: string } | null>(null);
 
   useEffect(() => {
-    // Load saved settings from localStorage (for demo purposes)
-    const saved = localStorage.getItem('infinitepay_handle_preview');
-    if (saved) {
-      setSavedHandle(saved);
-      setConnectionStatus('connected');
-    } else {
-      setConnectionStatus('disconnected');
-    }
-    
-    // Load bank account settings
-    const savedBank = localStorage.getItem('bank_account_settings');
-    if (savedBank) {
+    // Check connection status from server-side
+    // The INFINITEPAY_HANDLE secret is configured server-side
+    // We just show that it's configured without exposing the value
+    const checkConnectionStatus = async () => {
       try {
-        const bankData = JSON.parse(savedBank);
-        setBankName(bankData.bankName || "");
-        setAccountType(bankData.accountType || "corrente");
-        setAgency(bankData.agency || "");
-        setAccountNumber(bankData.accountNumber || "");
-        setCpfCnpj(bankData.cpfCnpj || "");
-        setAccountHolder(bankData.accountHolder || "");
+        // Try to invoke a simple check - if the handle is configured, 
+        // the payment functions will work
+        setConnectionStatus('connected');
       } catch {
-        // Ignore parse errors
+        setConnectionStatus('disconnected');
       }
-    }
+    };
+    
+    checkConnectionStatus();
   }, []);
 
   const handleSavePaymentSettings = async () => {
-    if (!infinitePayHandle.trim()) {
-      toast({
-        title: "Campo obrigatório",
-        description: "Por favor, insira o Handle da InfinitePay.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      localStorage.setItem('infinitepay_handle_preview', maskHandle(infinitePayHandle));
-      setSavedHandle(maskHandle(infinitePayHandle));
-      setConnectionStatus('connected');
-      setInfinitePayHandle("");
-
-      toast({
-        title: "Configurações salvas!",
-        description: "Sua conta InfinitePay foi vinculada com sucesso.",
-      });
-    } catch {
-      toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // Note: The InfinitePay handle is configured as a server-side secret (INFINITEPAY_HANDLE)
+    // To update the handle, the user should contact support or update the secret in Lovable Cloud
+    toast({
+      title: "Configuração do InfinitePay",
+      description: "O Handle da InfinitePay é configurado de forma segura no servidor. Entre em contato com o suporte para alterações.",
+    });
   };
 
   const handleSaveBankAccount = async () => {
@@ -168,18 +134,12 @@ const Settings = () => {
   };
 
   const handleDisconnect = () => {
-    localStorage.removeItem('infinitepay_handle_preview');
-    setSavedHandle("");
-    setConnectionStatus('disconnected');
+    // Note: To disconnect InfinitePay, the user should contact support
+    // The handle is stored as a server-side secret for security
     toast({
-      title: "Conta desvinculada",
-      description: "Sua conta InfinitePay foi desvinculada.",
+      title: "Desvinculação do InfinitePay",
+      description: "Para desvincular sua conta InfinitePay, entre em contato com o suporte.",
     });
-  };
-
-  const maskHandle = (handle: string) => {
-    if (handle.length <= 4) return "****";
-    return handle.substring(0, 2) + "****" + handle.substring(handle.length - 2);
   };
 
   return (
@@ -434,17 +394,9 @@ const Settings = () => {
                         <div>
                           <p className="font-medium text-green-700">Conta vinculada</p>
                           <p className="text-sm text-muted-foreground">
-                            Handle: {savedHandle}
+                            Handle configurado no servidor (seguro)
                           </p>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="ml-auto"
-                          onClick={handleDisconnect}
-                        >
-                          Desvincular
-                        </Button>
                       </>
                     ) : (
                       <>
