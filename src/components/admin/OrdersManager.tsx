@@ -28,25 +28,41 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Loader2, Package, Truck, RefreshCw } from "lucide-react";
+import { Search, Loader2, Package, Truck, RefreshCw, CheckCircle2, QrCode, History } from "lucide-react";
 
 interface Order {
   id: string;
   order_nsu: string;
   status: string;
   total_amount: number;
+  paid_amount: number | null;
   customer_name: string | null;
   customer_email: string | null;
   customer_phone: string | null;
   tracking_code: string | null;
   shipping_carrier: string | null;
   shipped_at: string | null;
+  payment_method: string | null;
+  pix_confirmed_by: string | null;
+  pix_confirmed_at: string | null;
   created_at: string;
   items: unknown;
 }
 
+interface AuditLog {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  actor_id: string;
+  actor_email: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
 const statusLabels: Record<string, string> = {
   pending: "Aguardando Pagamento",
+  pending_pix: "Aguardando PIX",
   paid: "Pago",
   processing: "Em Preparação",
   shipped: "Enviado",
@@ -56,6 +72,7 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
+  pending_pix: "bg-orange-100 text-orange-800",
   paid: "bg-blue-100 text-blue-800",
   processing: "bg-purple-100 text-purple-800",
   shipped: "bg-indigo-100 text-indigo-800",
@@ -89,6 +106,17 @@ const OrdersManager = () => {
   const [editCarrier, setEditCarrier] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // PIX confirmation dialog state
+  const [pixDialogOpen, setPixDialogOpen] = useState(false);
+  const [pixOrder, setPixOrder] = useState<Order | null>(null);
+  const [pixNotes, setPixNotes] = useState("");
+  const [confirmingPix, setConfirmingPix] = useState(false);
+
+  // Audit logs dialog state
+  const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -177,6 +205,74 @@ const OrdersManager = () => {
     }
   };
 
+  // Open PIX confirmation dialog
+  const openPixConfirmDialog = (order: Order) => {
+    setPixOrder(order);
+    setPixNotes("");
+    setPixDialogOpen(true);
+  };
+
+  // Confirm PIX payment manually
+  const handleConfirmPixPayment = async () => {
+    if (!pixOrder) return;
+
+    setConfirmingPix(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-orders", {
+        body: {
+          action: "confirm_pix_payment",
+          orderId: pixOrder.id,
+          notes: pixNotes.trim() || null,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      toast.success("Pagamento PIX confirmado com sucesso!");
+      setPixDialogOpen(false);
+      fetchOrders();
+    } catch (error) {
+      console.error("Error confirming PIX payment:", error);
+      toast.error("Erro ao confirmar pagamento PIX");
+    } finally {
+      setConfirmingPix(false);
+    }
+  };
+
+  // Fetch audit logs
+  const fetchAuditLogs = async () => {
+    setLoadingAudit(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-orders", {
+        body: {
+          action: "get_audit_logs",
+          page: 1,
+          limit: 50,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      setAuditLogs(data.logs || []);
+      setAuditDialogOpen(true);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      toast.error("Erro ao carregar histórico");
+    } finally {
+      setLoadingAudit(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / limit);
 
   return (
@@ -191,10 +287,16 @@ const OrdersManager = () => {
             {total} pedido{total !== 1 ? "s" : ""} encontrado{total !== 1 ? "s" : ""}
           </p>
         </div>
-        <Button variant="outline" onClick={fetchOrders} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchAuditLogs} disabled={loadingAudit}>
+            <History className={`h-4 w-4 mr-2 ${loadingAudit ? "animate-spin" : ""}`} />
+            Histórico
+          </Button>
+          <Button variant="outline" onClick={fetchOrders} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -286,14 +388,27 @@ const OrdersManager = () => {
                     {new Date(order.created_at).toLocaleDateString("pt-BR")}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditDialog(order)}
-                    >
-                      <Truck className="h-4 w-4 mr-1" />
-                      Editar
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      {(order.status === "pending_pix" || order.status === "pending") && order.payment_method === "pix" && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => openPixConfirmDialog(order)}
+                        >
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          Confirmar PIX
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditDialog(order)}
+                      >
+                        <Truck className="h-4 w-4 mr-1" />
+                        Editar
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -392,6 +507,149 @@ const OrdersManager = () => {
               ) : (
                 "Salvar Alterações"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PIX Confirmation Dialog */}
+      <Dialog open={pixDialogOpen} onOpenChange={setPixDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-green-600" />
+              Confirmar Pagamento PIX
+            </DialogTitle>
+            <DialogDescription>
+              Confirme manualmente o recebimento do pagamento PIX para este pedido.
+            </DialogDescription>
+          </DialogHeader>
+
+          {pixOrder && (
+            <div className="space-y-4 py-4">
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Pedido</span>
+                  <span className="font-mono font-medium">{pixOrder.order_nsu}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Cliente</span>
+                  <span className="font-medium">{pixOrder.customer_name || "-"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Valor</span>
+                  <span className="font-bold text-green-600">
+                    R$ {(pixOrder.total_amount / 100).toFixed(2).replace(".", ",")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800">
+                  <strong>Atenção:</strong> Confirme apenas após verificar o recebimento do valor na sua conta bancária.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pixNotes">Observações (opcional)</Label>
+                <Input
+                  id="pixNotes"
+                  placeholder="Ex: Comprovante verificado"
+                  value={pixNotes}
+                  onChange={(e) => setPixNotes(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPixDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleConfirmPixPayment} 
+              disabled={confirmingPix}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {confirmingPix ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Confirmando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Confirmar Pagamento
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Audit Logs Dialog */}
+      <Dialog open={auditDialogOpen} onOpenChange={setAuditDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Histórico de Ações
+            </DialogTitle>
+            <DialogDescription>
+              Trilha de auditoria das confirmações de pagamento.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            {auditLogs.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Nenhum registro de auditoria encontrado.
+              </p>
+            ) : (
+              auditLogs.map((log) => (
+                <div key={log.id} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="bg-green-50 text-green-700">
+                      {log.action === "confirm_pix_payment" ? "Confirmação PIX" : log.action}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(log.created_at).toLocaleString("pt-BR")}
+                    </span>
+                  </div>
+                  <div className="text-sm space-y-1">
+                    <p>
+                      <span className="text-muted-foreground">Pedido:</span>{" "}
+                      <span className="font-mono">{(log.details as Record<string, string>).order_nsu || "-"}</span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Cliente:</span>{" "}
+                      {(log.details as Record<string, string>).customer_name || "-"}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Valor:</span>{" "}
+                      <span className="font-medium text-green-600">
+                        R$ {((log.details as Record<string, number>).paid_amount / 100).toFixed(2).replace(".", ",")}
+                      </span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Confirmado por:</span>{" "}
+                      {(log.details as Record<string, string>).admin_name || log.actor_email || "-"}
+                    </p>
+                    {(log.details as Record<string, string>).notes && (
+                      <p>
+                        <span className="text-muted-foreground">Observações:</span>{" "}
+                        {(log.details as Record<string, string>).notes}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAuditDialogOpen(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

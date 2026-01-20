@@ -177,6 +177,134 @@ Deno.serve(async (req) => {
         );
       }
 
+      case "confirm_pix_payment": {
+        const { orderId, paidAmount, notes } = params;
+
+        if (!orderId) {
+          return new Response(
+            JSON.stringify({ error: "Order ID is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Get order to verify it exists and is pending PIX
+        const { data: existingOrder, error: fetchError } = await supabaseAdmin
+          .from("orders")
+          .select("*")
+          .eq("id", orderId)
+          .single();
+
+        if (fetchError || !existingOrder) {
+          console.error("Order not found:", orderId, fetchError);
+          return new Response(
+            JSON.stringify({ error: "Order not found" }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (existingOrder.status === "paid") {
+          return new Response(
+            JSON.stringify({ error: "Order is already marked as paid" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const confirmedAt = new Date().toISOString();
+        const finalPaidAmount = paidAmount ? Math.round(paidAmount * 100) : existingOrder.total_amount;
+
+        // Update order to paid status
+        const { data: updatedOrder, error: updateError } = await supabaseAdmin
+          .from("orders")
+          .update({
+            status: "paid",
+            paid_amount: finalPaidAmount,
+            pix_confirmed_by: userId,
+            pix_confirmed_at: confirmedAt,
+          })
+          .eq("id", orderId)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error("Error updating order:", orderId, updateError);
+          throw updateError;
+        }
+
+        // Get admin email for audit log
+        const { data: adminProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("full_name")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        const adminEmail = claimsData.user.email || "unknown";
+        const adminName = adminProfile?.full_name || adminEmail;
+
+        // Create audit log entry
+        const { error: auditError } = await supabaseAdmin
+          .from("audit_logs")
+          .insert({
+            action: "confirm_pix_payment",
+            entity_type: "order",
+            entity_id: orderId,
+            actor_id: userId,
+            actor_email: adminEmail,
+            details: {
+              order_nsu: existingOrder.order_nsu,
+              customer_name: existingOrder.customer_name,
+              customer_email: existingOrder.customer_email,
+              total_amount: existingOrder.total_amount,
+              paid_amount: finalPaidAmount,
+              previous_status: existingOrder.status,
+              new_status: "paid",
+              notes: notes || null,
+              admin_name: adminName,
+            },
+          });
+
+        if (auditError) {
+          console.error("Audit log error (non-blocking):", auditError);
+          // Don't fail the request for audit log errors
+        }
+
+        console.log(`PIX payment confirmed for order ${existingOrder.order_nsu} by ${adminEmail}`);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            order: updatedOrder, 
+            message: "Pagamento PIX confirmado com sucesso" 
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "get_audit_logs": {
+        const { orderId, page = 1, limit = 50 } = params;
+
+        let query = supabaseAdmin
+          .from("audit_logs")
+          .select("*", { count: "exact" })
+          .order("created_at", { ascending: false })
+          .range((page - 1) * limit, page * limit - 1);
+
+        if (orderId) {
+          query = query.eq("entity_id", orderId);
+        }
+
+        const { data, error, count } = await query;
+
+        if (error) {
+          console.error("Get audit logs error:", error);
+          throw error;
+        }
+
+        return new Response(
+          JSON.stringify({ logs: data, total: count }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: "Invalid action" }),
