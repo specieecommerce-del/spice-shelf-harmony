@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CreditCard, QrCode, ShoppingBag } from "lucide-react";
+import { Loader2, CreditCard, QrCode, ShoppingBag, Tag, X, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface CheckoutDialogProps {
@@ -18,8 +18,16 @@ interface CheckoutDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface AppliedCoupon {
+  code: string;
+  description: string | null;
+  discount_type: "percentage" | "fixed";
+  discount_value: number;
+  discountAmount: number;
+}
+
 const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
-  const { items, getCartTotal, clearCart, setIsCartOpen } = useCart();
+  const { items, getCartTotal, setIsCartOpen } = useCart();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
@@ -28,8 +36,74 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     phone: "",
   });
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+
   const formatPrice = (price: number) => {
     return `R$ ${price.toFixed(2).replace(".", ",")}`;
+  };
+
+  const subtotal = getCartTotal();
+  const discount = appliedCoupon?.discountAmount || 0;
+  const total = Math.max(0, subtotal - discount);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast({
+        title: "Digite um código",
+        description: "Insira o código do cupom para aplicar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-coupons", {
+        body: {
+          action: "validate",
+          code: couponCode,
+          orderTotal: subtotal,
+        },
+      });
+
+      if (error) throw error;
+
+      if (!data.valid) {
+        toast({
+          title: "Cupom inválido",
+          description: data.error || "Este cupom não pode ser usado.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setAppliedCoupon(data.coupon);
+      setCouponCode("");
+      toast({
+        title: "Cupom aplicado!",
+        description: `Desconto de ${formatPrice(data.coupon.discountAmount)} aplicado.`,
+      });
+    } catch (err) {
+      console.error("Error validating coupon:", err);
+      toast({
+        title: "Erro ao validar cupom",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    toast({
+      title: "Cupom removido",
+    });
   };
 
   const handleCheckout = async () => {
@@ -63,6 +137,10 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
             phone: customerInfo.phone,
           },
           redirectUrl,
+          coupon: appliedCoupon ? {
+            code: appliedCoupon.code,
+            discountAmount: appliedCoupon.discountAmount,
+          } : null,
         },
       });
 
@@ -107,7 +185,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-serif">
             <ShoppingBag className="w-5 h-5" />
@@ -131,10 +209,77 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
                 </span>
               </div>
             ))}
-            <div className="border-t pt-2 mt-2 flex justify-between font-semibold">
-              <span>Total</span>
-              <span className="text-primary">{formatPrice(getCartTotal())}</span>
+            
+            <div className="border-t pt-2 mt-2 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>Subtotal</span>
+                <span>{formatPrice(subtotal)}</span>
+              </div>
+              
+              {appliedCoupon && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span className="flex items-center gap-1">
+                    <Tag className="w-3 h-3" />
+                    {appliedCoupon.code}
+                  </span>
+                  <span>-{formatPrice(discount)}</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between font-semibold text-lg pt-1">
+                <span>Total</span>
+                <span className="text-primary">{formatPrice(total)}</span>
+              </div>
             </div>
+          </div>
+
+          {/* Coupon Section */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1">
+              <Tag className="w-4 h-4" />
+              Cupom de desconto
+            </Label>
+            
+            {appliedCoupon ? (
+              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                <div className="flex-1">
+                  <span className="font-medium text-green-700">{appliedCoupon.code}</span>
+                  {appliedCoupon.description && (
+                    <p className="text-xs text-green-600">{appliedCoupon.description}</p>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveCoupon}
+                  className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Digite o código"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                  maxLength={20}
+                />
+                <Button
+                  variant="outline"
+                  onClick={handleApplyCoupon}
+                  disabled={isValidatingCoupon}
+                >
+                  {isValidatingCoupon ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Aplicar"
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Customer Info */}
@@ -206,7 +351,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
                 Processando...
               </>
             ) : (
-              <>Ir para Pagamento</>
+              <>Ir para Pagamento - {formatPrice(total)}</>
             )}
           </Button>
 
