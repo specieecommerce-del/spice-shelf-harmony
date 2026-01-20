@@ -2,12 +2,65 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Search, MessageCircle, Phone, Mail, Package, CreditCard, Truck, RefreshCw } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, MessageCircle, Phone, Mail, Package, CreditCard, Truck, RefreshCw, Send, CheckCircle } from "lucide-react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+
+const contactFormSchema = z.object({
+  name: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
+  email: z.string().trim().email("E-mail inválido").max(255, "E-mail muito longo"),
+  subject: z.string().min(1, "Selecione um assunto"),
+  orderNumber: z.string().optional(),
+  message: z.string().trim().min(10, "Mensagem deve ter pelo menos 10 caracteres").max(1000, "Mensagem muito longa"),
+});
+
+type ContactFormData = z.infer<typeof contactFormSchema>;
 
 const HelpCenter = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [formSubmitted, setFormSubmitted] = useState(false);
+  
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(contactFormSchema),
+  });
+
+  const onSubmit = async (data: ContactFormData) => {
+    // Simulate form submission
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    
+    // Build WhatsApp message with form data
+    const message = encodeURIComponent(
+      `*Contato via Site*\n\n` +
+      `*Nome:* ${data.name}\n` +
+      `*E-mail:* ${data.email}\n` +
+      `*Assunto:* ${data.subject}\n` +
+      `${data.orderNumber ? `*Nº Pedido:* ${data.orderNumber}\n` : ""}` +
+      `\n*Mensagem:*\n${data.message}`
+    );
+    
+    // Open WhatsApp with the message
+    window.open(`https://wa.me/5511919778073?text=${message}`, "_blank");
+    
+    setFormSubmitted(true);
+    toast.success("Mensagem enviada com sucesso!");
+    reset();
+    
+    // Reset form state after 5 seconds
+    setTimeout(() => setFormSubmitted(false), 5000);
+  };
 
   const categories = [
     {
@@ -154,48 +207,179 @@ const HelpCenter = () => {
           </div>
         </section>
 
-        {/* Contact */}
-        <section className="py-12 bg-spice-cream">
+        {/* Contact Form */}
+        <section className="py-12 bg-spice-cream" id="contato">
           <div className="container-species">
-            <h2 className="font-serif text-2xl font-bold text-foreground mb-8 text-center">
-              Ainda precisa de ajuda?
+            <h2 className="font-serif text-2xl font-bold text-foreground mb-2 text-center">
+              Entre em Contato
             </h2>
-            
-            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-              <a
-                href="https://wa.me/5511919778073"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-card rounded-xl p-6 text-center hover:shadow-lg transition-shadow border"
-              >
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-                  <MessageCircle className="text-green-600" size={24} />
-                </div>
-                <h3 className="font-semibold text-foreground mb-1">WhatsApp</h3>
-                <p className="text-sm text-muted-foreground">(11) 91977-8073</p>
-              </a>
+            <p className="text-muted-foreground text-center mb-8 max-w-lg mx-auto">
+              Preencha o formulário abaixo e nossa equipe responderá o mais breve possível
+            </p>
 
-              <a
-                href="tel:+5511919778073"
-                className="bg-card rounded-xl p-6 text-center hover:shadow-lg transition-shadow border"
-              >
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                  <Phone className="text-primary" size={24} />
-                </div>
-                <h3 className="font-semibold text-foreground mb-1">Telefone</h3>
-                <p className="text-sm text-muted-foreground">(11) 91977-8073</p>
-              </a>
+            <div className="grid lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
+              {/* Form */}
+              <div className="bg-card rounded-xl border p-8">
+                {formSubmitted ? (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle className="text-green-600" size={32} />
+                    </div>
+                    <h3 className="font-semibold text-lg mb-2">Mensagem Enviada!</h3>
+                    <p className="text-muted-foreground">
+                      Obrigado pelo contato. Responderemos em breve.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Nome completo *</Label>
+                        <Input
+                          id="name"
+                          placeholder="Seu nome"
+                          {...register("name")}
+                          className={errors.name ? "border-destructive" : ""}
+                        />
+                        {errors.name && (
+                          <p className="text-sm text-destructive">{errors.name.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">E-mail *</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="seu@email.com"
+                          {...register("email")}
+                          className={errors.email ? "border-destructive" : ""}
+                        />
+                        {errors.email && (
+                          <p className="text-sm text-destructive">{errors.email.message}</p>
+                        )}
+                      </div>
+                    </div>
 
-              <a
-                href="mailto:specieecommerce@gmail.com"
-                className="bg-card rounded-xl p-6 text-center hover:shadow-lg transition-shadow border"
-              >
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                  <Mail className="text-primary" size={24} />
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="subject">Assunto *</Label>
+                        <Select onValueChange={(value) => setValue("subject", value)}>
+                          <SelectTrigger className={errors.subject ? "border-destructive" : ""}>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Dúvida sobre pedido">Dúvida sobre pedido</SelectItem>
+                            <SelectItem value="Problemas com entrega">Problemas com entrega</SelectItem>
+                            <SelectItem value="Troca ou devolução">Troca ou devolução</SelectItem>
+                            <SelectItem value="Pagamento">Pagamento</SelectItem>
+                            <SelectItem value="Produtos">Produtos</SelectItem>
+                            <SelectItem value="Sugestões">Sugestões</SelectItem>
+                            <SelectItem value="Outros">Outros</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {errors.subject && (
+                          <p className="text-sm text-destructive">{errors.subject.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="orderNumber">Nº do Pedido (opcional)</Label>
+                        <Input
+                          id="orderNumber"
+                          placeholder="Ex: SP-123456"
+                          {...register("orderNumber")}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="message">Mensagem *</Label>
+                      <Textarea
+                        id="message"
+                        placeholder="Descreva sua dúvida ou solicitação..."
+                        rows={5}
+                        {...register("message")}
+                        className={errors.message ? "border-destructive" : ""}
+                      />
+                      {errors.message && (
+                        <p className="text-sm text-destructive">{errors.message.message}</p>
+                      )}
+                    </div>
+
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        "Enviando..."
+                      ) : (
+                        <>
+                          <Send size={18} className="mr-2" />
+                          Enviar Mensagem
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </div>
+
+              {/* Contact Info */}
+              <div className="space-y-6">
+                <h3 className="font-serif text-xl font-bold text-foreground">
+                  Outras formas de contato
+                </h3>
+                <p className="text-muted-foreground">
+                  Prefere falar diretamente conosco? Use um dos canais abaixo:
+                </p>
+
+                <div className="space-y-4">
+                  <a
+                    href="https://wa.me/5511919778073"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-4 bg-card rounded-xl p-4 hover:shadow-lg transition-shadow border"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <MessageCircle className="text-green-600" size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">WhatsApp</h4>
+                      <p className="text-sm text-muted-foreground">(11) 91977-8073</p>
+                    </div>
+                  </a>
+
+                  <a
+                    href="tel:+5511919778073"
+                    className="flex items-center gap-4 bg-card rounded-xl p-4 hover:shadow-lg transition-shadow border"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Phone className="text-primary" size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">Telefone</h4>
+                      <p className="text-sm text-muted-foreground">(11) 91977-8073</p>
+                    </div>
+                  </a>
+
+                  <a
+                    href="mailto:specieecommerce@gmail.com"
+                    className="flex items-center gap-4 bg-card rounded-xl p-4 hover:shadow-lg transition-shadow border"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Mail className="text-primary" size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">E-mail</h4>
+                      <p className="text-sm text-muted-foreground">specieecommerce@gmail.com</p>
+                    </div>
+                  </a>
                 </div>
-                <h3 className="font-semibold text-foreground mb-1">E-mail</h3>
-                <p className="text-sm text-muted-foreground">specieecommerce@gmail.com</p>
-              </a>
+
+                <div className="bg-primary/5 rounded-xl p-6 border border-primary/10">
+                  <h4 className="font-semibold text-foreground mb-2">Horário de Atendimento</h4>
+                  <p className="text-muted-foreground text-sm">
+                    Segunda a Sexta: 9h às 18h<br />
+                    Sábado: 9h às 13h<br />
+                    Domingo e Feriados: Fechado
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
