@@ -8,8 +8,14 @@ const corsHeaders = {
 };
 
 // Input validation schema - accepts both ORDER_ and PIX_ prefixes
+// NOTE: .trim() to avoid false negatives from leading/trailing whitespace
 const RequestSchema = z.object({
-  orderNsu: z.string().min(1).max(100).regex(/^(ORDER|PIX)_[0-9]+_[a-z0-9]+$/),
+  orderNsu: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .regex(/^(ORDER|PIX)_[0-9]+_[a-z0-9]+$/),
 });
 
 serve(async (req) => {
