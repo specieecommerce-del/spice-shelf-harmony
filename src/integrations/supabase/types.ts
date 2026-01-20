@@ -389,6 +389,42 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_logs: {
+        Row: {
+          created_at: string
+          destination_phone: string
+          error_message: string | null
+          id: string
+          message_id: string | null
+          message_type: string
+          payload: Json | null
+          status: string
+          zaap_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          destination_phone: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          message_type: string
+          payload?: Json | null
+          status?: string
+          zaap_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          destination_phone?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          message_type?: string
+          payload?: Json | null
+          status?: string
+          zaap_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

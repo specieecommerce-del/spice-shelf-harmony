@@ -161,7 +161,33 @@ serve(async (req) => {
     const whatsappResult = await whatsappResponse.json();
     console.log("Z-API response:", whatsappResult);
 
-    if (!whatsappResponse.ok) {
+    // Log the WhatsApp message
+    const logPayload = {
+      type: isImmediate ? "immediate_stock_alert" : "scheduled_stock_alert",
+      products: productsToAlert.map(p => p.name),
+      message_preview: message.substring(0, 200),
+    };
+
+    if (whatsappResponse.ok) {
+      await supabase.from("whatsapp_logs").insert({
+        message_type: "stock_alert",
+        destination_phone: adminPhone,
+        message_id: whatsappResult.messageId || null,
+        zaap_id: whatsappResult.zaapId || null,
+        status: "sent",
+        payload: logPayload,
+      });
+    } else {
+      await supabase.from("whatsapp_logs").insert({
+        message_type: "stock_alert",
+        destination_phone: adminPhone,
+        message_id: null,
+        zaap_id: null,
+        status: "failed",
+        error_message: JSON.stringify(whatsappResult),
+        payload: logPayload,
+      });
+
       console.error("Z-API error:", whatsappResult);
       return new Response(
         JSON.stringify({ error: "Failed to send WhatsApp message", details: whatsappResult }),

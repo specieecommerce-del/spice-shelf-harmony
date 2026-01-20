@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { MessageSquare, Bell, Package, Loader2, CheckCircle2, Settings, Phone, Zap, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import WhatsAppLogsViewer from "./WhatsAppLogsViewer";
 
 const WhatsAppAlertsManager = () => {
   const [isTestingStock, setIsTestingStock] = useState(false);
@@ -332,6 +333,9 @@ const WhatsAppAlertsManager = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* WhatsApp Logs */}
+      <WhatsAppLogsViewer />
 
       <Card className="bg-muted/50">
         <CardHeader>
