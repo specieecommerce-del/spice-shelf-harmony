@@ -16,6 +16,7 @@ serve(async (req) => {
   try {
     const ZAPI_INSTANCE_ID = Deno.env.get("ZAPI_INSTANCE_ID");
     const ZAPI_TOKEN = Deno.env.get("ZAPI_TOKEN");
+    const ZAPI_CLIENT_TOKEN = Deno.env.get("ZAPI_CLIENT_TOKEN");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -26,6 +27,8 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log("Using Z-API Instance:", ZAPI_INSTANCE_ID);
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -114,11 +117,17 @@ serve(async (req) => {
     // Send WhatsApp message via Z-API
     const zapiUrl = `https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}/send-text`;
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    if (ZAPI_CLIENT_TOKEN) {
+      headers["Client-Token"] = ZAPI_CLIENT_TOKEN;
+    }
+
     const whatsappResponse = await fetch(zapiUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         phone: adminPhone,
         message: message,
