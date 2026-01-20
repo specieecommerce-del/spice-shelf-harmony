@@ -85,94 +85,125 @@ const HelpCenter = () => {
     },
   ];
 
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+
+  const faqCategories = [
+    { id: "all", label: "Todas", icon: Search },
+    { id: "produtos", label: "Produtos", icon: Package },
+    { id: "pedidos", label: "Pedidos", icon: CreditCard },
+    { id: "entregas", label: "Entregas", icon: Truck },
+  ];
+
   const faqs = [
     {
+      category: "produtos",
       question: "O que torna os temperos da Species diferentes dos outros?",
       answer: "Nossos temperos são feitos com ingredientes selecionados e combinações pensadas para realçar o sabor dos alimentos, sem mascarar o gosto natural. A gente acredita que comida boa começa com tempero de verdade.",
     },
     {
+      category: "produtos",
       question: "Os temperos contêm conservantes ou aditivos artificiais?",
       answer: "Não. Trabalhamos com fórmulas limpas, sem conservantes artificiais e sem corantes. Só o que é necessário para garantir sabor, qualidade e segurança.",
     },
     {
+      category: "produtos",
       question: "Os produtos possuem glutamato monossódico (MSG)?",
       answer: "Não utilizamos glutamato monossódico em nossos temperos. O sabor vem das especiarias, ervas e ingredientes naturais, não de realçadores artificiais.",
     },
     {
+      category: "produtos",
       question: "Os temperos são naturais?",
       answer: "Sim! Nossos produtos são feitos com ingredientes naturais, cuidadosamente selecionados para garantir aroma, sabor e frescor em cada preparo.",
     },
     {
+      category: "produtos",
       question: "Quais tipos de pratos posso preparar com os temperos?",
       answer: "Eles são superversáteis! Você pode usar em carnes, frangos, peixes, legumes, arroz, feijão, massas e até em receitas do dia a dia que pedem um toque especial.",
     },
     {
+      category: "produtos",
       question: "Como devo usar o tempero para melhor resultado?",
       answer: "Recomendamos usar aos poucos e ajustar ao seu gosto. Comece com uma pequena quantidade, prove e acrescente mais se necessário. Assim você garante equilíbrio e muito sabor.",
     },
     {
+      category: "produtos",
       question: "Os temperos possuem muito sódio?",
       answer: "Nos preocupamos com equilíbrio. Nossos temperos têm teor de sódio controlado, permitindo que você tempere sua comida com sabor sem exageros.",
     },
     {
+      category: "produtos",
       question: "Os produtos são veganos?",
       answer: "Sim! Nossos temperos não possuem ingredientes de origem animal, sendo uma ótima opção para quem segue uma alimentação vegana ou vegetariana.",
     },
     {
+      category: "produtos",
       question: "Qual é a validade dos temperos?",
       answer: "A validade varia conforme o produto, mas geralmente é de até 12 meses. Essa informação está sempre indicada na embalagem para sua segurança.",
     },
     {
+      category: "produtos",
       question: "Como devo armazenar os temperos?",
       answer: "Guarde em local seco, fresco e longe da luz. Manter a embalagem bem fechada ajuda a preservar o aroma e o sabor por muito mais tempo.",
     },
     {
+      category: "produtos",
       question: "Os produtos possuem alergênicos?",
       answer: "Alguns produtos podem conter ou ter contato com alergênicos. Todas essas informações estão descritas de forma clara no rótulo, seguindo as normas da Anvisa.",
     },
     {
+      category: "produtos",
       question: "Posso usar os temperos todos os dias?",
       answer: "Com certeza! Eles foram pensados para facilitar a rotina na cozinha e deixar suas refeições mais saborosas no dia a dia.",
     },
     {
+      category: "produtos",
       question: "Onde posso comprar os temperos da Species?",
       answer: "Você pode adquirir nossos produtos diretamente aqui no site ou nos pontos de venda parceiros indicados na página 'Onde Comprar'.",
     },
     {
+      category: "produtos",
       question: "Os temperos são produzidos no Brasil?",
       answer: "Sim! Nossos temperos são produzidos no Brasil, valorizando fornecedores locais e mantendo um alto padrão de qualidade.",
     },
     {
+      category: "pedidos",
       question: "Como faço para rastrear meu pedido?",
       answer: "Após a confirmação do pagamento, você receberá um e-mail com o código de rastreamento. Você também pode acompanhar seu pedido na página 'Meus Pedidos' ou em nossa página de rastreamento.",
     },
     {
-      question: "Qual o prazo de entrega?",
-      answer: "O prazo de entrega varia de acordo com sua região. Para a Grande São Paulo, o prazo é de 1 a 3 dias úteis. Para outras regiões, de 3 a 10 dias úteis. O prazo começa a contar após a confirmação do pagamento.",
-    },
-    {
+      category: "pedidos",
       question: "Quais são as formas de pagamento aceitas?",
       answer: "Aceitamos PIX, cartões de crédito (Visa, Mastercard, Elo, American Express), cartões de débito e boleto bancário. Parcelamos em até 12x sem juros para compras acima de R$ 100.",
     },
     {
+      category: "pedidos",
       question: "Como funciona a política de trocas e devoluções?",
       answer: "Você tem até 7 dias após o recebimento para solicitar troca ou devolução. O produto deve estar lacrado e em perfeitas condições. Acesse nossa página de Trocas e Devoluções para mais detalhes.",
     },
     {
-      question: "Vocês fazem entregas para todo o Brasil?",
-      answer: "Sim! Entregamos para todo o território nacional. Para compras acima de R$ 150, o frete é grátis para qualquer região do Brasil.",
-    },
-    {
+      category: "pedidos",
       question: "Como entro em contato com o suporte?",
       answer: "Você pode entrar em contato conosco pelo WhatsApp (11) 91977-8073, e-mail specieecommerce@gmail.com ou através do formulário de contato em nosso site. Vamos adorar conversar e ajudar você! 🍃",
     },
+    {
+      category: "entregas",
+      question: "Qual o prazo de entrega?",
+      answer: "O prazo de entrega varia de acordo com sua região. Para a Grande São Paulo, o prazo é de 1 a 3 dias úteis. Para outras regiões, de 3 a 10 dias úteis. O prazo começa a contar após a confirmação do pagamento.",
+    },
+    {
+      category: "entregas",
+      question: "Vocês fazem entregas para todo o Brasil?",
+      answer: "Sim! Entregamos para todo o território nacional. Para compras acima de R$ 150, o frete é grátis para qualquer região do Brasil.",
+    },
   ];
 
-  const filteredFaqs = faqs.filter(
-    (faq) =>
+  const filteredFaqs = faqs.filter((faq) => {
+    const matchesSearch =
       faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      faq.answer.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = activeCategory === "all" || faq.category === activeCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -226,10 +257,27 @@ const HelpCenter = () => {
         {/* FAQ */}
         <section className="py-12">
           <div className="container-species max-w-3xl">
-            <h2 className="font-serif text-2xl font-bold text-foreground mb-8 text-center">
-              Perguntas Frequentes
+            <h2 className="font-serif text-2xl font-bold text-foreground mb-6 text-center">
+              🌶️ Perguntas Frequentes sobre nossos Temperos
             </h2>
             
+            {/* Category Filter Tabs */}
+            <div className="flex flex-wrap justify-center gap-2 mb-8">
+              {faqCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    activeCategory === cat.id
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "bg-card border hover:bg-muted"
+                  }`}
+                >
+                  <cat.icon size={16} />
+                  {cat.label}
+                </button>
+              ))}
+            </div>
             <Accordion type="single" collapsible className="space-y-4">
               {filteredFaqs.map((faq, index) => (
                 <AccordionItem
