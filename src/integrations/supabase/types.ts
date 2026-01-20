@@ -172,18 +172,40 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      check_order_status: {
-        Args: { p_order_nsu: string }
+      check_order_by_tracking: {
+        Args: { p_tracking_code: string }
         Returns: {
           created_at: string
+          customer_name: string
           id: string
           installments: number
           order_nsu: string
           paid_amount: number
           payment_method: string
           receipt_url: string
+          shipped_at: string
+          shipping_carrier: string
           status: string
           total_amount: number
+          tracking_code: string
+        }[]
+      }
+      check_order_status: {
+        Args: { p_order_nsu: string }
+        Returns: {
+          created_at: string
+          customer_name: string
+          id: string
+          installments: number
+          order_nsu: string
+          paid_amount: number
+          payment_method: string
+          receipt_url: string
+          shipped_at: string
+          shipping_carrier: string
+          status: string
+          total_amount: number
+          tracking_code: string
         }[]
       }
     }
