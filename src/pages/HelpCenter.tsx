@@ -87,6 +87,62 @@ const HelpCenter = () => {
 
   const faqs = [
     {
+      question: "O que torna os temperos da Species diferentes dos outros?",
+      answer: "Nossos temperos são feitos com ingredientes selecionados e combinações pensadas para realçar o sabor dos alimentos, sem mascarar o gosto natural. A gente acredita que comida boa começa com tempero de verdade.",
+    },
+    {
+      question: "Os temperos contêm conservantes ou aditivos artificiais?",
+      answer: "Não. Trabalhamos com fórmulas limpas, sem conservantes artificiais e sem corantes. Só o que é necessário para garantir sabor, qualidade e segurança.",
+    },
+    {
+      question: "Os produtos possuem glutamato monossódico (MSG)?",
+      answer: "Não utilizamos glutamato monossódico em nossos temperos. O sabor vem das especiarias, ervas e ingredientes naturais, não de realçadores artificiais.",
+    },
+    {
+      question: "Os temperos são naturais?",
+      answer: "Sim! Nossos produtos são feitos com ingredientes naturais, cuidadosamente selecionados para garantir aroma, sabor e frescor em cada preparo.",
+    },
+    {
+      question: "Quais tipos de pratos posso preparar com os temperos?",
+      answer: "Eles são superversáteis! Você pode usar em carnes, frangos, peixes, legumes, arroz, feijão, massas e até em receitas do dia a dia que pedem um toque especial.",
+    },
+    {
+      question: "Como devo usar o tempero para melhor resultado?",
+      answer: "Recomendamos usar aos poucos e ajustar ao seu gosto. Comece com uma pequena quantidade, prove e acrescente mais se necessário. Assim você garante equilíbrio e muito sabor.",
+    },
+    {
+      question: "Os temperos possuem muito sódio?",
+      answer: "Nos preocupamos com equilíbrio. Nossos temperos têm teor de sódio controlado, permitindo que você tempere sua comida com sabor sem exageros.",
+    },
+    {
+      question: "Os produtos são veganos?",
+      answer: "Sim! Nossos temperos não possuem ingredientes de origem animal, sendo uma ótima opção para quem segue uma alimentação vegana ou vegetariana.",
+    },
+    {
+      question: "Qual é a validade dos temperos?",
+      answer: "A validade varia conforme o produto, mas geralmente é de até 12 meses. Essa informação está sempre indicada na embalagem para sua segurança.",
+    },
+    {
+      question: "Como devo armazenar os temperos?",
+      answer: "Guarde em local seco, fresco e longe da luz. Manter a embalagem bem fechada ajuda a preservar o aroma e o sabor por muito mais tempo.",
+    },
+    {
+      question: "Os produtos possuem alergênicos?",
+      answer: "Alguns produtos podem conter ou ter contato com alergênicos. Todas essas informações estão descritas de forma clara no rótulo, seguindo as normas da Anvisa.",
+    },
+    {
+      question: "Posso usar os temperos todos os dias?",
+      answer: "Com certeza! Eles foram pensados para facilitar a rotina na cozinha e deixar suas refeições mais saborosas no dia a dia.",
+    },
+    {
+      question: "Onde posso comprar os temperos da Species?",
+      answer: "Você pode adquirir nossos produtos diretamente aqui no site ou nos pontos de venda parceiros indicados na página 'Onde Comprar'.",
+    },
+    {
+      question: "Os temperos são produzidos no Brasil?",
+      answer: "Sim! Nossos temperos são produzidos no Brasil, valorizando fornecedores locais e mantendo um alto padrão de qualidade.",
+    },
+    {
       question: "Como faço para rastrear meu pedido?",
       answer: "Após a confirmação do pagamento, você receberá um e-mail com o código de rastreamento. Você também pode acompanhar seu pedido na página 'Meus Pedidos' ou em nossa página de rastreamento.",
     },
@@ -103,20 +159,12 @@ const HelpCenter = () => {
       answer: "Você tem até 7 dias após o recebimento para solicitar troca ou devolução. O produto deve estar lacrado e em perfeitas condições. Acesse nossa página de Trocas e Devoluções para mais detalhes.",
     },
     {
-      question: "Os produtos são orgânicos?",
-      answer: "Trabalhamos com uma seleção de produtos orgânicos e convencionais. Os produtos orgânicos são identificados com o selo 'Orgânico' na página do produto.",
-    },
-    {
-      question: "Como armazenar os temperos corretamente?",
-      answer: "Recomendamos armazenar em local fresco, seco e ao abrigo da luz solar. Mantenha os potes bem fechados para preservar o aroma e sabor por mais tempo.",
-    },
-    {
       question: "Vocês fazem entregas para todo o Brasil?",
       answer: "Sim! Entregamos para todo o território nacional. Para compras acima de R$ 150, o frete é grátis para qualquer região do Brasil.",
     },
     {
       question: "Como entro em contato com o suporte?",
-      answer: "Você pode entrar em contato conosco pelo WhatsApp (11) 91977-8073, e-mail specieecommerce@gmail.com ou através do formulário de contato em nosso site.",
+      answer: "Você pode entrar em contato conosco pelo WhatsApp (11) 91977-8073, e-mail specieecommerce@gmail.com ou através do formulário de contato em nosso site. Vamos adorar conversar e ajudar você! 🍃",
     },
   ];
 
