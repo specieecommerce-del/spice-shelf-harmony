@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string
+          created_at: string
+          details: Json | null
+          entity_id: string
+          entity_type: string
+          id: string
+          ip_address: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id: string
+          created_at?: string
+          details?: Json | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+        }
+        Relationships: []
+      }
       discount_coupons: {
         Row: {
           code: string
@@ -76,6 +112,8 @@ export type Database = {
           paid_amount: number | null
           payment_link: string | null
           payment_method: string | null
+          pix_confirmed_at: string | null
+          pix_confirmed_by: string | null
           receipt_url: string | null
           shipped_at: string | null
           shipping_carrier: string | null
@@ -99,6 +137,8 @@ export type Database = {
           paid_amount?: number | null
           payment_link?: string | null
           payment_method?: string | null
+          pix_confirmed_at?: string | null
+          pix_confirmed_by?: string | null
           receipt_url?: string | null
           shipped_at?: string | null
           shipping_carrier?: string | null
@@ -122,6 +162,8 @@ export type Database = {
           paid_amount?: number | null
           payment_link?: string | null
           payment_method?: string | null
+          pix_confirmed_at?: string | null
+          pix_confirmed_by?: string | null
           receipt_url?: string | null
           shipped_at?: string | null
           shipping_carrier?: string | null
