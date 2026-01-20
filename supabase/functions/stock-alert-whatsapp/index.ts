@@ -42,6 +42,28 @@ serve(async (req) => {
       // Empty body is fine for scheduled runs
     }
 
+    // Check Z-API connection status if requested
+    if (body.mode === "check_status") {
+      const statusUrl = `https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}/status`;
+      const headers: Record<string, string> = {};
+      if (ZAPI_CLIENT_TOKEN) {
+        headers["Client-Token"] = ZAPI_CLIENT_TOKEN;
+      }
+      
+      const statusResponse = await fetch(statusUrl, { method: "GET", headers });
+      const statusResult = await statusResponse.json();
+      console.log("Z-API status:", statusResult);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          status: statusResult,
+          instance_id: ZAPI_INSTANCE_ID
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get admin phone from store_settings
     const { data: phoneSettings } = await supabase
       .from("store_settings")
