@@ -185,12 +185,14 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean | null
+          low_stock_threshold: number
           name: string
           original_price: number | null
           price: number
           rating: number | null
           reviews: number | null
           sort_order: number | null
+          stock_quantity: number
           updated_at: string
         }
         Insert: {
@@ -201,12 +203,14 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          low_stock_threshold?: number
           name: string
           original_price?: number | null
           price?: number
           rating?: number | null
           reviews?: number | null
           sort_order?: number | null
+          stock_quantity?: number
           updated_at?: string
         }
         Update: {
@@ -217,12 +221,14 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          low_stock_threshold?: number
           name?: string
           original_price?: number | null
           price?: number
           rating?: number | null
           reviews?: number | null
           sort_order?: number | null
+          stock_quantity?: number
           updated_at?: string
         }
         Relationships: []
