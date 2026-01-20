@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, ShoppingCart, Menu, X, User, Heart, Settings, Package, LogOut, LogIn, UserCircle } from "lucide-react";
+import { Search, ShoppingCart, Menu, X, User, Heart, Settings, Package, LogOut, LogIn, UserCircle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCart } from "@/contexts/CartContext";
@@ -141,12 +141,20 @@ const Header = () => {
                       </Link>
                     </DropdownMenuItem>
                     {isAdmin && (
-                      <DropdownMenuItem asChild>
-                        <Link to="/configuracoes" className="flex items-center gap-2 cursor-pointer">
-                          <Settings size={16} />
-                          Configurações
-                        </Link>
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin" className="flex items-center gap-2 cursor-pointer text-primary font-medium">
+                            <ShieldCheck size={16} />
+                            Painel Admin
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/configuracoes" className="flex items-center gap-2 cursor-pointer">
+                            <Settings size={16} />
+                            Configurações
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
@@ -252,14 +260,24 @@ const Header = () => {
                       Meus Pedidos
                     </Link>
                     {isAdmin && (
-                      <Link 
-                        to="/configuracoes" 
-                        className="flex items-center gap-2 px-2 py-2 text-foreground hover:text-primary"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <Settings size={18} />
-                        Configurações
-                      </Link>
+                      <>
+                        <Link 
+                          to="/admin" 
+                          className="flex items-center gap-2 px-2 py-2 text-primary font-medium"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <ShieldCheck size={18} />
+                          Painel Admin
+                        </Link>
+                        <Link 
+                          to="/configuracoes" 
+                          className="flex items-center gap-2 px-2 py-2 text-foreground hover:text-primary"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <Settings size={18} />
+                          Configurações
+                        </Link>
+                      </>
                     )}
                     <button 
                       onClick={() => { handleSignOut(); setIsMenuOpen(false); }}
