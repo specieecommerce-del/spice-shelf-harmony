@@ -63,27 +63,27 @@ const Footer = () => {
             <h3 className="font-semibold text-spice-warm-white mb-4">Ajuda</h3>
             <ul className="space-y-3">
               <li>
-                <a href="#" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
+                <a href="/ajuda" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
                   Central de Ajuda
                 </a>
               </li>
               <li>
-                <a href="#" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
+                <a href="/rastrear-pedido" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
                   Rastrear Pedido
                 </a>
               </li>
               <li>
-                <a href="#" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
+                <a href="/trocas-devolucoes" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
                   Trocas e Devoluções
                 </a>
               </li>
               <li>
-                <a href="#" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
+                <a href="/privacidade" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
                   Política de Privacidade
                 </a>
               </li>
               <li>
-                <a href="#" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
+                <a href="/termos" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
                   Termos de Uso
                 </a>
               </li>

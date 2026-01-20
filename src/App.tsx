@@ -13,6 +13,11 @@ import PaymentConfirmation from "./pages/PaymentConfirmation";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import OrderHistory from "./pages/OrderHistory";
+import HelpCenter from "./pages/HelpCenter";
+import OrderTracking from "./pages/OrderTracking";
+import ReturnsPolicy from "./pages/ReturnsPolicy";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfUse from "./pages/TermsOfUse";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +37,11 @@ const App = () => (
                 <Route path="/configuracoes" element={<Settings />} />
                 <Route path="/meus-pedidos" element={<OrderHistory />} />
                 <Route path="/pagamento-confirmado" element={<PaymentConfirmation />} />
+                <Route path="/ajuda" element={<HelpCenter />} />
+                <Route path="/rastrear-pedido" element={<OrderTracking />} />
+                <Route path="/trocas-devolucoes" element={<ReturnsPolicy />} />
+                <Route path="/privacidade" element={<PrivacyPolicy />} />
+                <Route path="/termos" element={<TermsOfUse />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
