@@ -1,66 +1,52 @@
 // Cart functionality for Species store
-import { useState } from "react";
-import { ShoppingCart, Heart, Star } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShoppingCart, Heart, Star, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCart, Product } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
+// Fallback images
 import productHerbs from "@/assets/product-herbs.jpg";
 import productSalt from "@/assets/product-salt.jpg";
 import productKit from "@/assets/product-kit.jpg";
 import productTurmeric from "@/assets/product-turmeric.jpg";
 
-const products: Product[] = [
-  {
-    id: 1,
-    name: "Mix Ervas Provence",
-    description: "Blend artesanal de ervas aromáticas",
-    price: 34.90,
-    originalPrice: 44.90,
-    image: productHerbs,
-    rating: 4.9,
-    reviews: 127,
-    badges: ["Best-seller", "Sem Glúten"],
-    category: "Ervas",
-  },
-  {
-    id: 2,
-    name: "Flor de Sal Premium",
-    description: "Sal gourmet com cristais delicados",
-    price: 49.90,
-    image: productSalt,
-    rating: 4.8,
-    reviews: 89,
-    badges: ["Premium", "Artesanal"],
-    category: "Sais",
-  },
-  {
-    id: 3,
-    name: "Kit Especiarias Chef",
-    description: "6 temperos essenciais para sua cozinha",
-    price: 129.90,
-    originalPrice: 159.90,
-    image: productKit,
-    rating: 5.0,
-    reviews: 234,
-    badges: ["Kit", "Oferta"],
-    category: "Kits",
-  },
-  {
-    id: 4,
-    name: "Cúrcuma Orgânica",
-    description: "Açafrão-da-terra puro e natural",
-    price: 29.90,
-    image: productTurmeric,
-    rating: 4.7,
-    reviews: 156,
-    badges: ["Orgânico", "Vegan"],
-    category: "Especiarias",
-  },
-];
+const fallbackImages: Record<string, string> = {
+  "Mix Ervas Provence": productHerbs,
+  "Flor de Sal Premium": productSalt,
+  "Kit Especiarias Chef": productKit,
+  "Cúrcuma Orgânica": productTurmeric,
+};
+
+interface DBProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  original_price: number | null;
+  image_url: string | null;
+  rating: number;
+  reviews: number;
+  badges: string[];
+  category: string | null;
+}
+
+const mapDBProductToProduct = (dbProduct: DBProduct, index: number): Product => ({
+  id: index + 1,
+  name: dbProduct.name,
+  description: dbProduct.description || "",
+  price: Number(dbProduct.price),
+  originalPrice: dbProduct.original_price ? Number(dbProduct.original_price) : undefined,
+  image: dbProduct.image_url || fallbackImages[dbProduct.name] || productHerbs,
+  rating: Number(dbProduct.rating),
+  reviews: dbProduct.reviews,
+  badges: dbProduct.badges || [],
+  category: dbProduct.category || "Especiarias",
+});
 
 interface ProductCardProps {
   product: Product;
@@ -200,6 +186,34 @@ const EmptyFavorites = () => (
 
 const FeaturedProducts = () => {
   const { favorites, toggleFavorite, isFavorite } = useFavorites();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const mappedProducts = data.map((p, i) => mapDBProductToProduct(p as DBProduct, i));
+          setProducts(mappedProducts);
+        }
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
   const favoriteProducts = products.filter((p) => favorites.includes(p.id));
 
   return (
@@ -240,16 +254,22 @@ const FeaturedProducts = () => {
           </div>
 
           <TabsContent value="bestsellers" className="mt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  isFavorite={isFavorite(product.id)}
-                  onToggleFavorite={toggleFavorite}
-                />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {products.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    isFavorite={isFavorite(product.id)}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="favorites" className="mt-0">
