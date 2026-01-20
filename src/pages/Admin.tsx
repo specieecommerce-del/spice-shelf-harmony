@@ -8,6 +8,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import DashboardManager from "@/components/admin/DashboardManager";
 import OrdersManager from "@/components/admin/OrdersManager";
 import ShippingManager from "@/components/admin/ShippingManager";
 import ProductsManager from "@/components/admin/ProductsManager";
@@ -19,8 +20,7 @@ const Admin = () => {
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [activeSection, setActiveSection] = useState("orders");
-
+  const [activeSection, setActiveSection] = useState("dashboard");
   useEffect(() => {
     const checkAdminRole = async () => {
       if (!user) {
@@ -96,6 +96,7 @@ const Admin = () => {
           </header>
           
           <div className="flex-1 p-6 overflow-auto">
+            {activeSection === "dashboard" && <DashboardManager />}
             {activeSection === "orders" && <OrdersManager />}
             {activeSection === "shipping" && <ShippingManager />}
             {activeSection === "products" && <ProductsManager />}
