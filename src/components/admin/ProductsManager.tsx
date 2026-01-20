@@ -38,11 +38,33 @@ import {
   Download,
   CheckCircle2,
   XCircle,
+  History,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  Shield,
+  Lock,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import * as XLSX from "xlsx";
+
+interface StockMovement {
+  id: string;
+  product_id: string;
+  movement_type: string;
+  quantity: number;
+  previous_quantity: number;
+  new_quantity: number;
+  reason: string | null;
+  notes: string | null;
+  reference_type: string | null;
+  reference_id: string | null;
+  created_at: string;
+  created_by: string | null;
+}
 
 interface Product {
   id: string;
@@ -59,6 +81,7 @@ interface Product {
   sort_order: number;
   stock_quantity: number;
   low_stock_threshold: number;
+  reserved_stock: number;
 }
 
 const getStockStatus = (product: Product) => {
@@ -88,6 +111,16 @@ const ProductsManager = () => {
   }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Stock history and reserve dialogs
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
+  const [isReserveDialogOpen, setIsReserveDialogOpen] = useState(false);
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [reserveQuantity, setReserveQuantity] = useState("");
+  const [reserveNotes, setReserveNotes] = useState("");
+  const [isReserving, setIsReserving] = useState(false);
+  const [selectedProductForHistory, setSelectedProductForHistory] = useState<Product | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -313,6 +346,161 @@ const ProductsManager = () => {
     } catch (error) {
       console.error("Error toggling product:", error);
       toast.error("Erro ao alterar status do produto");
+    }
+  };
+
+  // Stock History functions
+  const openHistoryDialog = async (product: Product) => {
+    setSelectedProductForHistory(product);
+    setIsHistoryDialogOpen(true);
+    setIsLoadingHistory(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("stock_movements")
+        .select("*")
+        .eq("product_id", product.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setStockMovements(data || []);
+    } catch (error) {
+      console.error("Error fetching stock history:", error);
+      toast.error("Erro ao carregar histórico de estoque");
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const openReserveDialog = (product: Product) => {
+    setSelectedProductForHistory(product);
+    setReserveQuantity("");
+    setReserveNotes("");
+    setIsReserveDialogOpen(true);
+  };
+
+  const handleReserveStock = async () => {
+    if (!selectedProductForHistory) return;
+    
+    const quantity = parseInt(reserveQuantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      toast.error("Quantidade inválida");
+      return;
+    }
+
+    const availableStock = selectedProductForHistory.stock_quantity - selectedProductForHistory.reserved_stock;
+    if (quantity > availableStock) {
+      toast.error(`Máximo disponível para reserva: ${availableStock}`);
+      return;
+    }
+
+    setIsReserving(true);
+    try {
+      const newReserved = selectedProductForHistory.reserved_stock + quantity;
+      
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({ reserved_stock: newReserved })
+        .eq("id", selectedProductForHistory.id);
+
+      if (updateError) throw updateError;
+
+      // Log the movement
+      const { error: movementError } = await supabase
+        .from("stock_movements")
+        .insert({
+          product_id: selectedProductForHistory.id,
+          movement_type: "reservation",
+          quantity: quantity,
+          previous_quantity: selectedProductForHistory.reserved_stock,
+          new_quantity: newReserved,
+          reason: "Reserva de segurança",
+          notes: reserveNotes || null,
+          reference_type: "security_reserve",
+        });
+
+      if (movementError) throw movementError;
+
+      toast.success(`${quantity} unidades reservadas com sucesso!`);
+      setIsReserveDialogOpen(false);
+      fetchProducts();
+    } catch (error) {
+      console.error("Error reserving stock:", error);
+      toast.error("Erro ao reservar estoque");
+    } finally {
+      setIsReserving(false);
+    }
+  };
+
+  const handleReleaseReserve = async (product: Product, quantity: number) => {
+    if (quantity > product.reserved_stock) {
+      toast.error("Quantidade maior que o reservado");
+      return;
+    }
+
+    try {
+      const newReserved = product.reserved_stock - quantity;
+      
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({ reserved_stock: newReserved })
+        .eq("id", product.id);
+
+      if (updateError) throw updateError;
+
+      // Log the movement
+      const { error: movementError } = await supabase
+        .from("stock_movements")
+        .insert({
+          product_id: product.id,
+          movement_type: "release",
+          quantity: quantity,
+          previous_quantity: product.reserved_stock,
+          new_quantity: newReserved,
+          reason: "Liberação de reserva",
+          reference_type: "security_reserve",
+        });
+
+      if (movementError) throw movementError;
+
+      toast.success(`${quantity} unidades liberadas da reserva!`);
+      fetchProducts();
+    } catch (error) {
+      console.error("Error releasing reserve:", error);
+      toast.error("Erro ao liberar reserva");
+    }
+  };
+
+  const getMovementIcon = (type: string) => {
+    switch (type) {
+      case "entry":
+        return <ArrowUpCircle className="h-4 w-4 text-green-600" />;
+      case "exit":
+        return <ArrowDownCircle className="h-4 w-4 text-red-600" />;
+      case "reservation":
+        return <Lock className="h-4 w-4 text-orange-600" />;
+      case "release":
+        return <Shield className="h-4 w-4 text-blue-600" />;
+      default:
+        return <Package className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const getMovementLabel = (type: string) => {
+    switch (type) {
+      case "entry":
+        return "Entrada";
+      case "exit":
+        return "Saída";
+      case "reservation":
+        return "Reserva";
+      case "release":
+        return "Liberação";
+      case "adjustment":
+        return "Ajuste";
+      default:
+        return type;
     }
   };
 
@@ -618,8 +806,14 @@ const ProductsManager = () => {
                               className={stockStatus.variant === "warning" ? "border-orange-500 text-orange-600 bg-orange-50" : ""}
                             >
                               <Package className="h-3 w-3 mr-1" />
-                              {product.stock_quantity}
+                              {product.stock_quantity - (product.reserved_stock || 0)}
                             </Badge>
+                            {(product.reserved_stock || 0) > 0 && (
+                              <Badge variant="outline" className="border-orange-400 text-orange-600 text-xs">
+                                <Lock className="h-2 w-2 mr-1" />
+                                {product.reserved_stock} reservado
+                              </Badge>
+                            )}
                             <span className="text-xs text-muted-foreground">
                               {stockStatus.label}
                             </span>
@@ -633,6 +827,22 @@ const ProductsManager = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openHistoryDialog(product)}
+                              title="Histórico de movimentações"
+                            >
+                              <History className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openReserveDialog(product)}
+                              title="Reservar estoque"
+                            >
+                              <Shield className="h-4 w-4 text-orange-600" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1042,6 +1252,188 @@ const ProductsManager = () => {
                 <>
                   <Upload className="h-4 w-4 mr-2" />
                   Importar {importPreview.filter(p => p.valid).length} Produto(s)
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stock History Dialog */}
+      <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Histórico de Estoque - {selectedProductForHistory?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Movimentações de entrada, saída e reserva do produto
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoadingHistory ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : stockMovements.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhuma movimentação registrada</p>
+            </div>
+          ) : (
+            <ScrollArea className="flex-1 max-h-[400px]">
+              <div className="space-y-3 pr-4">
+                {stockMovements.map((movement) => (
+                  <div
+                    key={movement.id}
+                    className="flex items-start gap-3 p-3 rounded-lg border bg-card"
+                  >
+                    <div className="mt-1">
+                      {getMovementIcon(movement.movement_type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-sm">
+                          {getMovementLabel(movement.movement_type)}
+                        </span>
+                        <Badge 
+                          variant={movement.movement_type === "entry" || movement.movement_type === "release" ? "default" : "secondary"}
+                          className={movement.movement_type === "entry" ? "bg-green-600" : movement.movement_type === "exit" ? "bg-red-600" : ""}
+                        >
+                          {movement.movement_type === "entry" || movement.movement_type === "release" ? "+" : "-"}{movement.quantity}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {movement.previous_quantity} → {movement.new_quantity} unidades
+                      </p>
+                      {movement.reason && (
+                        <p className="text-sm mt-1">{movement.reason}</p>
+                      )}
+                      {movement.notes && (
+                        <p className="text-xs text-muted-foreground mt-1 italic">
+                          {movement.notes}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {format(new Date(movement.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reserve Stock Dialog */}
+      <Dialog open={isReserveDialogOpen} onOpenChange={setIsReserveDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-orange-600" />
+              Reservar Estoque de Segurança
+            </DialogTitle>
+            <DialogDescription>
+              {selectedProductForHistory?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedProductForHistory && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg text-center">
+                <div>
+                  <p className="text-2xl font-bold text-green-600">
+                    {selectedProductForHistory.stock_quantity - (selectedProductForHistory.reserved_stock || 0)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Disponível</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {selectedProductForHistory.reserved_stock || 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Reservado</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">
+                    {selectedProductForHistory.stock_quantity}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </div>
+              </div>
+
+              {(selectedProductForHistory.reserved_stock || 0) > 0 && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleReleaseReserve(selectedProductForHistory, selectedProductForHistory.reserved_stock || 0)}
+                  >
+                    Liberar Tudo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleReleaseReserve(selectedProductForHistory, 1)}
+                  >
+                    Liberar 1
+                  </Button>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="reserve-quantity">Quantidade para Reservar</Label>
+                <Input
+                  id="reserve-quantity"
+                  type="number"
+                  min="1"
+                  max={selectedProductForHistory.stock_quantity - (selectedProductForHistory.reserved_stock || 0)}
+                  value={reserveQuantity}
+                  onChange={(e) => setReserveQuantity(e.target.value)}
+                  placeholder="Quantidade"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reserve-notes">Observações (opcional)</Label>
+                <Textarea
+                  id="reserve-notes"
+                  value={reserveNotes}
+                  onChange={(e) => setReserveNotes(e.target.value)}
+                  placeholder="Motivo da reserva..."
+                  rows={2}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReserveDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleReserveStock} 
+              disabled={isReserving || !reserveQuantity}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {isReserving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Reservando...
+                </>
+              ) : (
+                <>
+                  <Lock className="h-4 w-4 mr-2" />
+                  Reservar Estoque
                 </>
               )}
             </Button>
