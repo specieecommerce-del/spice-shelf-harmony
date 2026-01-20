@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CreditCard, QrCode, ShoppingBag, Tag, X, CheckCircle2 } from "lucide-react";
+import { Loader2, CreditCard, QrCode, ShoppingBag, Tag, X, CheckCircle2, Copy, Check, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { generatePixCode, PixPaymentData } from "@/lib/pix-generator";
 
 interface CheckoutDialogProps {
   open: boolean;
@@ -26,8 +27,20 @@ interface AppliedCoupon {
   discountAmount: number;
 }
 
+interface PixOrderData {
+  orderNsu: string;
+  txId: string;
+  totalAmount: number;
+  pixSettings: {
+    pixKey: string;
+    pixKeyType: string;
+    merchantName: string;
+    merchantCity: string;
+  };
+}
+
 const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
-  const { items, getCartTotal, setIsCartOpen } = useCart();
+  const { items, getCartTotal, setIsCartOpen, clearCart } = useCart();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
@@ -41,6 +54,13 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
 
+  // PIX state
+  const [showPixPayment, setShowPixPayment] = useState(false);
+  const [pixOrderData, setPixOrderData] = useState<PixOrderData | null>(null);
+  const [pixCode, setPixCode] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [pixConfigured, setPixConfigured] = useState<boolean | null>(null);
+
   const formatPrice = (price: number) => {
     return `R$ ${price.toFixed(2).replace(".", ",")}`;
   };
@@ -48,6 +68,23 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const subtotal = getCartTotal();
   const discount = appliedCoupon?.discountAmount || 0;
   const total = Math.max(0, subtotal - discount);
+
+  // Check if PIX is configured
+  useEffect(() => {
+    const checkPixConfig = async () => {
+      try {
+        const { data } = await supabase.functions.invoke("pix-settings", {
+          body: { action: "get_pix_for_payment" },
+        });
+        setPixConfigured(data?.configured || false);
+      } catch {
+        setPixConfigured(false);
+      }
+    };
+    if (open) {
+      checkPixConfig();
+    }
+  }, [open]);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -106,7 +143,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     });
   };
 
-  const handleCheckout = async () => {
+  const handlePixCheckout = async () => {
     if (!customerInfo.name || !customerInfo.email) {
       toast({
         title: "Dados incompletos",
@@ -119,9 +156,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     setIsLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/pagamento-confirmado`;
-
-      const { data, error } = await supabase.functions.invoke("create-payment-link", {
+      const { data, error } = await supabase.functions.invoke("create-pix-order", {
         body: {
           items: items.map((item) => ({
             id: item.id,
@@ -136,7 +171,6 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
             email: customerInfo.email,
             phone: customerInfo.phone,
           },
-          redirectUrl,
           coupon: appliedCoupon ? {
             code: appliedCoupon.code,
             discountAmount: appliedCoupon.discountAmount,
@@ -144,35 +178,37 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         },
       });
 
-      if (error) {
-        console.error("Error creating payment link:", error);
+      if (error || !data?.success) {
+        console.error("Error creating PIX order:", error || data?.error);
         toast({
-          title: "Erro ao criar pagamento",
-          description: "Tente novamente mais tarde.",
+          title: "Erro ao criar pedido",
+          description: data?.error || "Tente novamente mais tarde.",
           variant: "destructive",
         });
         return;
       }
 
-      if (data?.paymentUrl) {
-        // Save order NSU to localStorage for status check
-        localStorage.setItem("lastOrderNsu", data.orderNsu);
-        
-        // Close dialogs and cart
-        onOpenChange(false);
-        setIsCartOpen(false);
-        
-        // Redirect to InfinitePay checkout
-        window.location.href = data.paymentUrl;
-      } else {
-        toast({
-          title: "Erro ao processar pagamento",
-          description: "Não foi possível gerar o link de pagamento.",
-          variant: "destructive",
-        });
-      }
+      // Generate PIX code
+      const pixData: PixPaymentData = {
+        pixKey: data.pixSettings.pixKey,
+        pixKeyType: data.pixSettings.pixKeyType,
+        merchantName: data.pixSettings.merchantName,
+        merchantCity: data.pixSettings.merchantCity,
+        amount: data.totalAmount,
+        txId: data.txId,
+        description: `Pedido ${data.orderNsu.substring(0, 15)}`,
+      };
+
+      const generatedPixCode = generatePixCode(pixData);
+      setPixCode(generatedPixCode);
+      setPixOrderData(data);
+      setShowPixPayment(true);
+      
+      // Save order NSU
+      localStorage.setItem("lastOrderNsu", data.orderNsu);
+
     } catch (err) {
-      console.error("Checkout error:", err);
+      console.error("PIX checkout error:", err);
       toast({
         title: "Erro inesperado",
         description: "Por favor, tente novamente.",
@@ -182,6 +218,149 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       setIsLoading(false);
     }
   };
+
+  const handleCopyPixCode = async () => {
+    try {
+      await navigator.clipboard.writeText(pixCode);
+      setCopied(true);
+      toast({
+        title: "Código copiado!",
+        description: "Cole no seu aplicativo de banco para pagar.",
+      });
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      toast({
+        title: "Erro ao copiar",
+        description: "Selecione e copie manualmente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePixPaymentDone = () => {
+    clearCart();
+    onOpenChange(false);
+    setIsCartOpen(false);
+    setShowPixPayment(false);
+    setPixOrderData(null);
+    setPixCode("");
+    toast({
+      title: "Obrigado!",
+      description: "Assim que identificarmos o pagamento, você receberá a confirmação por email.",
+    });
+  };
+
+  const handleBackToCart = () => {
+    setShowPixPayment(false);
+    setPixOrderData(null);
+    setPixCode("");
+  };
+
+  // PIX Payment Screen
+  if (showPixPayment && pixOrderData) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-serif">
+              <QrCode className="w-5 h-5 text-green-600" />
+              Pagamento PIX
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
+              <p className="font-medium text-green-800">Pedido criado com sucesso!</p>
+              <p className="text-sm text-green-700">Nº {pixOrderData.orderNsu}</p>
+            </div>
+
+            <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+              <h4 className="font-medium text-center">Valor a pagar</h4>
+              <p className="text-3xl font-bold text-center text-primary">
+                {formatPrice(pixOrderData.totalAmount)}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm">Código PIX Copia e Cola:</h4>
+              <div className="relative">
+                <textarea
+                  readOnly
+                  value={pixCode}
+                  className="w-full h-24 p-3 text-xs font-mono bg-muted rounded-lg resize-none border"
+                  onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="absolute top-2 right-2"
+                  onClick={handleCopyPixCode}
+                >
+                  {copied ? (
+                    <Check className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <Button
+              variant="hero"
+              className="w-full"
+              size="lg"
+              onClick={handleCopyPixCode}
+            >
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Código Copiado!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copiar Código PIX
+                </>
+              )}
+            </Button>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+              <h4 className="font-medium text-blue-800 text-sm">Como pagar:</h4>
+              <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+                <li>Abra o app do seu banco</li>
+                <li>Escolha a opção PIX &gt; Copia e Cola</li>
+                <li>Cole o código copiado</li>
+                <li>Confirme os dados e pague</li>
+              </ol>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleBackToCart}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Voltar
+              </Button>
+              <Button
+                variant="default"
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                onClick={handlePixPaymentDone}
+              >
+                Já paguei
+              </Button>
+            </div>
+
+            <p className="text-xs text-center text-muted-foreground">
+              Após o pagamento, você receberá a confirmação por email em até 5 minutos.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -322,41 +501,50 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
             </div>
           </div>
 
-          {/* Payment Methods Info */}
-          <div className="bg-spice-gold/10 rounded-lg p-3 space-y-2">
-            <h4 className="font-medium text-sm">Formas de Pagamento</h4>
-            <div className="flex gap-4 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <CreditCard className="w-4 h-4" />
-                <span>Cartão até 12x</span>
+          {/* Payment Methods */}
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">Forma de Pagamento</h4>
+            
+            {/* PIX Button - Primary */}
+            {pixConfigured && (
+              <Button
+                variant="hero"
+                className="w-full bg-green-600 hover:bg-green-700"
+                size="lg"
+                onClick={handlePixCheckout}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    <QrCode className="w-5 h-5 mr-2" />
+                    Pagar com PIX - {formatPrice(total)}
+                  </>
+                )}
+              </Button>
+            )}
+
+            {pixConfigured === false && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                <p className="text-sm text-amber-700">
+                  PIX ainda não configurado pela loja. Entre em contato para outras formas de pagamento.
+                </p>
               </div>
-              <div className="flex items-center gap-1">
-                <QrCode className="w-4 h-4" />
-                <span>PIX</span>
+            )}
+
+            {pixConfigured === null && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Checkout Button */}
-          <Button
-            variant="hero"
-            className="w-full"
-            size="lg"
-            onClick={handleCheckout}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Processando...
-              </>
-            ) : (
-              <>Ir para Pagamento - {formatPrice(total)}</>
-            )}
-          </Button>
-
           <p className="text-xs text-center text-muted-foreground">
-            Você será redirecionado para a página segura de pagamento InfinitePay
+            O pagamento é processado diretamente para a conta do vendedor via PIX
           </p>
         </div>
       </DialogContent>

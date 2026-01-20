@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet, Loader2, Tag, ShieldAlert } from "lucide-react";
+import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet, Loader2, Tag, ShieldAlert, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { formatCPFCNPJ, validateCPFCNPJ } from "@/lib/cpf-cnpj";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import CouponsManager from "@/components/settings/CouponsManager";
+import { detectPixKeyType } from "@/lib/pix-generator";
 
 // Lista dos bancos mais comuns no Brasil
 const COMMON_BANKS: Record<string, string> = {
@@ -51,6 +52,14 @@ const COMMON_BANKS: Record<string, string> = {
   "637": "Sofisa",
 };
 
+const PIX_KEY_TYPES = [
+  { value: "cpf", label: "CPF" },
+  { value: "cnpj", label: "CNPJ" },
+  { value: "phone", label: "Telefone" },
+  { value: "email", label: "Email" },
+  { value: "random", label: "Chave Aleatória" },
+];
+
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -63,6 +72,14 @@ const Settings = () => {
   // Payment settings - Note: The actual handle is stored server-side in INFINITEPAY_HANDLE secret
   // This state is only for UI input, not for persistent storage
   const [infinitePayHandle, setInfinitePayHandle] = useState("");
+  
+  // PIX settings
+  const [pixKey, setPixKey] = useState("");
+  const [pixKeyType, setPixKeyType] = useState("cpf");
+  const [merchantName, setMerchantName] = useState("");
+  const [merchantCity, setMerchantCity] = useState("");
+  const [isSavingPix, setIsSavingPix] = useState(false);
+  const [pixSaved, setPixSaved] = useState(false);
   
   // Bank account settings
   const [bankName, setBankName] = useState("");
@@ -84,7 +101,7 @@ const Settings = () => {
         return;
       }
 
-      try {
+try {
         // Check admin status
         const { data, error } = await supabase
           .from("user_roles")
@@ -99,8 +116,9 @@ const Settings = () => {
         } else {
           setIsAdmin(!!data);
           
-          // If admin, load saved bank account settings
+          // If admin, load saved settings
           if (data) {
+            // Load bank account settings
             const { data: settingsData } = await supabase
               .from("store_settings")
               .select("value")
@@ -126,6 +144,19 @@ const Settings = () => {
               setCpfCnpj(formatCPFCNPJ(bankSettings.holder_document || ""));
               setBankSaved(true);
             }
+
+            // Load PIX settings
+            const { data: pixData } = await supabase.functions.invoke("pix-settings", {
+              body: { action: "get_pix" },
+            });
+            
+            if (pixData?.settings) {
+              setPixKey(pixData.settings.pix_key || "");
+              setPixKeyType(pixData.settings.pix_key_type || "cpf");
+              setMerchantName(pixData.settings.merchant_name || "");
+              setMerchantCity(pixData.settings.merchant_city || "");
+              setPixSaved(true);
+            }
           }
         }
       } catch (err) {
@@ -137,10 +168,50 @@ const Settings = () => {
     };
 
     checkAdminAndLoadData();
-    
-    // Check connection status from server-side
     setConnectionStatus('connected');
   }, [user, navigate]);
+
+  const handleSavePixSettings = async () => {
+    if (!pixKey.trim() || !merchantName.trim() || !merchantCity.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha a chave PIX, nome e cidade.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingPix(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("pix-settings", {
+        body: {
+          action: "save_pix",
+          pix_key: pixKey,
+          pix_key_type: pixKeyType,
+          merchant_name: merchantName,
+          merchant_city: merchantCity,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setPixSaved(true);
+      toast({
+        title: "PIX configurado!",
+        description: "Os clientes agora podem pagar via PIX.",
+      });
+    } catch (err) {
+      toast({
+        title: "Erro ao salvar PIX",
+        description: err instanceof Error ? err.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingPix(false);
+    }
+  };
 
   const handleSavePaymentSettings = async () => {
     // Note: The InfinitePay handle is configured as a server-side secret (INFINITEPAY_HANDLE)
@@ -309,15 +380,19 @@ const Settings = () => {
             <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
           </div>
 
-          <Tabs defaultValue="coupons" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
+          <Tabs defaultValue="pix" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 h-auto">
+              <TabsTrigger value="pix" className="flex items-center gap-2 py-3">
+                <QrCode className="h-4 w-4" />
+                PIX
+              </TabsTrigger>
               <TabsTrigger value="coupons" className="flex items-center gap-2 py-3">
                 <Tag className="h-4 w-4" />
                 Cupons
               </TabsTrigger>
               <TabsTrigger value="bank" className="flex items-center gap-2 py-3">
                 <Building2 className="h-4 w-4" />
-                Conta Bancária
+                Conta
               </TabsTrigger>
               <TabsTrigger value="payment" className="flex items-center gap-2 py-3">
                 <CreditCard className="h-4 w-4" />
@@ -328,6 +403,107 @@ const Settings = () => {
                 Loja
               </TabsTrigger>
             </TabsList>
+
+            {/* PIX Tab */}
+            <TabsContent value="pix" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <QrCode className="h-5 w-5 text-green-600" />
+                    Configurar Chave PIX
+                  </CardTitle>
+                  <CardDescription>
+                    Configure sua chave PIX para receber pagamentos diretamente na sua conta.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {pixSaved && (
+                    <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 border border-green-200">
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="font-medium text-green-700">PIX configurado!</p>
+                        <p className="text-sm text-green-600">Os clientes podem pagar via PIX.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="pix-key">Chave PIX *</Label>
+                      <Input
+                        id="pix-key"
+                        placeholder="CPF, CNPJ, Email, Telefone ou Chave Aleatória"
+                        value={pixKey}
+                        onChange={(e) => {
+                          setPixKey(e.target.value);
+                          const detected = detectPixKeyType(e.target.value);
+                          setPixKeyType(detected);
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="pix-key-type">Tipo da Chave</Label>
+                      <select
+                        id="pix-key-type"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={pixKeyType}
+                        onChange={(e) => setPixKeyType(e.target.value)}
+                      >
+                        {PIX_KEY_TYPES.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="merchant-name">Nome do Recebedor *</Label>
+                      <Input
+                        id="merchant-name"
+                        placeholder="Nome ou razão social"
+                        value={merchantName}
+                        onChange={(e) => setMerchantName(e.target.value)}
+                        maxLength={25}
+                      />
+                      <p className="text-xs text-muted-foreground">Máximo 25 caracteres</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="merchant-city">Cidade *</Label>
+                      <Input
+                        id="merchant-city"
+                        placeholder="Ex: São Paulo"
+                        value={merchantCity}
+                        onChange={(e) => setMerchantCity(e.target.value)}
+                        maxLength={15}
+                      />
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={handleSavePixSettings} 
+                    disabled={isSavingPix}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                  >
+                    {isSavingPix ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Salvar Configurações PIX
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             {/* Coupons Tab */}
             <TabsContent value="coupons">
