@@ -1,10 +1,11 @@
 // Cart functionality for Species store
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ShoppingCart, Heart, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCart, Product } from "@/contexts/CartContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 import { toast } from "sonner";
 
 import productHerbs from "@/assets/product-herbs.jpg";
@@ -60,36 +61,6 @@ const products: Product[] = [
     category: "Especiarias",
   },
 ];
-
-// Hook to manage favorites in localStorage
-const useFavorites = () => {
-  const [favorites, setFavorites] = useState<number[]>([]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("product_favorites");
-    if (stored) {
-      try {
-        setFavorites(JSON.parse(stored));
-      } catch {
-        setFavorites([]);
-      }
-    }
-  }, []);
-
-  const toggleFavorite = (productId: number) => {
-    setFavorites((prev) => {
-      const newFavorites = prev.includes(productId)
-        ? prev.filter((id) => id !== productId)
-        : [...prev, productId];
-      localStorage.setItem("product_favorites", JSON.stringify(newFavorites));
-      return newFavorites;
-    });
-  };
-
-  const isFavorite = (productId: number) => favorites.includes(productId);
-
-  return { favorites, toggleFavorite, isFavorite };
-};
 
 interface ProductCardProps {
   product: Product;
