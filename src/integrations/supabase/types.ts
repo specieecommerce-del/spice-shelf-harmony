@@ -314,6 +314,36 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          notified: boolean
+          product_id: string
+          product_name: string
+          stock_quantity: number
+          threshold: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notified?: boolean
+          product_id: string
+          product_name: string
+          stock_quantity: number
+          threshold: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notified?: boolean
+          product_id?: string
+          product_name?: string
+          stock_quantity?: number
+          threshold?: number
+        }
+        Relationships: []
+      }
       store_settings: {
         Row: {
           created_at: string

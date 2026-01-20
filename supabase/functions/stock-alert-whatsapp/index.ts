@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ADMIN_PHONE = "5511919778073";
+const DEFAULT_ADMIN_PHONE = "5511919778073";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -29,25 +29,69 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Check for products with low stock
-    const { data: lowStockProducts, error: queryError } = await supabase
-      .from("products")
-      .select("id, name, stock_quantity, low_stock_threshold")
-      .eq("is_active", true)
-      .filter("stock_quantity", "lte", "low_stock_threshold");
-
-    if (queryError) {
-      console.error("Error querying products:", queryError);
-      return new Response(
-        JSON.stringify({ error: "Failed to query products" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Parse request body to check for mode
+    let body: { mode?: string; productId?: string; productName?: string; stockQuantity?: number } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // Empty body is fine for scheduled runs
     }
 
-    // Filter products where stock is actually <= threshold
-    const productsToAlert = lowStockProducts?.filter(
-      (p) => p.stock_quantity <= p.low_stock_threshold
-    ) || [];
+    // Get admin phone from store_settings
+    const { data: phoneSettings } = await supabase
+      .from("store_settings")
+      .select("value")
+      .eq("key", "whatsapp_alert_phone")
+      .maybeSingle();
+
+    const adminPhone = phoneSettings?.value?.phone || DEFAULT_ADMIN_PHONE;
+    console.log("Using admin phone:", adminPhone);
+
+    // Check for pending notifications (triggered by database trigger)
+    const { data: pendingNotifications } = await supabase
+      .from("stock_notifications")
+      .select("*")
+      .eq("notified", false)
+      .order("created_at", { ascending: true });
+
+    let productsToAlert: Array<{ name: string; stock_quantity: number; low_stock_threshold: number }> = [];
+
+    if (pendingNotifications && pendingNotifications.length > 0) {
+      // Process pending notifications from trigger
+      productsToAlert = pendingNotifications.map(n => ({
+        name: n.product_name,
+        stock_quantity: n.stock_quantity,
+        low_stock_threshold: n.threshold,
+      }));
+
+      // Mark notifications as processed
+      const notificationIds = pendingNotifications.map(n => n.id);
+      await supabase
+        .from("stock_notifications")
+        .update({ notified: true })
+        .in("id", notificationIds);
+
+      console.log(`Processing ${pendingNotifications.length} pending notifications`);
+    } else {
+      // Fallback: Check all products with low stock (for manual/scheduled runs)
+      const { data: lowStockProducts, error: queryError } = await supabase
+        .from("products")
+        .select("id, name, stock_quantity, low_stock_threshold")
+        .eq("is_active", true);
+
+      if (queryError) {
+        console.error("Error querying products:", queryError);
+        return new Response(
+          JSON.stringify({ error: "Failed to query products" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Filter products where stock is actually <= threshold
+      productsToAlert = lowStockProducts?.filter(
+        (p) => p.stock_quantity <= p.low_stock_threshold
+      ) || [];
+    }
 
     if (productsToAlert.length === 0) {
       console.log("No low stock products found");
@@ -62,7 +106,10 @@ serve(async (req) => {
       .map((p) => `• ${p.name}: ${p.stock_quantity} unidades (mínimo: ${p.low_stock_threshold})`)
       .join("\n");
 
-    const message = `🚨 *ALERTA DE ESTOQUE BAIXO*\n\nOs seguintes produtos estão com estoque abaixo do limite:\n\n${productList}\n\n⚠️ Reponha o estoque o mais rápido possível!`;
+    const isImmediate = pendingNotifications && pendingNotifications.length > 0;
+    const alertType = isImmediate ? "⚡ ALERTA IMEDIATO" : "🔔 VERIFICAÇÃO PROGRAMADA";
+
+    const message = `🚨 *ALERTA DE ESTOQUE BAIXO*\n${alertType}\n\nOs seguintes produtos estão com estoque abaixo do limite:\n\n${productList}\n\n⚠️ Reponha o estoque o mais rápido possível!`;
 
     // Send WhatsApp message via Z-API
     const zapiUrl = `https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}/send-text`;
@@ -73,7 +120,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        phone: ADMIN_PHONE,
+        phone: adminPhone,
         message: message,
       }),
     });
@@ -93,7 +140,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: `Alert sent for ${productsToAlert.length} products`,
-        products: productsToAlert.map(p => p.name)
+        products: productsToAlert.map(p => p.name),
+        immediate: isImmediate
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
