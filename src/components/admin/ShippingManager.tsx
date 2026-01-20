@@ -109,11 +109,22 @@ const ShippingManager = () => {
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkCarrier, setBulkCarrier] = useState("");
   const [bulkTrackingPrefix, setBulkTrackingPrefix] = useState("");
+  const [bulkTrackingSuffix, setBulkTrackingSuffix] = useState("BR");
+  const [autoGenerateCodes, setAutoGenerateCodes] = useState(true);
   const [processingBulk, setProcessingBulk] = useState(false);
 
   // Order details dialog
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
+
+  // Generate tracking code
+  const generateTrackingCode = (orderNsu: string): string => {
+    const prefix = bulkTrackingPrefix || "SP";
+    const suffix = bulkTrackingSuffix || "BR";
+    // Extract numbers from order NSU and pad/trim to 9 digits
+    const numericPart = orderNsu.replace(/\D/g, "").slice(-9).padStart(9, "0");
+    return `${prefix}${numericPart}${suffix}`;
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -238,11 +249,16 @@ const ShippingManager = () => {
         const order = orders.find(o => o.id === orderId);
         if (!order) continue;
 
+        // Generate tracking code automatically or leave empty
+        const trackingCode = autoGenerateCodes 
+          ? generateTrackingCode(order.order_nsu)
+          : "";
+
         const { data, error } = await supabase.functions.invoke("admin-orders", {
           body: {
             action: "update_tracking",
             orderId,
-            trackingCode: bulkTrackingPrefix ? `${bulkTrackingPrefix}${order.order_nsu}` : "",
+            trackingCode,
             shippingCarrier: bulkCarrier,
             status: "shipped",
           },
@@ -256,7 +272,7 @@ const ShippingManager = () => {
       }
 
       if (successCount > 0) {
-        toast.success(`${successCount} pedido(s) marcado(s) como enviado(s)!`);
+        toast.success(`${successCount} pedido(s) marcado(s) como enviado(s) com códigos de rastreio gerados!`);
       }
       if (errorCount > 0) {
         toast.error(`${errorCount} pedido(s) com erro`);
@@ -264,6 +280,10 @@ const ShippingManager = () => {
 
       setBulkDialogOpen(false);
       setSelectedOrders(new Set());
+      setBulkCarrier("");
+      setBulkTrackingPrefix("");
+      setBulkTrackingSuffix("BR");
+      setAutoGenerateCodes(true);
       fetchOrders();
     } catch (error) {
       console.error("Error bulk shipping:", error);
@@ -554,17 +574,20 @@ const ShippingManager = () => {
 
       {/* Bulk Shipping Dialog */}
       <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Marcar Pedidos como Enviados</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Marcar Pedidos como Enviados
+            </DialogTitle>
             <DialogDescription>
-              {selectedOrders.size} pedido(s) selecionado(s)
+              {selectedOrders.size} pedido(s) selecionado(s) para envio
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Transportadora</Label>
+              <Label>Transportadora *</Label>
               <Select value={bulkCarrier} onValueChange={setBulkCarrier}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a transportadora" />
@@ -579,26 +602,84 @@ const ShippingManager = () => {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Prefixo do Código de Rastreio (opcional)</Label>
-              <Input
-                placeholder="Ex: BR"
-                value={bulkTrackingPrefix}
-                onChange={(e) => setBulkTrackingPrefix(e.target.value.toUpperCase())}
+            <div className="flex items-center space-x-2 py-2">
+              <Checkbox 
+                id="autoGenerate"
+                checked={autoGenerateCodes}
+                onCheckedChange={(checked) => setAutoGenerateCodes(checked === true)}
               />
-              <p className="text-xs text-muted-foreground">
-                O código final será: {bulkTrackingPrefix || "PREFIXO"}[NSU_PEDIDO]
-              </p>
+              <Label htmlFor="autoGenerate" className="text-sm cursor-pointer">
+                Gerar códigos de rastreio automaticamente
+              </Label>
             </div>
+
+            {autoGenerateCodes && (
+              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm font-medium">Configuração do Código de Rastreio</p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Prefixo</Label>
+                    <Input
+                      placeholder="SP"
+                      value={bulkTrackingPrefix}
+                      onChange={(e) => setBulkTrackingPrefix(e.target.value.toUpperCase().slice(0, 2))}
+                      maxLength={2}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Sufixo</Label>
+                    <Input
+                      placeholder="BR"
+                      value={bulkTrackingSuffix}
+                      onChange={(e) => setBulkTrackingSuffix(e.target.value.toUpperCase().slice(0, 2))}
+                      maxLength={2}
+                    />
+                  </div>
+                </div>
+                
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Formato:</strong> {bulkTrackingPrefix || "SP"}123456789{bulkTrackingSuffix || "BR"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    O número é extraído do NSU do pedido (9 dígitos)
+                  </p>
+                </div>
+
+                {/* Preview of codes */}
+                <div className="pt-2">
+                  <p className="text-xs font-medium mb-2">Prévia dos códigos:</p>
+                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                    {orders
+                      .filter(o => selectedOrders.has(o.id))
+                      .slice(0, 5)
+                      .map(order => (
+                        <div key={order.id} className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">{order.order_nsu}</span>
+                          <span className="font-mono font-medium">{generateTrackingCode(order.order_nsu)}</span>
+                        </div>
+                      ))
+                    }
+                    {selectedOrders.size > 5 && (
+                      <p className="text-xs text-muted-foreground">
+                        ... e mais {selectedOrders.size - 5} pedido(s)
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleBulkShip} disabled={processingBulk}>
+            <Button onClick={handleBulkShip} disabled={processingBulk || !bulkCarrier}>
               {processingBulk && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Confirmar Envio
+              <Truck className="h-4 w-4 mr-2" />
+              Enviar {selectedOrders.size} Pedido(s)
             </Button>
           </DialogFooter>
         </DialogContent>
