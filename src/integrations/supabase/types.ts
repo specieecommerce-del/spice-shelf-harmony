@@ -229,6 +229,7 @@ export type Database = {
           original_price: number | null
           price: number
           rating: number | null
+          reserved_stock: number
           reviews: number | null
           sort_order: number | null
           stock_quantity: number
@@ -247,6 +248,7 @@ export type Database = {
           original_price?: number | null
           price?: number
           rating?: number | null
+          reserved_stock?: number
           reviews?: number | null
           sort_order?: number | null
           stock_quantity?: number
@@ -265,6 +267,7 @@ export type Database = {
           original_price?: number | null
           price?: number
           rating?: number | null
+          reserved_stock?: number
           reviews?: number | null
           sort_order?: number | null
           stock_quantity?: number
@@ -313,6 +316,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          movement_type: string
+          new_quantity: number
+          notes: string | null
+          previous_quantity: number
+          product_id: string
+          quantity: number
+          reason: string | null
+          reference_id: string | null
+          reference_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_type: string
+          new_quantity: number
+          notes?: string | null
+          previous_quantity: number
+          product_id: string
+          quantity: number
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_type?: string
+          new_quantity?: number
+          notes?: string | null
+          previous_quantity?: number
+          product_id?: string
+          quantity?: number
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_notifications: {
         Row: {
