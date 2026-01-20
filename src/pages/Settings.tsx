@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet, Loader2, Tag, ShieldAlert, QrCode } from "lucide-react";
+import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet, Loader2, Tag, ShieldAlert, QrCode, Download, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,8 @@ import { formatCPFCNPJ, validateCPFCNPJ } from "@/lib/cpf-cnpj";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import CouponsManager from "@/components/settings/CouponsManager";
-import { detectPixKeyType } from "@/lib/pix-generator";
+import { detectPixKeyType, generatePixCode, PixPaymentData } from "@/lib/pix-generator";
+import { QRCodeSVG } from "qrcode.react";
 
 // Lista dos bancos mais comuns no Brasil
 const COMMON_BANKS: Record<string, string> = {
@@ -425,6 +426,117 @@ try {
                         <p className="text-sm text-green-600">Os clientes podem pagar via PIX.</p>
                       </div>
                     </div>
+                  )}
+
+                  {/* QR Code de Vínculo Bancário */}
+                  {pixSaved && pixKey && merchantName && merchantCity && (
+                    <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-white">
+                      <CardHeader className="text-center pb-2">
+                        <CardTitle className="flex items-center justify-center gap-2 text-lg">
+                          <QrCode className="h-5 w-5 text-green-600" />
+                          QR Code do seu PIX
+                        </CardTitle>
+                        <CardDescription>
+                          Compartilhe este QR Code para receber pagamentos
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex flex-col items-center space-y-4">
+                        <div className="p-4 bg-white rounded-xl border-2 border-green-100 shadow-lg">
+                          <QRCodeSVG
+                            id="admin-pix-qrcode"
+                            value={generatePixCode({
+                              pixKey: pixKey,
+                              pixKeyType: pixKeyType as PixPaymentData['pixKeyType'],
+                              merchantName: merchantName,
+                              merchantCity: merchantCity,
+                            })}
+                            size={200}
+                            level="H"
+                            includeMargin={false}
+                            bgColor="#ffffff"
+                            fgColor="#000000"
+                          />
+                        </div>
+                        <div className="text-center space-y-1">
+                          <p className="font-medium text-foreground">{merchantName}</p>
+                          <p className="text-sm text-muted-foreground">{merchantCity}</p>
+                          <p className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
+                            {pixKey}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 w-full max-w-xs">
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => {
+                              const svg = document.getElementById('admin-pix-qrcode');
+                              if (svg) {
+                                const svgData = new XMLSerializer().serializeToString(svg);
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                const img = new Image();
+                                img.onload = () => {
+                                  canvas.width = 300;
+                                  canvas.height = 300;
+                                  ctx?.fillRect(0, 0, 300, 300);
+                                  if (ctx) ctx.fillStyle = '#ffffff';
+                                  ctx?.fillRect(0, 0, 300, 300);
+                                  ctx?.drawImage(img, 50, 50, 200, 200);
+                                  const pngFile = canvas.toDataURL('image/png');
+                                  const downloadLink = document.createElement('a');
+                                  downloadLink.download = `pix-${merchantName.replace(/\s+/g, '-').toLowerCase()}.png`;
+                                  downloadLink.href = pngFile;
+                                  downloadLink.click();
+                                };
+                                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                              }
+                              toast({
+                                title: "Download iniciado!",
+                                description: "O QR Code foi salvo como imagem.",
+                              });
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Baixar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={async () => {
+                              const pixCodeStr = generatePixCode({
+                                pixKey: pixKey,
+                                pixKeyType: pixKeyType as PixPaymentData['pixKeyType'],
+                                merchantName: merchantName,
+                                merchantCity: merchantCity,
+                              });
+                              try {
+                                if (navigator.share) {
+                                  await navigator.share({
+                                    title: `PIX - ${merchantName}`,
+                                    text: `Pague via PIX para ${merchantName}:\n\n${pixCodeStr}`,
+                                  });
+                                } else {
+                                  await navigator.clipboard.writeText(pixCodeStr);
+                                  toast({
+                                    title: "Código copiado!",
+                                    description: "Cole o código PIX onde desejar.",
+                                  });
+                                }
+                              } catch {
+                                await navigator.clipboard.writeText(pixCodeStr);
+                                toast({
+                                  title: "Código copiado!",
+                                  description: "Cole o código PIX onde desejar.",
+                                });
+                              }
+                            }}
+                          >
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Compartilhar
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   )}
 
                   <div className="grid gap-4 md:grid-cols-2">
