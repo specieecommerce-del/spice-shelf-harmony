@@ -12,6 +12,7 @@ import DashboardManager from "@/components/admin/DashboardManager";
 import OrdersManager from "@/components/admin/OrdersManager";
 import ShippingManager from "@/components/admin/ShippingManager";
 import ProductsManager from "@/components/admin/ProductsManager";
+import StockManager from "@/components/admin/StockManager";
 import WhatsAppAlertsManager from "@/components/admin/WhatsAppAlertsManager";
 import { AdminsManager } from "@/components/admin/AdminsManager";
 import InvoiceManager from "@/components/admin/InvoiceManager";
@@ -105,6 +106,7 @@ const Admin = () => {
             {activeSection === "invoices" && <InvoiceManager />}
             {activeSection === "nfe" && <FocusNFeSettings />}
             {activeSection === "products" && <ProductsManager />}
+            {activeSection === "stock" && <StockManager />}
             {activeSection === "whatsapp" && <WhatsAppAlertsManager />}
             {activeSection === "admins" && <AdminsManager />}
           </div>
