@@ -77,8 +77,11 @@ export type Database = {
           payment_link: string | null
           payment_method: string | null
           receipt_url: string | null
+          shipped_at: string | null
+          shipping_carrier: string | null
           status: string
           total_amount: number
+          tracking_code: string | null
           transaction_nsu: string | null
           updated_at: string
           user_id: string | null
@@ -97,8 +100,11 @@ export type Database = {
           payment_link?: string | null
           payment_method?: string | null
           receipt_url?: string | null
+          shipped_at?: string | null
+          shipping_carrier?: string | null
           status?: string
           total_amount: number
+          tracking_code?: string | null
           transaction_nsu?: string | null
           updated_at?: string
           user_id?: string | null
@@ -117,8 +123,11 @@ export type Database = {
           payment_link?: string | null
           payment_method?: string | null
           receipt_url?: string | null
+          shipped_at?: string | null
+          shipping_carrier?: string | null
           status?: string
           total_amount?: number
+          tracking_code?: string | null
           transaction_nsu?: string | null
           updated_at?: string
           user_id?: string | null
