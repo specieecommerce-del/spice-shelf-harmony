@@ -23,6 +23,7 @@ serve(async (req: Request) => {
   }
 
   try {
+    // Create client with user's auth token
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -44,8 +45,24 @@ serve(async (req: Request) => {
       );
     }
 
+    // Check if user is admin
+    const { data: roleData, error: roleError } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (roleError || !roleData) {
+      console.error("User is not admin:", roleError);
+      return new Response(
+        JSON.stringify({ error: "Apenas administradores podem configurar a conta bancária." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const bankData: BankAccountData = await req.json();
-    console.log("Received bank data for user:", user.id);
+    console.log("Received bank data for admin user:", user.id);
 
     // Validate required fields
     if (!bankData.bank_code || !bankData.agency || !bankData.account_number || 
@@ -56,62 +73,50 @@ serve(async (req: Request) => {
       );
     }
 
-    const apiKey = Deno.env.get("INFINITEPAY_API_KEY");
-    
-    if (!apiKey) {
-      console.error("INFINITEPAY_API_KEY not configured");
+    // Create admin client for database operations
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Save bank account settings to store_settings table
+    const bankAccountSettings = {
+      bank_code: bankData.bank_code,
+      bank_name: bankData.bank_name,
+      agency: bankData.agency.replace(/\D/g, ""),
+      account_number: bankData.account_number,
+      account_type: bankData.account_type,
+      holder_name: bankData.holder_name,
+      holder_document: bankData.holder_document.replace(/\D/g, ""),
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Upsert the bank account settings
+    const { error: upsertError } = await supabaseAdmin
+      .from("store_settings")
+      .upsert(
+        {
+          key: "bank_account",
+          value: bankAccountSettings,
+        },
+        { onConflict: "key" }
+      );
+
+    if (upsertError) {
+      console.error("Error saving bank account:", upsertError);
       return new Response(
-        JSON.stringify({ error: "Configuração de API ausente. Contate o administrador." }),
+        JSON.stringify({ error: "Erro ao salvar dados da conta bancária." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Call InfinitePay API to register/update bank account
-    const infinitePayResponse = await fetch("https://api.infinitepay.io/v2/merchants/bank_accounts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        bank_code: bankData.bank_code,
-        agency: bankData.agency.replace(/\D/g, ""),
-        account: bankData.account_number.replace(/\D/g, ""),
-        account_type: bankData.account_type === "corrente" ? "checking" : "savings",
-        holder: {
-          name: bankData.holder_name,
-          document: bankData.holder_document.replace(/\D/g, ""),
-        },
-      }),
-    });
-
-    const responseText = await infinitePayResponse.text();
-    console.log("InfinitePay response status:", infinitePayResponse.status);
-    console.log("InfinitePay response:", responseText);
-
-    let responseData;
-    try {
-      responseData = JSON.parse(responseText);
-    } catch {
-      responseData = { message: responseText };
-    }
-
-    if (!infinitePayResponse.ok) {
-      const errorMessage = responseData.message || responseData.error || "Erro ao salvar conta bancária na InfinitePay";
-      console.error("InfinitePay error:", errorMessage);
-      return new Response(
-        JSON.stringify({ error: errorMessage }),
-        { status: infinitePayResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log("Bank account saved successfully for user:", user.id);
+    console.log("Bank account saved successfully for admin:", user.id);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Conta bancária vinculada com sucesso!",
-        data: responseData 
+        message: "Conta bancária salva com sucesso! Configure os recebimentos no painel da InfinitePay.",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

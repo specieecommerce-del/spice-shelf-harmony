@@ -40,7 +40,7 @@ const Settings = () => {
   const [cpfCnpjValidation, setCpfCnpjValidation] = useState<{ valid: boolean; type: 'cpf' | 'cnpj' | null; message: string } | null>(null);
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
+    const checkAdminAndLoadData = async () => {
       if (!user) {
         setIsLoading(false);
         navigate("/auth");
@@ -48,6 +48,7 @@ const Settings = () => {
       }
 
       try {
+        // Check admin status
         const { data, error } = await supabase
           .from("user_roles")
           .select("role")
@@ -60,6 +61,35 @@ const Settings = () => {
           setIsAdmin(false);
         } else {
           setIsAdmin(!!data);
+          
+          // If admin, load saved bank account settings
+          if (data) {
+            const { data: settingsData } = await supabase
+              .from("store_settings")
+              .select("value")
+              .eq("key", "bank_account")
+              .maybeSingle();
+            
+            if (settingsData?.value) {
+              const bankSettings = settingsData.value as {
+                bank_code?: string;
+                bank_name?: string;
+                agency?: string;
+                account_number?: string;
+                account_type?: string;
+                holder_name?: string;
+                holder_document?: string;
+              };
+              setBankCode(bankSettings.bank_code || "");
+              setBankName(bankSettings.bank_name || "");
+              setAgency(bankSettings.agency || "");
+              setAccountNumber(bankSettings.account_number || "");
+              setAccountType(bankSettings.account_type || "corrente");
+              setAccountHolder(bankSettings.holder_name || "");
+              setCpfCnpj(formatCPFCNPJ(bankSettings.holder_document || ""));
+              setBankSaved(true);
+            }
+          }
         }
       } catch (err) {
         console.error("Error:", err);
@@ -69,7 +99,7 @@ const Settings = () => {
       }
     };
 
-    checkAdminStatus();
+    checkAdminAndLoadData();
     
     // Check connection status from server-side
     setConnectionStatus('connected');
@@ -138,8 +168,8 @@ const Settings = () => {
 
       setBankSaved(true);
       toast({
-        title: "Conta bancária vinculada!",
-        description: "Sua conta foi registrada com sucesso na InfinitePay.",
+        title: "Conta bancária salva!",
+        description: data?.message || "Dados da conta bancária salvos com sucesso.",
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao salvar conta bancária";
@@ -438,14 +468,14 @@ const Settings = () => {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="font-medium text-blue-800 mb-2">Códigos dos principais bancos</h4>
                     <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
-                      <span>001 - Banco do Brasil</span>
-                      <span>033 - Santander</span>
-                      <span>104 - Caixa Econômica</span>
-                      <span>237 - Bradesco</span>
-                      <span>260 - Nubank</span>
-                      <span>341 - Itaú</span>
-                      <span>077 - Inter</span>
-                      <span>336 - C6 Bank</span>
+                      <span>0001 - Banco do Brasil</span>
+                      <span>0033 - Santander</span>
+                      <span>0104 - Caixa Econômica</span>
+                      <span>0237 - Bradesco</span>
+                      <span>0260 - Nubank</span>
+                      <span>0341 - Itaú</span>
+                      <span>0077 - Inter</span>
+                      <span>0336 - C6 Bank</span>
                     </div>
                   </div>
                 </CardContent>
