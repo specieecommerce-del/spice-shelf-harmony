@@ -14,6 +14,43 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import CouponsManager from "@/components/settings/CouponsManager";
 
+// Lista dos bancos mais comuns no Brasil
+const COMMON_BANKS: Record<string, string> = {
+  "001": "Banco do Brasil",
+  "033": "Santander",
+  "104": "Caixa Econômica Federal",
+  "237": "Bradesco",
+  "341": "Itaú Unibanco",
+  "260": "Nubank",
+  "077": "Inter",
+  "212": "Banco Original",
+  "290": "PagBank",
+  "380": "PicPay",
+  "336": "C6 Bank",
+  "756": "Sicoob",
+  "748": "Sicredi",
+  "422": "Safra",
+  "070": "BRB",
+  "655": "Neon",
+  "323": "Mercado Pago",
+  "197": "Stone",
+  "403": "Cora",
+  "746": "Modal",
+  "208": "BTG Pactual",
+  "121": "Agibank",
+  "041": "Banrisul",
+  "004": "BNB",
+  "047": "Banese",
+  "085": "Cooperativa Central Ailos",
+  "136": "Unicred",
+  "389": "Mercantil do Brasil",
+  "633": "Rendimento",
+  "707": "Daycoval",
+  "739": "Cetelem",
+  "269": "HSBC",
+  "637": "Sofisa",
+};
+
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -341,11 +378,25 @@ const Settings = () => {
                       <Label htmlFor="bank-code">Código do Banco</Label>
                       <Input
                         id="bank-code"
-                        placeholder="Ex: 0001, 0341, 0260"
+                        placeholder="Ex: 001, 341, 260"
                         value={bankCode}
-                        onChange={(e) => setBankCode(e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => {
+                          const code = e.target.value.replace(/\D/g, '');
+                          setBankCode(code);
+                          // Auto-preencher nome do banco se código conhecido
+                          const normalizedCode = code.padStart(3, '0');
+                          if (COMMON_BANKS[normalizedCode]) {
+                            setBankName(COMMON_BANKS[normalizedCode]);
+                          }
+                        }}
                         maxLength={4}
                       />
+                      {bankCode && COMMON_BANKS[bankCode.padStart(3, '0')] && (
+                        <p className="text-xs text-green-600 flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Banco reconhecido
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
