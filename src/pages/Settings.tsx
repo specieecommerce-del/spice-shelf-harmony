@@ -631,19 +631,19 @@ try {
                     Conta Bancária para Recebimentos
                   </CardTitle>
                   <CardDescription>
-                    Configure sua conta bancária para receber o dinheiro das vendas. Os pagamentos são processados via InfinitePay.
+                    Configure sua conta bancária para receber o dinheiro das vendas via PIX ou transferência.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-start gap-3">
-                      <Wallet className="h-5 w-5 text-amber-600 mt-0.5" />
+                      <Wallet className="h-5 w-5 text-blue-600 mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-amber-800">Como funciona o recebimento?</h4>
-                        <p className="text-sm text-amber-700 mt-1">
-                          Os pagamentos dos clientes são processados pela InfinitePay e transferidos automaticamente 
-                          para a conta bancária cadastrada no seu painel da InfinitePay. Configure sua conta lá para 
-                          receber os valores.
+                        <h4 className="font-medium text-blue-800">Como funciona o recebimento?</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Configure os dados da sua conta bancária para receber os pagamentos das vendas. 
+                          Você pode receber via PIX (configurado na aba PIX) ou transferência bancária direta.
+                          Funciona com qualquer banco brasileiro.
                         </p>
                       </div>
                     </div>
@@ -655,7 +655,7 @@ try {
                       <div>
                         <p className="font-medium text-green-700">Conta bancária vinculada</p>
                         <p className="text-sm text-green-600">
-                          Sua conta foi registrada na InfinitePay com sucesso.
+                          Seus dados bancários foram salvos com sucesso.
                         </p>
                       </div>
                     </div>
@@ -910,10 +910,13 @@ try {
                     {isSavingBank ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Vinculando conta...
+                        Salvando dados...
                       </>
                     ) : (
-                      "Vincular conta bancária na InfinitePay"
+                      <>
+                        <Building2 className="mr-2 h-4 w-4" />
+                        Salvar Conta Bancária
+                      </>
                     )}
                   </Button>
 
@@ -924,7 +927,7 @@ try {
                         <div>
                           <h4 className="font-medium text-amber-800">Login necessário</h4>
                           <p className="text-sm text-amber-700 mt-1">
-                            Faça login para vincular sua conta bancária diretamente com a InfinitePay.
+                            Faça login para salvar sua conta bancária.
                           </p>
                         </div>
                       </div>
