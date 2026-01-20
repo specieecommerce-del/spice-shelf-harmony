@@ -15,6 +15,7 @@ import ProductsManager from "@/components/admin/ProductsManager";
 import WhatsAppAlertsManager from "@/components/admin/WhatsAppAlertsManager";
 import { AdminsManager } from "@/components/admin/AdminsManager";
 import InvoiceManager from "@/components/admin/InvoiceManager";
+import FocusNFeSettings from "@/components/admin/FocusNFeSettings";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -102,6 +103,7 @@ const Admin = () => {
             {activeSection === "orders" && <OrdersManager />}
             {activeSection === "shipping" && <ShippingManager />}
             {activeSection === "invoices" && <InvoiceManager />}
+            {activeSection === "nfe" && <FocusNFeSettings />}
             {activeSection === "products" && <ProductsManager />}
             {activeSection === "whatsapp" && <WhatsAppAlertsManager />}
             {activeSection === "admins" && <AdminsManager />}

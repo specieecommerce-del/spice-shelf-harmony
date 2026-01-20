@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.order-alert-whatsapp]
 verify_jwt = false
+
+[functions.focus-nfe]
+verify_jwt = false
+
+[functions.manage-admins]
+verify_jwt = false
