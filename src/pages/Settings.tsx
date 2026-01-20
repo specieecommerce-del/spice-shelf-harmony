@@ -232,10 +232,10 @@ const Settings = () => {
                       <Label htmlFor="bank-code">Código do Banco</Label>
                       <Input
                         id="bank-code"
-                        placeholder="Ex: 001, 341, 260"
+                        placeholder="Ex: 0001, 0341, 0260"
                         value={bankCode}
                         onChange={(e) => setBankCode(e.target.value.replace(/\D/g, ''))}
-                        maxLength={3}
+                        maxLength={4}
                       />
                     </div>
 
