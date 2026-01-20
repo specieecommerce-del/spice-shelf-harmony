@@ -114,6 +114,21 @@ Deno.serve(async (req) => {
           );
         }
 
+        // Get existing order to check for status change
+        const { data: existingOrder, error: fetchError } = await supabaseAdmin
+          .from("orders")
+          .select("*")
+          .eq("id", orderId)
+          .single();
+
+        if (fetchError || !existingOrder) {
+          console.error("Order not found:", orderId, fetchError);
+          return new Response(
+            JSON.stringify({ error: "Order not found" }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         const updateData: Record<string, unknown> = {};
         
         if (trackingCode !== undefined) {
@@ -129,7 +144,7 @@ Deno.serve(async (req) => {
         }
 
         // Set shipped_at when adding tracking code or changing to shipped status
-        if ((trackingCode && !updateData.shipped_at) || status === "shipped") {
+        if ((trackingCode && !existingOrder.shipped_at) || status === "shipped") {
           updateData.shipped_at = new Date().toISOString();
         }
 
@@ -143,6 +158,100 @@ Deno.serve(async (req) => {
         if (error) {
           console.error("Update tracking error:", error);
           throw error;
+        }
+
+        // Send WhatsApp notification to customer when order is shipped
+        const isNowShipped = status === "shipped" && existingOrder.status !== "shipped";
+        if (isNowShipped && existingOrder.customer_phone) {
+          try {
+            const finalTrackingCode = trackingCode || existingOrder.tracking_code;
+            const finalCarrier = shippingCarrier || existingOrder.shipping_carrier;
+            
+            // Build carrier-specific tracking URL
+            const carrierUrls: Record<string, string> = {
+              correios: `https://rastreamento.correios.com.br/app/index.php?objetos=${finalTrackingCode}`,
+              jadlog: `https://www.jadlog.com.br/siteInstitucional/tracking.jad?cte=${finalTrackingCode}`,
+              sedex: `https://rastreamento.correios.com.br/app/index.php?objetos=${finalTrackingCode}`,
+              pac: `https://rastreamento.correios.com.br/app/index.php?objetos=${finalTrackingCode}`,
+              loggi: `https://www.loggi.com/rastreador/${finalTrackingCode}`,
+              azul_cargo: `https://www.azulcargoexpress.com.br/rastreamento?code=${finalTrackingCode}`,
+            };
+            
+            const trackingUrl = finalCarrier ? carrierUrls[finalCarrier.toLowerCase()] : null;
+            
+            const carrierLabels: Record<string, string> = {
+              correios: "Correios",
+              jadlog: "Jadlog",
+              sedex: "Sedex",
+              pac: "PAC",
+              loggi: "Loggi",
+              azul_cargo: "Azul Cargo",
+              outros: "Transportadora",
+            };
+            
+            const carrierName = finalCarrier ? (carrierLabels[finalCarrier.toLowerCase()] || finalCarrier) : "Transportadora";
+            
+            let customerMessage = `📦 *Seu Pedido Foi Enviado!*\n\n` +
+              `Olá ${existingOrder.customer_name || 'Cliente'}!\n\n` +
+              `Seu pedido está a caminho! 🚚\n\n` +
+              `🔢 *Pedido:* ${existingOrder.order_nsu}\n` +
+              `🏢 *${carrierName}*\n`;
+            
+            if (finalTrackingCode) {
+              customerMessage += `📍 *Código de Rastreio:* ${finalTrackingCode}\n`;
+            }
+            
+            if (trackingUrl) {
+              customerMessage += `\n🔗 *Rastrear:* ${trackingUrl}\n`;
+            }
+            
+            customerMessage += `\nAgradecemos a preferência! 💚`;
+
+            // Get WhatsApp settings and send
+            const ZAPI_INSTANCE_ID = Deno.env.get("ZAPI_INSTANCE_ID");
+            const ZAPI_TOKEN = Deno.env.get("ZAPI_TOKEN");
+            const ZAPI_CLIENT_TOKEN = Deno.env.get("ZAPI_CLIENT_TOKEN");
+
+            if (ZAPI_INSTANCE_ID && ZAPI_TOKEN) {
+              const customerPhone = existingOrder.customer_phone.replace(/\D/g, '');
+              const formattedPhone = customerPhone.startsWith('55') ? customerPhone : `55${customerPhone}`;
+
+              const whatsappResponse = await fetch(`https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}/send-text`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Client-Token': ZAPI_CLIENT_TOKEN || '',
+                },
+                body: JSON.stringify({
+                  phone: formattedPhone,
+                  message: customerMessage,
+                }),
+              });
+
+              const whatsappResult = await whatsappResponse.json();
+              console.log("WhatsApp shipping notification result:", whatsappResult);
+
+              // Log the WhatsApp message
+              await supabaseAdmin
+                .from("whatsapp_logs")
+                .insert({
+                  message_type: "shipping_notification",
+                  destination_phone: formattedPhone,
+                  status: whatsappResponse.ok ? "sent" : "failed",
+                  message_id: whatsappResult?.messageId || null,
+                  zaap_id: whatsappResult?.zapiId || null,
+                  error_message: whatsappResponse.ok ? null : JSON.stringify(whatsappResult),
+                  payload: {
+                    order_nsu: existingOrder.order_nsu,
+                    tracking_code: finalTrackingCode,
+                    carrier: finalCarrier,
+                    customer_name: existingOrder.customer_name,
+                  },
+                });
+            }
+          } catch (whatsappError) {
+            console.error("WhatsApp shipping notification error (non-blocking):", whatsappError);
+          }
         }
 
         return new Response(
