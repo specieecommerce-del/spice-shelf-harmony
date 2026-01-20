@@ -1,4 +1,4 @@
-import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -24,6 +24,7 @@ const menuItems = [
   { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
   { id: "orders", title: "Pedidos", icon: Package },
   { id: "shipping", title: "Histórico & Envios", icon: PackageOpen },
+  { id: "invoices", title: "Comprovantes", icon: FileText },
   { id: "products", title: "Produtos", icon: ShoppingBag },
   { id: "whatsapp", title: "Alertas WhatsApp", icon: MessageSquare },
   { id: "admins", title: "Administradores", icon: Users },

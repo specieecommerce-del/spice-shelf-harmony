@@ -14,6 +14,7 @@ import ShippingManager from "@/components/admin/ShippingManager";
 import ProductsManager from "@/components/admin/ProductsManager";
 import WhatsAppAlertsManager from "@/components/admin/WhatsAppAlertsManager";
 import { AdminsManager } from "@/components/admin/AdminsManager";
+import InvoiceManager from "@/components/admin/InvoiceManager";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -100,6 +101,7 @@ const Admin = () => {
             {activeSection === "dashboard" && <DashboardManager />}
             {activeSection === "orders" && <OrdersManager />}
             {activeSection === "shipping" && <ShippingManager />}
+            {activeSection === "invoices" && <InvoiceManager />}
             {activeSection === "products" && <ProductsManager />}
             {activeSection === "whatsapp" && <WhatsAppAlertsManager />}
             {activeSection === "admins" && <AdminsManager />}
