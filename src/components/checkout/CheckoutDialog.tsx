@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, CreditCard, QrCode, ShoppingBag, Tag, X, CheckCircle2, Copy, Check, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { generatePixCode, PixPaymentData } from "@/lib/pix-generator";
+import { QRCodeSVG } from "qrcode.react";
 
 interface CheckoutDialogProps {
   open: boolean;
@@ -282,13 +283,40 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
               </p>
             </div>
 
+            {/* QR Code Visual */}
+            <div className="flex flex-col items-center space-y-3 bg-white rounded-lg p-6 border">
+              <h4 className="font-medium text-sm text-muted-foreground">Escaneie o QR Code:</h4>
+              <div className="p-3 bg-white rounded-lg border-2 border-primary/20">
+                <QRCodeSVG
+                  value={pixCode}
+                  size={180}
+                  level="M"
+                  includeMargin={false}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Aponte a câmera do app do banco para o QR Code
+              </p>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">ou copie o código</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <h4 className="font-medium text-sm">Código PIX Copia e Cola:</h4>
               <div className="relative">
                 <textarea
                   readOnly
                   value={pixCode}
-                  className="w-full h-24 p-3 text-xs font-mono bg-muted rounded-lg resize-none border"
+                  className="w-full h-20 p-3 text-xs font-mono bg-muted rounded-lg resize-none border"
                   onClick={(e) => (e.target as HTMLTextAreaElement).select()}
                 />
                 <Button
