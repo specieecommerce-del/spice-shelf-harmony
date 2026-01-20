@@ -64,13 +64,30 @@ serve(async (req) => {
     // Format total amount (converting from cents)
     const totalFormatted = (payload.total_amount / 100).toFixed(2);
 
-    // Build WhatsApp message
-    const message = `🛒 *NOVO PEDIDO RECEBIDO!*
+    // Build WhatsApp message with different formatting for PIX vs Card
+    const isPix = payload.payment_method === "pix";
+    
+    const message = isPix 
+      ? `🔔 *NOVO PEDIDO PIX - AÇÃO NECESSÁRIA!*
 
 📋 *NSU:* ${payload.order_nsu}
 👤 *Cliente:* ${payload.customer_name || "Não informado"}
 📱 *Telefone:* ${payload.customer_phone || "Não informado"}
-💳 *Pagamento:* ${payload.payment_method === "pix" ? "PIX" : payload.payment_method === "credit_card" ? "Cartão de Crédito" : payload.payment_method || "Pendente"}
+💳 *Pagamento:* PIX (Estático)
+
+*Itens:*
+${itemsList}
+
+💰 *Total:* R$ ${totalFormatted}
+
+⚠️ *IMPORTANTE:* Este pedido requer confirmação manual!
+📱 Acesse o painel admin e confirme após verificar o pagamento no seu extrato bancário.`
+      : `🛒 *NOVO PEDIDO RECEBIDO!*
+
+📋 *NSU:* ${payload.order_nsu}
+👤 *Cliente:* ${payload.customer_name || "Não informado"}
+📱 *Telefone:* ${payload.customer_phone || "Não informado"}
+💳 *Pagamento:* ${payload.payment_method === "credit_card" ? "Cartão de Crédito" : payload.payment_method || "Pendente"}
 
 *Itens:*
 ${itemsList}
