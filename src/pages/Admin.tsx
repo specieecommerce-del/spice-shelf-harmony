@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sidebar";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import OrdersManager from "@/components/admin/OrdersManager";
+import ShippingManager from "@/components/admin/ShippingManager";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -94,6 +95,7 @@ const Admin = () => {
           
           <div className="flex-1 p-6 overflow-auto">
             {activeSection === "orders" && <OrdersManager />}
+            {activeSection === "shipping" && <ShippingManager />}
           </div>
         </main>
       </div>
