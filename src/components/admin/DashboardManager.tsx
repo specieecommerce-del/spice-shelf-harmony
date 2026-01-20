@@ -124,12 +124,20 @@ const DashboardManager = () => {
   const fetchDashboardData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      // Fetch orders
-      const { data: orders, error: ordersError } = await supabase
-        .from("orders")
-        .select("*");
+      // Fetch orders using admin edge function (bypasses RLS)
+      const { data: ordersResponse, error: ordersError } = await supabase.functions.invoke("admin-orders", {
+        body: {
+          action: "list_orders",
+          status: "all",
+          page: 1,
+          limit: 1000, // Get all orders for stats
+        },
+      });
 
       if (ordersError) throw ordersError;
+      if (ordersResponse?.error) throw new Error(ordersResponse.error);
+
+      const orders = ordersResponse?.orders || [];
 
       // Fetch products
       const { data: products, error: productsError } = await supabase
