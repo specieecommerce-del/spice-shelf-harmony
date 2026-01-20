@@ -29,11 +29,11 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Verify user and get claims
+    // Verify user and get claims using getClaims
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getUser(token);
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
     
-    if (claimsError || !claimsData?.user) {
+    if (claimsError || !claimsData?.claims) {
       console.error("Auth error:", claimsError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
@@ -41,7 +41,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const userId = claimsData.user.id;
+    const userId = claimsData.claims.sub as string;
+    const userEmail = claimsData.claims.email as string;
 
     // Create service role client for admin operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -237,7 +238,7 @@ Deno.serve(async (req) => {
           .eq("user_id", userId)
           .maybeSingle();
 
-        const adminEmail = claimsData.user.email || "unknown";
+        const adminEmail = userEmail || "unknown";
         const adminName = adminProfile?.full_name || adminEmail;
 
         // Create audit log entry
