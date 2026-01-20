@@ -31,8 +31,11 @@ import {
   ImageIcon,
   X,
   RefreshCw,
+  AlertTriangle,
+  Package,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Product {
   id: string;
@@ -47,7 +50,19 @@ interface Product {
   category: string | null;
   is_active: boolean;
   sort_order: number;
+  stock_quantity: number;
+  low_stock_threshold: number;
 }
+
+const getStockStatus = (product: Product) => {
+  if (product.stock_quantity === 0) {
+    return { label: "Esgotado", variant: "destructive" as const, isLow: true };
+  }
+  if (product.stock_quantity <= product.low_stock_threshold) {
+    return { label: "Baixo estoque", variant: "warning" as const, isLow: true };
+  }
+  return { label: "Em estoque", variant: "secondary" as const, isLow: false };
+};
 
 const ProductsManager = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -72,7 +87,13 @@ const ProductsManager = () => {
     category: "",
     is_active: true,
     sort_order: "0",
+    stock_quantity: "50",
+    low_stock_threshold: "5",
   });
+
+  const lowStockProducts = products.filter(
+    (p) => p.stock_quantity <= p.low_stock_threshold
+  );
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -110,6 +131,8 @@ const ProductsManager = () => {
       category: "",
       is_active: true,
       sort_order: String(products.length + 1),
+      stock_quantity: "50",
+      low_stock_threshold: "5",
     });
     setIsDialogOpen(true);
   };
@@ -128,6 +151,8 @@ const ProductsManager = () => {
       category: product.category || "",
       is_active: product.is_active,
       sort_order: String(product.sort_order),
+      stock_quantity: String(product.stock_quantity),
+      low_stock_threshold: String(product.low_stock_threshold),
     });
     setIsDialogOpen(true);
   };
@@ -200,6 +225,8 @@ const ProductsManager = () => {
         category: formData.category.trim() || null,
         is_active: formData.is_active,
         sort_order: parseInt(formData.sort_order) || 0,
+        stock_quantity: parseInt(formData.stock_quantity) || 0,
+        low_stock_threshold: parseInt(formData.low_stock_threshold) || 5,
       };
 
       if (selectedProduct) {
@@ -284,6 +311,18 @@ const ProductsManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* Low Stock Alert */}
+      {lowStockProducts.length > 0 && (
+        <Alert variant="destructive" className="border-orange-500 bg-orange-50 dark:bg-orange-950/20">
+          <AlertTriangle className="h-4 w-4 text-orange-600" />
+          <AlertTitle className="text-orange-800 dark:text-orange-400">Alerta de Estoque Baixo</AlertTitle>
+          <AlertDescription className="text-orange-700 dark:text-orange-300">
+            {lowStockProducts.length} produto(s) com estoque baixo ou esgotado:{" "}
+            {lowStockProducts.map((p) => p.name).join(", ")}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
@@ -310,6 +349,7 @@ const ProductsManager = () => {
                   <TableHead>Nome</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
+                  <TableHead className="text-center">Estoque</TableHead>
                   <TableHead className="text-center">Ativo</TableHead>
                   <TableHead className="text-right w-24">Ações</TableHead>
                 </TableRow>
@@ -317,13 +357,15 @@ const ProductsManager = () => {
               <TableBody>
                 {products.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Nenhum produto cadastrado
                     </TableCell>
                   </TableRow>
                 ) : (
-                  products.map((product) => (
-                    <TableRow key={product.id}>
+                  products.map((product) => {
+                    const stockStatus = getStockStatus(product);
+                    return (
+                      <TableRow key={product.id} className={stockStatus.isLow ? "bg-orange-50/50 dark:bg-orange-950/10" : ""}>
                       <TableCell>
                         {product.image_url ? (
                           <img
@@ -353,44 +395,59 @@ const ProductsManager = () => {
                         </div>
                       </TableCell>
                       <TableCell>{product.category || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        <div>
-                          <span className="font-medium">
-                            R$ {product.price.toFixed(2).replace(".", ",")}
-                          </span>
-                          {product.original_price && (
-                            <p className="text-xs text-muted-foreground line-through">
-                              R$ {product.original_price.toFixed(2).replace(".", ",")}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Switch
-                          checked={product.is_active}
-                          onCheckedChange={() => toggleProductActive(product)}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(product)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => confirmDelete(product)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        <TableCell className="text-right">
+                          <div>
+                            <span className="font-medium">
+                              R$ {Number(product.price).toFixed(2).replace(".", ",")}
+                            </span>
+                            {product.original_price && (
+                              <p className="text-xs text-muted-foreground line-through">
+                                R$ {Number(product.original_price).toFixed(2).replace(".", ",")}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <Badge 
+                              variant={stockStatus.variant === "warning" ? "outline" : stockStatus.variant}
+                              className={stockStatus.variant === "warning" ? "border-orange-500 text-orange-600 bg-orange-50" : ""}
+                            >
+                              <Package className="h-3 w-3 mr-1" />
+                              {product.stock_quantity}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {stockStatus.label}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={product.is_active}
+                            onCheckedChange={() => toggleProductActive(product)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(product)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => confirmDelete(product)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -549,6 +606,45 @@ const ProductsManager = () => {
                   }
                   placeholder="Best-seller, Orgânico, Vegan"
                 />
+              </div>
+            </div>
+
+            {/* Stock Management */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Gerenciamento de Estoque
+              </Label>
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div className="space-y-2">
+                  <Label htmlFor="stock_quantity">Quantidade em Estoque *</Label>
+                  <Input
+                    id="stock_quantity"
+                    type="number"
+                    min="0"
+                    value={formData.stock_quantity}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, stock_quantity: e.target.value }))
+                    }
+                    placeholder="50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="low_stock_threshold">Alerta de Estoque Baixo</Label>
+                  <Input
+                    id="low_stock_threshold"
+                    type="number"
+                    min="0"
+                    value={formData.low_stock_threshold}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, low_stock_threshold: e.target.value }))
+                    }
+                    placeholder="5"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Alerta quando o estoque atingir este número
+                  </p>
+                </div>
               </div>
             </div>
 
