@@ -14,9 +14,9 @@ serve(async (req) => {
   }
 
   try {
-    const ZAPI_INSTANCE_ID = Deno.env.get("ZAPI_INSTANCE_ID");
-    const ZAPI_TOKEN = Deno.env.get("ZAPI_TOKEN");
-    const ZAPI_CLIENT_TOKEN = Deno.env.get("ZAPI_CLIENT_TOKEN");
+    const ZAPI_INSTANCE_ID = (Deno.env.get("ZAPI_INSTANCE_ID") || "").trim();
+    const ZAPI_TOKEN = (Deno.env.get("ZAPI_TOKEN") || "").trim();
+    const ZAPI_CLIENT_TOKEN = (Deno.env.get("ZAPI_CLIENT_TOKEN") || "").trim();
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -29,6 +29,8 @@ serve(async (req) => {
     }
 
     console.log("Using Z-API Instance:", ZAPI_INSTANCE_ID);
+    console.log("Z-API token length:", ZAPI_TOKEN.length);
+    console.log("Z-API client-token present:", Boolean(ZAPI_CLIENT_TOKEN), "len:", ZAPI_CLIENT_TOKEN.length);
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 

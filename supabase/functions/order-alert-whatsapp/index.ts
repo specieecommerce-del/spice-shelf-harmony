@@ -22,9 +22,9 @@ serve(async (req) => {
   }
 
   try {
-    const ZAPI_INSTANCE_ID = Deno.env.get("ZAPI_INSTANCE_ID");
-    const ZAPI_TOKEN = Deno.env.get("ZAPI_TOKEN");
-    const ZAPI_CLIENT_TOKEN = Deno.env.get("ZAPI_CLIENT_TOKEN");
+    const ZAPI_INSTANCE_ID = (Deno.env.get("ZAPI_INSTANCE_ID") || "").trim();
+    const ZAPI_TOKEN = (Deno.env.get("ZAPI_TOKEN") || "").trim();
+    const ZAPI_CLIENT_TOKEN = (Deno.env.get("ZAPI_CLIENT_TOKEN") || "").trim();
 
     if (!ZAPI_INSTANCE_ID || !ZAPI_TOKEN) {
       console.error("Z-API credentials not configured");
@@ -35,6 +35,8 @@ serve(async (req) => {
     }
 
     console.log("Using Z-API Instance:", ZAPI_INSTANCE_ID);
+    console.log("Z-API token length:", ZAPI_TOKEN.length);
+    console.log("Z-API client-token present:", Boolean(ZAPI_CLIENT_TOKEN), "len:", ZAPI_CLIENT_TOKEN.length);
 
     const payload: OrderAlertPayload = await req.json();
     console.log("Order alert payload:", payload);
