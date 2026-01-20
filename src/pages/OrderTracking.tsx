@@ -2,7 +2,8 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Package, Truck, CheckCircle, Clock, Search, AlertCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Package, Truck, CheckCircle, Clock, Search, AlertCircle, MapPin, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -13,17 +14,22 @@ interface OrderStatus {
   status: string;
   created_at: string;
   total_amount: number;
+  tracking_code: string | null;
+  shipping_carrier: string | null;
+  shipped_at: string | null;
+  customer_name: string | null;
 }
 
 const OrderTracking = () => {
-  const [trackingCode, setTrackingCode] = useState("");
+  const [searchCode, setSearchCode] = useState("");
+  const [searchType, setSearchType] = useState<"order" | "tracking">("order");
   const [order, setOrder] = useState<OrderStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
   const handleSearch = async () => {
-    if (!trackingCode.trim()) {
-      toast.error("Digite o código do pedido");
+    if (!searchCode.trim()) {
+      toast.error(searchType === "order" ? "Digite o código do pedido" : "Digite o código de rastreio");
       return;
     }
 
@@ -31,9 +37,21 @@ const OrderTracking = () => {
     setSearched(true);
 
     try {
-      const { data, error } = await supabase.rpc('check_order_status', {
-        p_order_nsu: trackingCode.trim()
-      });
+      let data, error;
+      
+      if (searchType === "order") {
+        const result = await supabase.rpc('check_order_status', {
+          p_order_nsu: searchCode.trim()
+        });
+        data = result.data;
+        error = result.error;
+      } else {
+        const result = await supabase.rpc('check_order_by_tracking', {
+          p_tracking_code: searchCode.trim()
+        });
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) throw error;
 
@@ -82,6 +100,21 @@ const OrderTracking = () => {
     return labels[status] || status;
   };
 
+  const getCarrierTrackingUrl = (carrier: string | null, trackingCode: string | null) => {
+    if (!carrier || !trackingCode) return null;
+    
+    const carrierUrls: Record<string, string> = {
+      correios: `https://rastreamento.correios.com.br/app/index.php?objetos=${trackingCode}`,
+      jadlog: `https://www.jadlog.com.br/siteInstitucional/tracking.jad?cte=${trackingCode}`,
+      sedex: `https://rastreamento.correios.com.br/app/index.php?objetos=${trackingCode}`,
+      pac: `https://rastreamento.correios.com.br/app/index.php?objetos=${trackingCode}`,
+      loggi: `https://www.loggi.com/rastreador/${trackingCode}`,
+      azul_cargo: `https://www.azulcargoexpress.com.br/rastreamento?code=${trackingCode}`,
+    };
+    
+    return carrierUrls[carrier.toLowerCase()] || null;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -97,30 +130,71 @@ const OrderTracking = () => {
               Rastrear Pedido
             </h1>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-8">
-              Digite o código do seu pedido para acompanhar o status da entrega
+              Digite o código do seu pedido ou código de rastreio para acompanhar a entrega
             </p>
             
-            {/* Search */}
-            <div className="max-w-xl mx-auto flex gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                <Input
-                  type="text"
-                  placeholder="Digite o código do pedido (ex: SP-123456)"
-                  className="pl-12 h-14 text-lg"
-                  value={trackingCode}
-                  onChange={(e) => setTrackingCode(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                />
-              </div>
-              <Button 
-                size="lg" 
-                className="h-14 px-8"
-                onClick={handleSearch}
-                disabled={loading}
-              >
-                {loading ? "Buscando..." : "Rastrear"}
-              </Button>
+            {/* Search Tabs */}
+            <div className="max-w-xl mx-auto">
+              <Tabs value={searchType} onValueChange={(v) => setSearchType(v as "order" | "tracking")} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="order" className="flex items-center gap-2">
+                    <Package size={16} />
+                    Nº do Pedido
+                  </TabsTrigger>
+                  <TabsTrigger value="tracking" className="flex items-center gap-2">
+                    <MapPin size={16} />
+                    Código de Rastreio
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="order" className="mt-0">
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                      <Input
+                        type="text"
+                        placeholder="Digite o código do pedido (ex: SP-123456)"
+                        className="pl-12 h-14 text-lg"
+                        value={searchCode}
+                        onChange={(e) => setSearchCode(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                      />
+                    </div>
+                    <Button 
+                      size="lg" 
+                      className="h-14 px-8"
+                      onClick={handleSearch}
+                      disabled={loading}
+                    >
+                      {loading ? "Buscando..." : "Rastrear"}
+                    </Button>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="tracking" className="mt-0">
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                      <Input
+                        type="text"
+                        placeholder="Digite o código de rastreio (ex: BR123456789BR)"
+                        className="pl-12 h-14 text-lg"
+                        value={searchCode}
+                        onChange={(e) => setSearchCode(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                      />
+                    </div>
+                    <Button 
+                      size="lg" 
+                      className="h-14 px-8"
+                      onClick={handleSearch}
+                      disabled={loading}
+                    >
+                      {loading ? "Buscando..." : "Rastrear"}
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
         </section>
@@ -131,16 +205,63 @@ const OrderTracking = () => {
             <div className="container-species max-w-3xl">
               {order ? (
                 <div className="bg-card rounded-xl border p-8">
-                  <div className="flex items-center justify-between mb-8">
+                  <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
                     <div>
                       <p className="text-sm text-muted-foreground">Pedido</p>
                       <p className="font-semibold text-lg">{order.order_nsu}</p>
+                      {order.customer_name && (
+                        <p className="text-sm text-muted-foreground mt-1">{order.customer_name}</p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Status</p>
                       <p className="font-semibold text-primary">{getStatusLabel(order.status)}</p>
                     </div>
                   </div>
+
+                  {/* Tracking Info */}
+                  {order.tracking_code && (
+                    <div className="bg-primary/5 rounded-lg p-4 mb-8 border border-primary/10">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground flex items-center gap-2">
+                            <MapPin size={14} />
+                            Código de Rastreio
+                          </p>
+                          <p className="font-mono font-semibold text-lg">{order.tracking_code}</p>
+                          {order.shipping_carrier && (
+                            <p className="text-sm text-muted-foreground capitalize">
+                              Transportadora: {order.shipping_carrier}
+                            </p>
+                          )}
+                        </div>
+                        {getCarrierTrackingUrl(order.shipping_carrier, order.tracking_code) && (
+                          <Button variant="outline" size="sm" asChild>
+                            <a 
+                              href={getCarrierTrackingUrl(order.shipping_carrier, order.tracking_code)!} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2"
+                            >
+                              <ExternalLink size={14} />
+                              Rastrear na Transportadora
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                      {order.shipped_at && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Enviado em: {new Date(order.shipped_at).toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Timeline */}
                   <div className="relative">
@@ -206,7 +327,10 @@ const OrderTracking = () => {
                   </div>
                   <h3 className="font-semibold text-lg mb-2">Pedido não encontrado</h3>
                   <p className="text-muted-foreground">
-                    Verifique se o código do pedido está correto e tente novamente.
+                    {searchType === "order" 
+                      ? "Verifique se o código do pedido está correto e tente novamente."
+                      : "Verifique se o código de rastreio está correto e tente novamente."
+                    }
                   </p>
                 </div>
               )}
