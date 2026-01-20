@@ -11,6 +11,7 @@ import AdminSidebar from "@/components/admin/AdminSidebar";
 import OrdersManager from "@/components/admin/OrdersManager";
 import ShippingManager from "@/components/admin/ShippingManager";
 import ProductsManager from "@/components/admin/ProductsManager";
+import WhatsAppAlertsManager from "@/components/admin/WhatsAppAlertsManager";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -98,6 +99,7 @@ const Admin = () => {
             {activeSection === "orders" && <OrdersManager />}
             {activeSection === "shipping" && <ShippingManager />}
             {activeSection === "products" && <ProductsManager />}
+            {activeSection === "whatsapp" && <WhatsAppAlertsManager />}
           </div>
         </main>
       </div>
