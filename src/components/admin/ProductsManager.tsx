@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -33,9 +34,15 @@ import {
   RefreshCw,
   AlertTriangle,
   Package,
+  FileSpreadsheet,
+  Download,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import * as XLSX from "xlsx";
 
 interface Product {
   id: string;
@@ -69,10 +76,18 @@ const ProductsManager = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importPreview, setImportPreview] = useState<Array<{
+    data: Record<string, unknown>;
+    valid: boolean;
+    errors: string[];
+  }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -301,6 +316,176 @@ const ProductsManager = () => {
     }
   };
 
+  // Import functionality
+  const downloadTemplate = () => {
+    const template = [
+      {
+        nome: "Exemplo Produto",
+        descricao: "Descrição do produto",
+        preco: 29.90,
+        preco_original: 39.90,
+        categoria: "Ervas",
+        badges: "Orgânico, Vegan",
+        estoque: 50,
+        limite_estoque_baixo: 5,
+        ativo: "sim",
+        imagem_url: "https://exemplo.com/imagem.jpg",
+      },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Produtos");
+    
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 25 }, // nome
+      { wch: 40 }, // descricao
+      { wch: 10 }, // preco
+      { wch: 15 }, // preco_original
+      { wch: 15 }, // categoria
+      { wch: 25 }, // badges
+      { wch: 10 }, // estoque
+      { wch: 20 }, // limite_estoque_baixo
+      { wch: 8 },  // ativo
+      { wch: 40 }, // imagem_url
+    ];
+
+    XLSX.writeFile(wb, "modelo_produtos.xlsx");
+    toast.success("Modelo baixado com sucesso!");
+  };
+
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+      "text/csv",
+    ];
+
+    if (!validTypes.includes(file.type) && !file.name.endsWith(".csv") && !file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast.error("Por favor, selecione um arquivo Excel (.xlsx, .xls) ou CSV");
+      return;
+    }
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      if (jsonData.length === 0) {
+        toast.error("O arquivo está vazio");
+        return;
+      }
+
+      // Validate and preview data
+      const preview = jsonData.map((row: unknown) => {
+        const r = row as Record<string, unknown>;
+        const errors: string[] = [];
+
+        // Check required fields
+        if (!r.nome && !r.name) {
+          errors.push("Nome é obrigatório");
+        }
+        if (!r.preco && !r.price && r.preco !== 0 && r.price !== 0) {
+          errors.push("Preço é obrigatório");
+        }
+
+        const price = parseFloat(String(r.preco || r.price || 0));
+        if (isNaN(price) || price < 0) {
+          errors.push("Preço inválido");
+        }
+
+        const stock = parseInt(String(r.estoque || r.stock || r.stock_quantity || 0));
+        if (isNaN(stock) || stock < 0) {
+          errors.push("Estoque inválido");
+        }
+
+        return {
+          data: r,
+          valid: errors.length === 0,
+          errors,
+        };
+      });
+
+      setImportPreview(preview);
+      setIsImportDialogOpen(true);
+    } catch (error) {
+      console.error("Error reading file:", error);
+      toast.error("Erro ao ler o arquivo");
+    }
+
+    // Reset input
+    if (importFileInputRef.current) {
+      importFileInputRef.current.value = "";
+    }
+  };
+
+  const executeImport = async () => {
+    const validItems = importPreview.filter((item) => item.valid);
+    if (validItems.length === 0) {
+      toast.error("Nenhum produto válido para importar");
+      return;
+    }
+
+    setIsImporting(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const item of validItems) {
+      try {
+        const r = item.data;
+        
+        const productData = {
+          name: String(r.nome || r.name || ""),
+          description: String(r.descricao || r.description || "") || null,
+          price: parseFloat(String(r.preco || r.price || 0)),
+          original_price: r.preco_original || r.original_price 
+            ? parseFloat(String(r.preco_original || r.original_price)) 
+            : null,
+          category: String(r.categoria || r.category || "") || null,
+          badges: r.badges 
+            ? String(r.badges).split(",").map((b: string) => b.trim()).filter(Boolean)
+            : [],
+          stock_quantity: parseInt(String(r.estoque || r.stock || r.stock_quantity || 0)),
+          low_stock_threshold: parseInt(String(r.limite_estoque_baixo || r.low_stock_threshold || 5)),
+          is_active: String(r.ativo || r.active || r.is_active || "sim").toLowerCase() !== "nao" 
+            && String(r.ativo || r.active || r.is_active || "sim").toLowerCase() !== "não"
+            && String(r.ativo || r.active || r.is_active || "sim").toLowerCase() !== "false"
+            && String(r.ativo || r.active || r.is_active || "sim").toLowerCase() !== "0",
+          image_url: String(r.imagem_url || r.image_url || "") || null,
+          rating: parseFloat(String(r.avaliacao || r.rating || 5)),
+          reviews: parseInt(String(r.avaliacoes || r.reviews || 0)),
+          sort_order: products.length + successCount,
+        };
+
+        const { error } = await supabase.from("products").insert(productData);
+
+        if (error) throw error;
+        successCount++;
+      } catch (error) {
+        console.error("Error importing product:", error);
+        errorCount++;
+      }
+    }
+
+    setIsImporting(false);
+    setIsImportDialogOpen(false);
+    setImportPreview([]);
+    fetchProducts();
+
+    if (successCount > 0) {
+      toast.success(`${successCount} produto(s) importado(s) com sucesso!`);
+    }
+    if (errorCount > 0) {
+      toast.error(`${errorCount} produto(s) falharam ao importar`);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -329,11 +514,30 @@ const ProductsManager = () => {
             <ImageIcon className="h-5 w-5" />
             Gerenciamento de Produtos
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={fetchProducts}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Atualizar
             </Button>
+            <Button variant="outline" size="sm" onClick={downloadTemplate}>
+              <Download className="h-4 w-4 mr-2" />
+              Baixar Modelo
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => importFileInputRef.current?.click()}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Importar Excel/CSV
+            </Button>
+            <input
+              ref={importFileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handleImportFile}
+            />
             <Button size="sm" onClick={openCreateDialog}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Produto
@@ -733,6 +937,113 @@ const ProductsManager = () => {
             <Button variant="destructive" onClick={handleDelete}>
               <Trash2 className="h-4 w-4 mr-2" />
               Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Preview Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Importar Produtos em Massa
+            </DialogTitle>
+            <DialogDescription>
+              Revise os dados antes de importar. Produtos com erros serão ignorados.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span>{importPreview.filter(p => p.valid).length} válidos</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-500" />
+              <span>{importPreview.filter(p => !p.valid).length} com erros</span>
+            </div>
+          </div>
+
+          <ScrollArea className="flex-1 border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Status</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead className="text-right">Preço</TableHead>
+                  <TableHead className="text-center">Estoque</TableHead>
+                  <TableHead>Erros</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importPreview.map((item, index) => {
+                  const r = item.data;
+                  return (
+                    <TableRow 
+                      key={index}
+                      className={!item.valid ? "bg-red-50 dark:bg-red-950/20" : ""}
+                    >
+                      <TableCell>
+                        {item.valid ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {String(r.nome || r.name || "-")}
+                      </TableCell>
+                      <TableCell>
+                        {String(r.categoria || r.category || "-")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        R$ {parseFloat(String(r.preco || r.price || 0)).toFixed(2).replace(".", ",")}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {String(r.estoque || r.stock || r.stock_quantity || 0)}
+                      </TableCell>
+                      <TableCell>
+                        {item.errors.length > 0 && (
+                          <span className="text-red-600 text-xs">
+                            {item.errors.join(", ")}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsImportDialogOpen(false);
+                setImportPreview([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={executeImport} 
+              disabled={isImporting || importPreview.filter(p => p.valid).length === 0}
+            >
+              {isImporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar {importPreview.filter(p => p.valid).length} Produto(s)
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
