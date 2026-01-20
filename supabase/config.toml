@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.check-payment]
 verify_jwt = false
+
+[functions.save-bank-account]
+verify_jwt = false
+
+[functions.manage-coupons]
+verify_jwt = false

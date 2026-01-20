@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet, Loader2, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCPFCNPJ, validateCPFCNPJ } from "@/lib/cpf-cnpj";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import CouponsManager from "@/components/settings/CouponsManager";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -202,8 +203,12 @@ const Settings = () => {
             <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
           </div>
 
-          <Tabs defaultValue="bank" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-1 lg:grid-cols-3 h-auto">
+          <Tabs defaultValue="coupons" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
+              <TabsTrigger value="coupons" className="flex items-center gap-2 py-3">
+                <Tag className="h-4 w-4" />
+                Cupons
+              </TabsTrigger>
               <TabsTrigger value="bank" className="flex items-center gap-2 py-3">
                 <Building2 className="h-4 w-4" />
                 Conta Bancária
@@ -217,6 +222,11 @@ const Settings = () => {
                 Loja
               </TabsTrigger>
             </TabsList>
+
+            {/* Coupons Tab */}
+            <TabsContent value="coupons">
+              <CouponsManager />
+            </TabsContent>
 
             {/* Bank Account Tab */}
             <TabsContent value="bank" className="space-y-6">
