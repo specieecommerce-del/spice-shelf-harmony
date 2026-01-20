@@ -164,6 +164,30 @@ serve(async (req) => {
       // Still return the payment link even if we couldn't save the order
     } else {
       console.log('Order saved successfully:', orderNsu);
+
+      // Send WhatsApp alert for new order (fire and forget)
+      try {
+        const alertPayload = {
+          order_nsu: orderNsu,
+          customer_name: customer?.name,
+          customer_phone: customer?.phone,
+          total_amount: totalAmount,
+          payment_method: 'credit_card',
+          items: items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: Math.round(item.price * 100),
+          })),
+        };
+
+        fetch(`${supabaseUrl}/functions/v1/order-alert-whatsapp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(alertPayload),
+        }).catch(err => console.error('WhatsApp alert failed:', err));
+      } catch (alertError) {
+        console.error('Error sending WhatsApp alert:', alertError);
+      }
     }
 
     return new Response(

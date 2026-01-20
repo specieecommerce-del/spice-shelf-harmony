@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.stock-alert-whatsapp]
 verify_jwt = false
+
+[functions.order-alert-whatsapp]
+verify_jwt = false
