@@ -13,6 +13,7 @@ import OrdersManager from "@/components/admin/OrdersManager";
 import ShippingManager from "@/components/admin/ShippingManager";
 import ProductsManager from "@/components/admin/ProductsManager";
 import WhatsAppAlertsManager from "@/components/admin/WhatsAppAlertsManager";
+import { AdminsManager } from "@/components/admin/AdminsManager";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -101,6 +102,7 @@ const Admin = () => {
             {activeSection === "shipping" && <ShippingManager />}
             {activeSection === "products" && <ProductsManager />}
             {activeSection === "whatsapp" && <WhatsAppAlertsManager />}
+            {activeSection === "admins" && <AdminsManager />}
           </div>
         </main>
       </div>

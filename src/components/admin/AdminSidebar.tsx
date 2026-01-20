@@ -1,4 +1,4 @@
-import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -26,6 +26,7 @@ const menuItems = [
   { id: "shipping", title: "Histórico & Envios", icon: PackageOpen },
   { id: "products", title: "Produtos", icon: ShoppingBag },
   { id: "whatsapp", title: "Alertas WhatsApp", icon: MessageSquare },
+  { id: "admins", title: "Administradores", icon: Users },
 ];
 
 const AdminSidebar = ({ activeSection, onSectionChange }: AdminSidebarProps) => {
