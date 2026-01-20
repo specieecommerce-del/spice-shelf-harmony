@@ -17,7 +17,7 @@ const Footer = () => {
               <a href="https://instagram.com/speciesalimentos" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
                 <Instagram size={18} />
               </a>
-              <a href="https://wa.me/5511919778073" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
+              <a href="https://www.facebook.com/profile.php?id=61576860685498" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
                 <Facebook size={18} />
               </a>
               <Instagram href="#" className="w-10 h-10 rounded-full bg-spice-warm-white/10 flex items-center justify-center hover:bg-spice-gold transition-colors">
