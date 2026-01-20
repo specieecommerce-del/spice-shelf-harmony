@@ -18,6 +18,18 @@ const RequestSchema = z.object({
     .regex(/^(ORDER|PIX)_[0-9]+_[a-z0-9]+$/),
 });
 
+type OrderStatusRow = {
+  id: string;
+  order_nsu: string;
+  status: string;
+  total_amount: number;
+  paid_amount: number | null;
+  payment_method: string | null;
+  installments: number | null;
+  receipt_url: string | null;
+  created_at: string;
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -54,19 +66,32 @@ serve(async (req) => {
     
     console.log('Checking payment status for order:', orderNsu);
 
-    // Use the secure function to check order status
-    const { data: orders, error: orderError } = await supabase
+    // Prefer the RPC (consistent, minimal fields), but fall back to a direct query
+    // to avoid runtime failures if the RPC signature ever drifts.
+    const { data: orders, error: rpcError } = await supabase
       .rpc('check_order_status', { p_order_nsu: orderNsu });
 
-    if (orderError) {
-      console.error('Error fetching order:', orderNsu, orderError);
-      return new Response(
-        JSON.stringify({ error: 'Unable to retrieve order status' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    let order: OrderStatusRow | null = (orders && orders.length > 0 ? (orders[0] as OrderStatusRow) : null);
 
-    const order = orders && orders.length > 0 ? orders[0] : null;
+    if (rpcError) {
+      console.error('RPC error fetching order (fallback to direct query):', orderNsu, rpcError);
+
+      const { data: directOrder, error: directError } = await supabase
+        .from('orders')
+        .select('id, order_nsu, status, total_amount, paid_amount, payment_method, installments, receipt_url, created_at')
+        .eq('order_nsu', orderNsu)
+        .maybeSingle();
+
+      if (directError) {
+        console.error('Direct query error fetching order:', orderNsu, directError);
+        return new Response(
+          JSON.stringify({ error: 'Unable to retrieve order status' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      order = directOrder as OrderStatusRow | null;
+    }
 
     if (!order) {
       console.log('Order not found:', orderNsu);

@@ -47,6 +47,17 @@ function normalizeText(text: string): string {
     .substring(0, 25);
 }
 
+function normalizeDescription(text: string): string {
+  // Description (field 26.02) allows up to 72 chars; keep it bank-app friendly.
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 72);
+}
+
 // Get PIX key type code
 function getKeyTypeIndicator(keyType: PixPaymentData['pixKeyType']): string {
   switch (keyType) {
@@ -108,7 +119,8 @@ export function detectPixKeyType(key: string): PixPaymentData['pixKeyType'] {
   }
   
   // Check if it's an email
-  if (/^[^s@]+@[^s@]+.[^s@]+$/.test(key)) {
+  // Basic RFC-ish email pattern (good enough for key type detection)
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key)) {
     return 'email';
   }
   
@@ -128,7 +140,10 @@ export function generatePixCode(data: PixPaymentData): string {
   
   // Add description if provided
   if (data.description) {
-    merchantInfo += formatEMVField('02', data.description.substring(0, 72));
+    const desc = normalizeDescription(data.description);
+    if (desc) {
+      merchantInfo += formatEMVField('02', desc);
+    }
   }
   
   const merchantAccountInfo = formatEMVField('26', merchantInfo);
@@ -139,8 +154,10 @@ export function generatePixCode(data: PixPaymentData): string {
   // Payload Format Indicator (ID 00)
   emvCode += formatEMVField('00', '01');
   
-  // Point of Initiation Method (ID 01) - 11 = static, 12 = dynamic
-  emvCode += formatEMVField('01', data.amount ? '12' : '11');
+  // Point of Initiation Method (ID 01)
+  // We generate a *static* PIX code (DICT key in field 26.01), even when an amount is present.
+  // Dynamic PIX requires a charge location/URL and is not what we are using here.
+  emvCode += formatEMVField('01', '11');
   
   // Merchant Account Information (ID 26)
   emvCode += merchantAccountInfo;
