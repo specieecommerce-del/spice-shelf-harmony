@@ -116,6 +116,36 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     }
   }, []);
 
+  // Function to send order confirmation emails
+  const sendOrderEmails = useCallback(async () => {
+    if (!pixOrderData) return;
+    
+    try {
+      console.log("Sending order confirmation emails...");
+      const { error } = await supabase.functions.invoke("send-order-emails", {
+        body: {
+          orderNsu: pixOrderData.orderNsu,
+          customerName: customerInfo.name,
+          customerEmail: customerInfo.email,
+          totalAmount: pixOrderData.totalAmount,
+          items: items.map((item) => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+          })),
+        },
+      });
+
+      if (error) {
+        console.error("Error sending emails:", error);
+      } else {
+        console.log("Order confirmation emails sent successfully");
+      }
+    } catch (err) {
+      console.error("Failed to send order emails:", err);
+    }
+  }, [pixOrderData, customerInfo, items]);
+
   // Start polling when PIX payment screen is shown
   useEffect(() => {
     if (showPixPayment && pixOrderData && !paymentConfirmed) {
@@ -129,6 +159,10 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
           }
+          
+          // Send confirmation emails to customer and admin
+          sendOrderEmails();
+          
           toast({
             title: "🎉 Pagamento confirmado!",
             description: "Seu pagamento foi recebido com sucesso.",
@@ -144,7 +178,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         }
       };
     }
-  }, [showPixPayment, pixOrderData, paymentConfirmed, checkPaymentStatus, toast]);
+  }, [showPixPayment, pixOrderData, paymentConfirmed, checkPaymentStatus, toast, sendOrderEmails]);
 
   // Cleanup polling when dialog closes
   useEffect(() => {
