@@ -661,6 +661,133 @@ try {
                     </div>
                   )}
 
+                  {/* QR Code de Autenticação Bancária */}
+                  {bankSaved && bankName && accountNumber && agency && accountHolder && (
+                    <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+                      <CardHeader className="text-center pb-2">
+                        <CardTitle className="flex items-center justify-center gap-2 text-lg">
+                          <Building2 className="h-5 w-5 text-blue-600" />
+                          QR Code de Vínculo Bancário
+                        </CardTitle>
+                        <CardDescription>
+                          Use este QR Code para autenticar e vincular sua conta bancária
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex flex-col items-center space-y-4">
+                        <div className="p-4 bg-white rounded-xl border-2 border-blue-100 shadow-lg">
+                          <QRCodeSVG
+                            id="bank-link-qrcode"
+                            value={JSON.stringify({
+                              type: "BANK_LINK_AUTH",
+                              bank: {
+                                code: bankCode.padStart(3, '0'),
+                                name: bankName,
+                                agency: agency,
+                                account: accountNumber,
+                                type: accountType === 'corrente' ? 'CC' : 'CP',
+                              },
+                              holder: {
+                                name: accountHolder,
+                                document: cpfCnpj.replace(/\D/g, ''),
+                              },
+                              timestamp: new Date().toISOString(),
+                              site: window.location.origin,
+                            })}
+                            size={180}
+                            level="H"
+                            includeMargin={false}
+                            bgColor="#ffffff"
+                            fgColor="#1e40af"
+                          />
+                        </div>
+                        <div className="text-center space-y-2 w-full max-w-sm">
+                          <div className="bg-blue-50 rounded-lg p-3 space-y-1">
+                            <p className="font-semibold text-blue-800">{bankName}</p>
+                            <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
+                              <div>
+                                <span className="text-blue-500">Agência:</span> {agency}
+                              </div>
+                              <div>
+                                <span className="text-blue-500">Conta:</span> {accountNumber}
+                              </div>
+                            </div>
+                            <p className="text-xs text-blue-600">{accountHolder}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Escaneie este código para verificar os dados da conta
+                          </p>
+                        </div>
+                        <div className="flex gap-2 w-full max-w-xs">
+                          <Button
+                            variant="outline"
+                            className="flex-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+                            onClick={() => {
+                              const svg = document.getElementById('bank-link-qrcode');
+                              if (svg) {
+                                const svgData = new XMLSerializer().serializeToString(svg);
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                const img = new Image();
+                                img.onload = () => {
+                                  canvas.width = 300;
+                                  canvas.height = 300;
+                                  if (ctx) {
+                                    ctx.fillStyle = '#ffffff';
+                                    ctx.fillRect(0, 0, 300, 300);
+                                    ctx.drawImage(img, 50, 50, 200, 200);
+                                  }
+                                  const pngFile = canvas.toDataURL('image/png');
+                                  const downloadLink = document.createElement('a');
+                                  downloadLink.download = `vinculo-bancario-${bankName.replace(/\s+/g, '-').toLowerCase()}.png`;
+                                  downloadLink.href = pngFile;
+                                  downloadLink.click();
+                                };
+                                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                              }
+                              toast({
+                                title: "Download iniciado!",
+                                description: "O QR Code de autenticação foi salvo.",
+                              });
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Baixar QR
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="flex-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+                            onClick={async () => {
+                              const bankData = `Banco: ${bankName}\nAgência: ${agency}\nConta: ${accountNumber}\nTitular: ${accountHolder}\nCPF/CNPJ: ${cpfCnpj}`;
+                              try {
+                                if (navigator.share) {
+                                  await navigator.share({
+                                    title: `Dados Bancários - ${bankName}`,
+                                    text: bankData,
+                                  });
+                                } else {
+                                  await navigator.clipboard.writeText(bankData);
+                                  toast({
+                                    title: "Dados copiados!",
+                                    description: "Os dados bancários foram copiados.",
+                                  });
+                                }
+                              } catch {
+                                await navigator.clipboard.writeText(bankData);
+                                toast({
+                                  title: "Dados copiados!",
+                                  description: "Os dados bancários foram copiados.",
+                                });
+                              }
+                            }}
+                          >
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Compartilhar
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="space-y-2">
                       <Label htmlFor="bank-code">Código do Banco</Label>
