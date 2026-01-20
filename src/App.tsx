@@ -19,6 +19,7 @@ import ReturnsPolicy from "./pages/ReturnsPolicy";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import Admin from "./pages/Admin";
+import Profile from "./pages/Profile";
 import ChatBot from "@/components/chat/ChatBot";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/configuracoes" element={<Settings />} />
                 <Route path="/meus-pedidos" element={<OrderHistory />} />
+                <Route path="/meu-perfil" element={<Profile />} />
                 <Route path="/pagamento-confirmado" element={<PaymentConfirmation />} />
                 <Route path="/ajuda" element={<HelpCenter />} />
                 <Route path="/rastrear-pedido" element={<OrderTracking />} />

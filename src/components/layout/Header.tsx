@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, ShoppingCart, Menu, X, User, Heart, Settings, Package, LogOut, LogIn } from "lucide-react";
+import { Search, ShoppingCart, Menu, X, User, Heart, Settings, Package, LogOut, LogIn, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +18,7 @@ import {
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { getCartCount, setIsCartOpen } = useCart();
   const { user, signOut } = useAuth();
   const { getFavoritesCount } = useFavorites();
@@ -37,6 +39,30 @@ const Header = () => {
     name: "Promoções",
     href: "#promocoes"
   }];
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+
+      try {
+        const { data } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        setIsAdmin(!!data);
+      } catch {
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -103,17 +129,25 @@ const Header = () => {
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
+                      <Link to="/meu-perfil" className="flex items-center gap-2 cursor-pointer">
+                        <UserCircle size={16} />
+                        Meu Perfil
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to="/meus-pedidos" className="flex items-center gap-2 cursor-pointer">
                         <Package size={16} />
                         Meus Pedidos
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/configuracoes" className="flex items-center gap-2 cursor-pointer">
-                        <Settings size={16} />
-                        Configurações
-                      </Link>
-                    </DropdownMenuItem>
+                    {isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/configuracoes" className="flex items-center gap-2 cursor-pointer">
+                          <Settings size={16} />
+                          Configurações
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       onClick={handleSignOut}
@@ -202,6 +236,14 @@ const Header = () => {
                 {user ? (
                   <>
                     <Link 
+                      to="/meu-perfil" 
+                      className="flex items-center gap-2 px-2 py-2 text-foreground hover:text-primary"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <UserCircle size={18} />
+                      Meu Perfil
+                    </Link>
+                    <Link 
                       to="/meus-pedidos" 
                       className="flex items-center gap-2 px-2 py-2 text-foreground hover:text-primary"
                       onClick={() => setIsMenuOpen(false)}
@@ -209,14 +251,16 @@ const Header = () => {
                       <Package size={18} />
                       Meus Pedidos
                     </Link>
-                    <Link 
-                      to="/configuracoes" 
-                      className="flex items-center gap-2 px-2 py-2 text-foreground hover:text-primary"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <Settings size={18} />
-                      Configurações
-                    </Link>
+                    {isAdmin && (
+                      <Link 
+                        to="/configuracoes" 
+                        className="flex items-center gap-2 px-2 py-2 text-foreground hover:text-primary"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <Settings size={18} />
+                        Configurações
+                      </Link>
+                    )}
                     <button 
                       onClick={() => { handleSignOut(); setIsMenuOpen(false); }}
                       className="flex items-center gap-2 px-2 py-2 text-red-600 w-full text-left"
