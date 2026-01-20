@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet, Loader2, Tag } from "lucide-react";
+import { Settings as SettingsIcon, CreditCard, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Building2, Wallet, Loader2, Tag, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,8 @@ const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showHandle, setShowHandle] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'unknown'>('unknown');
   
@@ -39,21 +40,40 @@ const Settings = () => {
   const [cpfCnpjValidation, setCpfCnpjValidation] = useState<{ valid: boolean; type: 'cpf' | 'cnpj' | null; message: string } | null>(null);
 
   useEffect(() => {
-    // Check connection status from server-side
-    // The INFINITEPAY_HANDLE secret is configured server-side
-    // We just show that it's configured without exposing the value
-    const checkConnectionStatus = async () => {
+    const checkAdminStatus = async () => {
+      if (!user) {
+        setIsLoading(false);
+        navigate("/auth");
+        return;
+      }
+
       try {
-        // Try to invoke a simple check - if the handle is configured, 
-        // the payment functions will work
-        setConnectionStatus('connected');
-      } catch {
-        setConnectionStatus('disconnected');
+        const { data, error } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error checking admin status:", error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(!!data);
+        }
+      } catch (err) {
+        console.error("Error:", err);
+        setIsAdmin(false);
+      } finally {
+        setIsLoading(false);
       }
     };
+
+    checkAdminStatus();
     
-    checkConnectionStatus();
-  }, []);
+    // Check connection status from server-side
+    setConnectionStatus('connected');
+  }, [user, navigate]);
 
   const handleSavePaymentSettings = async () => {
     // Note: The InfinitePay handle is configured as a server-side secret (INFINITEPAY_HANDLE)
@@ -141,6 +161,65 @@ const Settings = () => {
       description: "Para desvincular sua conta InfinitePay, entre em contato com o suporte.",
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-spice-warm-white">
+        <Header />
+        <main className="pt-32 pb-16">
+          <div className="container-species max-w-4xl flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-spice-forest" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-spice-warm-white">
+        <Header />
+        <main className="pt-32 pb-16">
+          <div className="container-species max-w-4xl">
+            <Button 
+              variant="ghost" 
+              className="mb-6"
+              onClick={() => navigate("/")}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar para a loja
+            </Button>
+
+            <Card className="border-destructive/50 bg-destructive/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive">
+                  <ShieldAlert className="h-6 w-6" />
+                  Acesso Negado
+                </CardTitle>
+                <CardDescription>
+                  Esta página é restrita apenas para administradores da loja.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Você não tem permissão para acessar as configurações de cupons, conta bancária e pagamentos.
+                  Se você é um cliente, pode continuar navegando e fazendo suas compras normalmente.
+                </p>
+                <Button 
+                  className="mt-4 bg-spice-forest hover:bg-spice-forest/90"
+                  onClick={() => navigate("/")}
+                >
+                  Ir para a loja
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-spice-warm-white">
