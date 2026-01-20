@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { getCartCount, setIsCartOpen } = useCart();
   const { user, signOut } = useAuth();
+  const { getFavoritesCount } = useFavorites();
   
   const navLinks = [{
     name: "Produtos",
@@ -135,9 +137,29 @@ const Header = () => {
             </DropdownMenu>
 
             {/* Wishlist */}
-            <button className="hidden sm:flex p-2 text-foreground hover:text-primary transition-colors">
+            <a 
+              href="#produtos" 
+              className="hidden sm:flex relative p-2 text-foreground hover:text-primary transition-colors"
+              onClick={(e) => {
+                e.preventDefault();
+                const productsSection = document.getElementById('produtos');
+                if (productsSection) {
+                  productsSection.scrollIntoView({ behavior: 'smooth' });
+                  // Click on favorites tab after scrolling
+                  setTimeout(() => {
+                    const favTab = document.querySelector('[value="favorites"]') as HTMLButtonElement;
+                    if (favTab) favTab.click();
+                  }, 500);
+                }
+              }}
+            >
               <Heart size={22} />
-            </button>
+              {getFavoritesCount() > 0 && (
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {getFavoritesCount()}
+                </span>
+              )}
+            </a>
 
             {/* Cart */}
             <button 
