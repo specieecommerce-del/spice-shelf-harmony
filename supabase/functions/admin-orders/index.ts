@@ -270,6 +270,71 @@ Deno.serve(async (req) => {
 
         console.log(`PIX payment confirmed for order ${existingOrder.order_nsu} by ${adminEmail}`);
 
+        // Send WhatsApp notification to customer about payment confirmation (fire and forget)
+        if (existingOrder.customer_phone) {
+          try {
+            const customerMessage = `✅ *Pagamento Confirmado!*\n\n` +
+              `Olá ${existingOrder.customer_name || 'Cliente'}!\n\n` +
+              `Seu pagamento via PIX foi confirmado.\n\n` +
+              `📦 *Pedido:* ${existingOrder.order_nsu}\n` +
+              `💰 *Valor:* R$ ${(finalPaidAmount / 100).toFixed(2).replace('.', ',')}\n\n` +
+              `Seu pedido será preparado e enviado em breve.\n\n` +
+              `Obrigado pela compra! 🙏`;
+
+            // Get WhatsApp settings
+            const { data: whatsappSettings } = await supabaseAdmin
+              .from("store_settings")
+              .select("value")
+              .eq("key", "whatsapp_alerts")
+              .maybeSingle();
+
+            if (whatsappSettings?.value) {
+              const ZAPI_INSTANCE_ID = Deno.env.get("ZAPI_INSTANCE_ID");
+              const ZAPI_TOKEN = Deno.env.get("ZAPI_TOKEN");
+              const ZAPI_CLIENT_TOKEN = Deno.env.get("ZAPI_CLIENT_TOKEN");
+
+              if (ZAPI_INSTANCE_ID && ZAPI_TOKEN) {
+                const customerPhone = existingOrder.customer_phone.replace(/\D/g, '');
+                const formattedPhone = customerPhone.startsWith('55') ? customerPhone : `55${customerPhone}`;
+
+                fetch(`https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}/send-text`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Client-Token': ZAPI_CLIENT_TOKEN || '',
+                  },
+                  body: JSON.stringify({
+                    phone: formattedPhone,
+                    message: customerMessage,
+                  }),
+                }).catch(err => console.error('WhatsApp customer notification failed:', err));
+              }
+            }
+          } catch (whatsappError) {
+            console.error("WhatsApp notification error (non-blocking):", whatsappError);
+          }
+        }
+
+        // Send email notification via Resend (fire and forget)
+        if (existingOrder.customer_email) {
+          try {
+            fetch(`${supabaseUrl}/functions/v1/send-order-emails`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'payment_confirmed',
+                order: {
+                  ...existingOrder,
+                  status: 'paid',
+                  paid_amount: finalPaidAmount,
+                },
+              }),
+            }).catch(err => console.error('Email notification failed:', err));
+          } catch (emailError) {
+            console.error("Email notification error (non-blocking):", emailError);
+          }
+        }
+
         return new Response(
           JSON.stringify({ 
             success: true, 

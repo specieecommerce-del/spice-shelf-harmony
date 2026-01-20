@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -28,7 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Loader2, Package, Truck, RefreshCw, CheckCircle2, QrCode, History } from "lucide-react";
+import { Search, Loader2, Package, Truck, RefreshCw, CheckCircle2, QrCode, History, AlertTriangle, Clock, DollarSign, Bell } from "lucide-react";
 
 interface Order {
   id: string;
@@ -273,10 +275,100 @@ const OrdersManager = () => {
     }
   };
 
+  // Calculate pending PIX orders
+  const pendingPixOrders = useMemo(() => {
+    return orders.filter(order => 
+      (order.status === "pending_pix" || order.status === "pending") && 
+      order.payment_method === "pix"
+    );
+  }, [orders]);
+
+  const pendingPixTotal = useMemo(() => {
+    return pendingPixOrders.reduce((sum, order) => sum + order.total_amount, 0);
+  }, [pendingPixOrders]);
+
   const totalPages = Math.ceil(total / limit);
+
+  // Time since order was created
+  const getTimeSinceCreation = (createdAt: string) => {
+    const now = new Date();
+    const created = new Date(createdAt);
+    const diffMs = now.getTime() - created.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays}d ${diffHours % 24}h`;
+    if (diffHours > 0) return `${diffHours}h ${diffMins % 60}m`;
+    return `${diffMins}m`;
+  };
 
   return (
     <div className="space-y-6">
+      {/* Pending PIX Alert Card */}
+      {pendingPixOrders.length > 0 && (
+        <Card className="border-orange-300 bg-gradient-to-r from-orange-50 to-amber-50 shadow-md">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-orange-100 rounded-full">
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg text-orange-800">
+                    {pendingPixOrders.length} PIX Aguardando Confirmação
+                  </CardTitle>
+                  <CardDescription className="text-orange-600">
+                    Verifique seu extrato bancário e confirme os pagamentos recebidos
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-orange-600">Valor Total</p>
+                <p className="text-2xl font-bold text-orange-700">
+                  R$ {(pendingPixTotal / 100).toFixed(2).replace(".", ",")}
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {pendingPixOrders.slice(0, 6).map((order) => (
+                <div
+                  key={order.id}
+                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => openPixConfirmDialog(order)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-sm font-medium truncate">{order.order_nsu}</p>
+                    <p className="text-xs text-muted-foreground truncate">{order.customer_name || "Cliente"}</p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2">
+                    <div className="text-right">
+                      <p className="font-bold text-green-600 text-sm">
+                        R$ {(order.total_amount / 100).toFixed(2).replace(".", ",")}
+                      </p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {getTimeSinceCreation(order.created_at)}
+                      </p>
+                    </div>
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700 h-8">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {pendingPixOrders.length > 6 && (
+              <p className="text-sm text-orange-600 text-center mt-3">
+                + {pendingPixOrders.length - 6} outros pedidos aguardando
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -546,17 +638,18 @@ const OrdersManager = () => {
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <p className="text-sm text-amber-800">
-                  <strong>Atenção:</strong> Confirme apenas após verificar o recebimento do valor na sua conta bancária.
+                  <strong>⚠️ Atenção:</strong> Confirme apenas após verificar o recebimento do valor na sua conta bancária. Esta ação envia notificações ao cliente.
                 </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="pixNotes">Observações (opcional)</Label>
-                <Input
+                <Textarea
                   id="pixNotes"
-                  placeholder="Ex: Comprovante verificado"
+                  placeholder="Ex: Comprovante verificado no extrato, pagamento recebido às 14:30..."
                   value={pixNotes}
                   onChange={(e) => setPixNotes(e.target.value)}
+                  rows={3}
                 />
               </div>
             </div>
