@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { Mail, Lock, User as UserIcon, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
@@ -19,11 +20,19 @@ const nameSchema = z.string().min(2, "Nome deve ter pelo menos 2 caracteres").ma
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { user, isLoading: authLoading, signIn, signUp } = useAuth();
   
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  
+  // Reset password form
+  const [resetEmail, setResetEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   
   // Login form
   const [loginEmail, setLoginEmail] = useState("");
@@ -35,12 +44,20 @@ const Auth = () => {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
 
-  // Redirect if already logged in
+  // Check for password recovery mode
   useEffect(() => {
-    if (!authLoading && user) {
+    const type = searchParams.get("type");
+    if (type === "recovery") {
+      setShowNewPassword(true);
+    }
+  }, [searchParams]);
+
+  // Redirect if already logged in (but not during password recovery)
+  useEffect(() => {
+    if (!authLoading && user && !showNewPassword) {
       navigate("/");
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, showNewPassword]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,6 +186,95 @@ const Auth = () => {
     setActiveTab("login");
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const emailResult = emailSchema.safeParse(resetEmail);
+    if (!emailResult.success) {
+      toast({
+        title: "Email inválido",
+        description: emailResult.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/auth?type=recovery`,
+    });
+    
+    setIsLoading(false);
+    
+    if (error) {
+      toast({
+        title: "Erro ao enviar email",
+        description: "Não foi possível enviar o email de recuperação. Tente novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Email enviado!",
+      description: "Verifique sua caixa de entrada para redefinir sua senha.",
+    });
+    
+    setShowResetPassword(false);
+    setResetEmail("");
+  };
+
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const passwordResult = passwordSchema.safeParse(newPassword);
+    if (!passwordResult.success) {
+      toast({
+        title: "Senha inválida",
+        description: passwordResult.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      toast({
+        title: "Senhas não coincidem",
+        description: "A confirmação de senha deve ser igual à nova senha.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    
+    setIsLoading(false);
+    
+    if (error) {
+      toast({
+        title: "Erro ao redefinir senha",
+        description: "Não foi possível atualizar sua senha. Tente novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Senha atualizada!",
+      description: "Sua senha foi redefinida com sucesso.",
+    });
+    
+    setShowNewPassword(false);
+    setNewPassword("");
+    setConfirmNewPassword("");
+    navigate("/");
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -194,12 +300,111 @@ const Auth = () => {
 
           <Card>
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Sua Conta</CardTitle>
+              <CardTitle className="text-2xl">
+                {showNewPassword ? "Nova Senha" : showResetPassword ? "Recuperar Senha" : "Sua Conta"}
+              </CardTitle>
               <CardDescription>
-                Entre ou crie sua conta para acompanhar seus pedidos
+                {showNewPassword 
+                  ? "Digite sua nova senha" 
+                  : showResetPassword 
+                    ? "Digite seu email para receber o link de recuperação"
+                    : "Entre ou crie sua conta para acompanhar seus pedidos"}
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {showNewPassword ? (
+                <form onSubmit={handleSetNewPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">Nova senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="new-password"
+                        type="password"
+                        placeholder="Mínimo 6 caracteres"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-new-password">Confirmar nova senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="confirm-new-password"
+                        type="password"
+                        placeholder="Repita a nova senha"
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-spice-forest hover:bg-spice-forest/90"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Atualizando...
+                      </>
+                    ) : (
+                      "Atualizar senha"
+                    )}
+                  </Button>
+                </form>
+              ) : showResetPassword ? (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="reset-email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-spice-forest hover:bg-spice-forest/90"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      "Enviar link de recuperação"
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => setShowResetPassword(false)}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Voltar ao login
+                  </Button>
+                </form>
+              ) : (
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-2 mb-6">
                   <TabsTrigger value="login">Entrar</TabsTrigger>
@@ -253,6 +458,15 @@ const Auth = () => {
                       ) : (
                         "Entrar"
                       )}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="w-full text-spice-forest"
+                      onClick={() => setShowResetPassword(true)}
+                    >
+                      Esqueceu sua senha?
                     </Button>
                   </form>
                 </TabsContent>
@@ -339,6 +553,7 @@ const Auth = () => {
                   </form>
                 </TabsContent>
               </Tabs>
+              )}
             </CardContent>
           </Card>
         </div>
