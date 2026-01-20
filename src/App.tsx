@@ -18,6 +18,7 @@ import OrderTracking from "./pages/OrderTracking";
 import ReturnsPolicy from "./pages/ReturnsPolicy";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
+import ChatBot from "@/components/chat/ChatBot";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              <ChatBot />
             </BrowserRouter>
           </CartProvider>
         </FavoritesProvider>
