@@ -29,7 +29,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Loader2, FileText, Download, Eye, RefreshCw, Building2 } from "lucide-react";
+import { Search, Loader2, FileText, Download, Eye, RefreshCw, Building2, FileCheck, AlertCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import jsPDF from "jspdf";
 
 interface Order {
@@ -44,6 +45,7 @@ interface Order {
   payment_method: string | null;
   created_at: string;
   items: unknown;
+  invoice_slug: string | null;
 }
 
 interface StoreInfo {
@@ -86,6 +88,12 @@ const InvoiceManager = () => {
 
   // Preview dialog
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  
+  // NF-e states
+  const [emittingNfe, setEmittingNfe] = useState<string | null>(null);
+  const [nfeDialogOpen, setNfeDialogOpen] = useState(false);
+  const [nfeOrder, setNfeOrder] = useState<Order | null>(null);
+  const [nfeStatus, setNfeStatus] = useState<{ ref: string; status: string; message: string } | null>(null);
   const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
 
   useEffect(() => {
@@ -363,6 +371,143 @@ const InvoiceManager = () => {
     setPreviewDialogOpen(true);
   };
 
+  const emitNfe = async (order: Order) => {
+    setEmittingNfe(order.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Sessão expirada");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("focus-nfe", {
+        body: {
+          action: "emit",
+          order_id: order.id,
+        },
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        console.error("NF-e error:", data.error);
+        toast.error("Erro ao emitir NF-e: " + (data.error?.mensagem || JSON.stringify(data.error)));
+        return;
+      }
+
+      setNfeStatus({
+        ref: data.ref,
+        status: "processing",
+        message: data.message || "NF-e enviada para processamento",
+      });
+      setNfeOrder(order);
+      setNfeDialogOpen(true);
+      toast.success("NF-e enviada para processamento!");
+      fetchOrders(); // Refresh to get updated invoice_slug
+    } catch (error) {
+      console.error("Error emitting NF-e:", error);
+      toast.error("Erro ao emitir NF-e");
+    } finally {
+      setEmittingNfe(null);
+    }
+  };
+
+  const consultNfe = async (ref: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("focus-nfe", {
+        body: {
+          action: "consult",
+          ref,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.data) {
+        setNfeStatus({
+          ref,
+          status: data.data.status || "unknown",
+          message: data.data.mensagem_sefaz || data.data.status || "Status consultado",
+        });
+      }
+    } catch (error) {
+      console.error("Error consulting NF-e:", error);
+      toast.error("Erro ao consultar NF-e");
+    }
+  };
+
+  const downloadDanfe = async (ref: string) => {
+    try {
+      toast.loading("Baixando DANFE...");
+      const { data, error } = await supabase.functions.invoke("focus-nfe", {
+        body: {
+          action: "download_danfe",
+          ref,
+        },
+      });
+
+      toast.dismiss();
+
+      if (error || !data.success) {
+        toast.error("Erro ao baixar DANFE");
+        return;
+      }
+
+      // Convert base64 to blob and download
+      const byteCharacters = atob(data.pdf_base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/pdf" });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `danfe-${ref}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast.success("DANFE baixado!");
+    } catch (error) {
+      console.error("Error downloading DANFE:", error);
+      toast.error("Erro ao baixar DANFE");
+    }
+  };
+
+  const downloadXml = async (ref: string) => {
+    try {
+      toast.loading("Baixando XML...");
+      const { data, error } = await supabase.functions.invoke("focus-nfe", {
+        body: {
+          action: "download_xml",
+          ref,
+        },
+      });
+
+      toast.dismiss();
+
+      if (error || !data.success) {
+        toast.error("Erro ao baixar XML");
+        return;
+      }
+
+      const blob = new Blob([data.xml], { type: "application/xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nfe-${ref}.xml`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast.success("XML baixado!");
+    } catch (error) {
+      console.error("Error downloading XML:", error);
+      toast.error("Erro ao baixar XML");
+    }
+  };
+
   const totalPages = Math.ceil(total / limit);
 
   return (
@@ -481,6 +626,51 @@ const InvoiceManager = () => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <TooltipProvider>
+                        {order.invoice_slug ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-green-600 border-green-300 hover:bg-green-50"
+                                onClick={() => {
+                                  setNfeOrder(order);
+                                  consultNfe(order.invoice_slug!);
+                                  setNfeDialogOpen(true);
+                                }}
+                              >
+                                <FileCheck className="h-4 w-4 mr-1" />
+                                NF-e
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>NF-e já emitida - Clique para ver detalhes</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => emitNfe(order)}
+                                disabled={emittingNfe === order.id}
+                              >
+                                {emittingNfe === order.id ? (
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                ) : (
+                                  <FileCheck className="h-4 w-4 mr-1" />
+                                )}
+                                Emitir NF-e
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Emitir Nota Fiscal Eletrônica para este pedido</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </TooltipProvider>
                       <Button
                         variant="outline"
                         size="sm"
@@ -494,7 +684,7 @@ const InvoiceManager = () => {
                         onClick={() => generatePDF(order)}
                       >
                         <Download className="h-4 w-4 mr-1" />
-                        Baixar PDF
+                        PDF
                       </Button>
                     </div>
                   </TableCell>
@@ -678,6 +868,98 @@ const InvoiceManager = () => {
                 Baixar PDF
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* NF-e Status Dialog */}
+      <Dialog open={nfeDialogOpen} onOpenChange={setNfeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileCheck className="h-5 w-5" />
+              Nota Fiscal Eletrônica
+            </DialogTitle>
+            <DialogDescription>
+              Pedido #{nfeOrder?.order_nsu}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {nfeStatus ? (
+              <Card>
+                <CardContent className="pt-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Referência</span>
+                    <span className="font-mono text-sm">{nfeStatus.ref}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <Badge 
+                      variant={
+                        nfeStatus.status === "autorizado" ? "default" :
+                        nfeStatus.status === "processing" ? "secondary" :
+                        nfeStatus.status === "erro_autorizacao" ? "destructive" : "outline"
+                      }
+                    >
+                      {nfeStatus.status === "autorizado" ? "Autorizado" :
+                       nfeStatus.status === "processing" || nfeStatus.status === "processando_autorizacao" ? "Processando" :
+                       nfeStatus.status === "erro_autorizacao" ? "Erro" : nfeStatus.status}
+                    </Badge>
+                  </div>
+                  
+                  <div className="border-t pt-4">
+                    <span className="text-sm text-muted-foreground">Mensagem</span>
+                    <p className="mt-1 text-sm">{nfeStatus.message}</p>
+                  </div>
+
+                  {nfeStatus.status === "autorizado" && (
+                    <div className="border-t pt-4 flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => downloadDanfe(nfeStatus.ref)}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Baixar DANFE
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => downloadXml(nfeStatus.ref)}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Baixar XML
+                      </Button>
+                    </div>
+                  )}
+
+                  {(nfeStatus.status === "processing" || nfeStatus.status === "processando_autorizacao") && (
+                    <div className="border-t pt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => consultNfe(nfeStatus.ref)}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                        Atualizar Status
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNfeDialogOpen(false)}>
+              Fechar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
