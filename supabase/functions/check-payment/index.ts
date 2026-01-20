@@ -7,9 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Input validation schema
+// Input validation schema - accepts both ORDER_ and PIX_ prefixes
 const RequestSchema = z.object({
-  orderNsu: z.string().min(1).max(100).regex(/^ORDER_[0-9]+_[a-z0-9]+$/),
+  orderNsu: z.string().min(1).max(100).regex(/^(ORDER|PIX)_[0-9]+_[a-z0-9]+$/),
 });
 
 serve(async (req) => {
