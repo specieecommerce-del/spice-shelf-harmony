@@ -1,4 +1,4 @@
-import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -28,6 +28,7 @@ const menuItems = [
   { id: "nfe", title: "Notas Fiscais (NF-e)", icon: Receipt },
   { id: "products", title: "Produtos", icon: ShoppingBag },
   { id: "stock", title: "Gestão de Estoque", icon: Boxes },
+  { id: "payments", title: "Pagamentos", icon: CreditCard },
   { id: "whatsapp", title: "Alertas WhatsApp", icon: MessageSquare },
   { id: "admins", title: "Administradores", icon: Users },
 ];

@@ -10,10 +10,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CreditCard, QrCode, ShoppingBag, Tag, X, CheckCircle2, Copy, Check, ArrowLeft, PartyPopper } from "lucide-react";
+import { Loader2, CreditCard, QrCode, ShoppingBag, Tag, X, CheckCircle2, Copy, Check, ArrowLeft, PartyPopper, FileText, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { generatePixCode, PixPaymentData } from "@/lib/pix-generator";
 import { QRCodeSVG } from "qrcode.react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface CheckoutDialogProps {
   open: boolean;
@@ -40,6 +42,24 @@ interface PixOrderData {
   };
 }
 
+interface BoletoOrderData {
+  orderNsu: string;
+  totalAmount: number;
+  dueDate: string;
+  boletoData: {
+    bankCode: string;
+    bankName: string;
+    agency: string;
+    account: string;
+    accountType: string;
+    beneficiaryName: string;
+    beneficiaryDocument: string;
+    instructions: string;
+  };
+}
+
+type PaymentMethod = "pix" | "credit_card" | "boleto" | null;
+
 const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const { items, getCartTotal, setIsCartOpen, clearCart } = useCart();
   const { toast } = useToast();
@@ -55,6 +75,9 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
 
+  // Payment method state
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(null);
+
   // PIX state
   const [showPixPayment, setShowPixPayment] = useState(false);
   const [pixOrderData, setPixOrderData] = useState<PixOrderData | null>(null);
@@ -65,6 +88,14 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [pixConfigured, setPixConfigured] = useState<boolean | null>(null);
 
+  // Boleto state
+  const [showBoletoPayment, setShowBoletoPayment] = useState(false);
+  const [boletoOrderData, setBoletoOrderData] = useState<BoletoOrderData | null>(null);
+  const [boletoConfigured, setBoletoConfigured] = useState<boolean | null>(null);
+
+  // Card state
+  const [cardConfigured, setCardConfigured] = useState<boolean | null>(null);
+
   const formatPrice = (price: number) => {
     return `R$ ${price.toFixed(2).replace(".", ",")}`;
   };
@@ -73,20 +104,33 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const discount = appliedCoupon?.discountAmount || 0;
   const total = Math.max(0, subtotal - discount);
 
-  // Check if PIX is configured
+  // Check payment methods configuration
   useEffect(() => {
-    const checkPixConfig = async () => {
+    const checkPaymentConfigs = async () => {
       try {
-        const { data } = await supabase.functions.invoke("pix-settings", {
+        // Check PIX
+        const { data: pixData } = await supabase.functions.invoke("pix-settings", {
           body: { action: "get_pix_for_payment" },
         });
-        setPixConfigured(data?.configured || false);
+        setPixConfigured(pixData?.configured || false);
+
+        // Check Boleto
+        const { data: boletoData } = await supabase.functions.invoke("boleto-settings", {
+          body: { action: "get_boleto_for_payment" },
+        });
+        setBoletoConfigured(boletoData?.configured || false);
+
+        // Check Card (InfinitePay handle)
+        // Card is configured if the payment link function works
+        setCardConfigured(true); // Assume configured, will fail gracefully if not
       } catch {
         setPixConfigured(false);
+        setBoletoConfigured(false);
+        setCardConfigured(false);
       }
     };
     if (open) {
-      checkPixConfig();
+      checkPaymentConfigs();
     }
   }, [open]);
 
@@ -367,10 +411,291 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       pollingIntervalRef.current = null;
     }
     setShowPixPayment(false);
+    setShowBoletoPayment(false);
     setPixOrderData(null);
+    setBoletoOrderData(null);
     setPixCode("");
     setPaymentConfirmed(false);
+    setSelectedPaymentMethod(null);
   };
+
+  // Credit Card checkout
+  const handleCardCheckout = async () => {
+    if (!customerInfo.name || !customerInfo.email) {
+      toast({
+        title: "Dados incompletos",
+        description: "Por favor, preencha nome e email.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const redirectUrl = `${window.location.origin}/payment-confirmation`;
+
+      const { data, error } = await supabase.functions.invoke("create-payment-link", {
+        body: {
+          items: items.map((item) => ({
+            id: Number(item.id) || 1,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image || "",
+            category: item.category || "",
+          })),
+          customer: {
+            name: customerInfo.name,
+            email: customerInfo.email,
+            phone: customerInfo.phone,
+          },
+          redirectUrl,
+        },
+      });
+
+      if (error || !data?.success) {
+        console.error("Error creating payment link:", error || data?.error);
+        toast({
+          title: "Erro ao criar link de pagamento",
+          description: "Tente novamente mais tarde.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Redirect to payment page
+      window.location.href = data.paymentUrl;
+
+    } catch (err) {
+      console.error("Card checkout error:", err);
+      toast({
+        title: "Erro inesperado",
+        description: "Por favor, tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Boleto checkout
+  const handleBoletoCheckout = async () => {
+    if (!customerInfo.name || !customerInfo.email) {
+      toast({
+        title: "Dados incompletos",
+        description: "Por favor, preencha nome e email.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("create-boleto-order", {
+        body: {
+          items: items.map((item) => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image,
+            category: item.category,
+          })),
+          customer: {
+            name: customerInfo.name,
+            email: customerInfo.email,
+            phone: customerInfo.phone,
+          },
+          coupon: appliedCoupon ? {
+            code: appliedCoupon.code,
+            discountAmount: appliedCoupon.discountAmount,
+          } : null,
+        },
+      });
+
+      if (error || !data?.success) {
+        console.error("Error creating boleto order:", error || data?.error);
+        toast({
+          title: "Erro ao criar pedido",
+          description: data?.error || "Tente novamente mais tarde.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setBoletoOrderData(data);
+      setShowBoletoPayment(true);
+      
+      localStorage.setItem("lastOrderNsu", data.orderNsu);
+
+    } catch (err) {
+      console.error("Boleto checkout error:", err);
+      toast({
+        title: "Erro inesperado",
+        description: "Por favor, tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBoletoPaymentDone = () => {
+    clearCart();
+    onOpenChange(false);
+    setIsCartOpen(false);
+    setShowBoletoPayment(false);
+    setBoletoOrderData(null);
+    toast({
+      title: "Pedido criado!",
+      description: "Efetue o depósito/transferência conforme as instruções. Assim que identificarmos o pagamento, você receberá a confirmação por email.",
+    });
+  };
+
+  const copyBoletoData = async () => {
+    if (!boletoOrderData) return;
+    
+    const text = `Banco: ${boletoOrderData.boletoData.bankName} (${boletoOrderData.boletoData.bankCode})
+Agência: ${boletoOrderData.boletoData.agency}
+Conta: ${boletoOrderData.boletoData.account} (${boletoOrderData.boletoData.accountType})
+Favorecido: ${boletoOrderData.boletoData.beneficiaryName}
+CPF/CNPJ: ${boletoOrderData.boletoData.beneficiaryDocument}
+Valor: R$ ${boletoOrderData.totalAmount.toFixed(2).replace(".", ",")}
+Pedido: ${boletoOrderData.orderNsu}`;
+    
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast({ title: "Dados copiados!" });
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      toast({ title: "Erro ao copiar", variant: "destructive" });
+    }
+  };
+
+  // Boleto Payment Screen
+  if (showBoletoPayment && boletoOrderData) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-serif">
+              <FileText className="w-5 h-5 text-blue-600" />
+              Pagamento via Depósito/Transferência
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <CheckCircle2 className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+              <p className="font-medium text-blue-800">Pedido criado com sucesso!</p>
+              <p className="text-sm text-blue-700">Nº {boletoOrderData.orderNsu}</p>
+            </div>
+
+            <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+              <h4 className="font-medium text-center">Valor a pagar</h4>
+              <p className="text-3xl font-bold text-center text-primary">
+                {formatPrice(boletoOrderData.totalAmount)}
+              </p>
+              <p className="text-xs text-center text-muted-foreground">
+                Vencimento: {format(new Date(boletoOrderData.dueDate), "dd/MM/yyyy", { locale: ptBR })}
+              </p>
+            </div>
+
+            {/* Bank Data */}
+            <div className="bg-white rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                <span className="font-medium">Dados Bancários</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Banco:</span>
+                  <p className="font-medium">{boletoOrderData.boletoData.bankName}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Código:</span>
+                  <p className="font-medium">{boletoOrderData.boletoData.bankCode}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Agência:</span>
+                  <p className="font-medium">{boletoOrderData.boletoData.agency}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Conta:</span>
+                  <p className="font-medium">{boletoOrderData.boletoData.account}</p>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Tipo:</span>
+                  <p className="font-medium capitalize">{boletoOrderData.boletoData.accountType}</p>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t">
+                <span className="text-muted-foreground text-sm">Favorecido:</span>
+                <p className="font-medium">{boletoOrderData.boletoData.beneficiaryName}</p>
+                <p className="text-sm text-muted-foreground">{boletoOrderData.boletoData.beneficiaryDocument}</p>
+              </div>
+
+              {boletoOrderData.boletoData.instructions && (
+                <div className="pt-2 border-t">
+                  <span className="text-muted-foreground text-sm">Instruções:</span>
+                  <p className="text-sm">{boletoOrderData.boletoData.instructions}</p>
+                </div>
+              )}
+            </div>
+
+            <Button
+              variant="hero"
+              className="w-full"
+              size="lg"
+              onClick={copyBoletoData}
+            >
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Dados Copiados!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copiar Dados Bancários
+                </>
+              )}
+            </Button>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-sm text-amber-800 font-medium">Importante:</p>
+              <p className="text-xs text-amber-700">
+                Após efetuar o depósito/transferência, envie o comprovante por email ou WhatsApp para agilizar a liberação do pedido.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleBackToCart}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Voltar
+              </Button>
+              <Button
+                variant="default"
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                onClick={handleBoletoPaymentDone}
+              >
+                Já paguei
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   // PIX Payment Screen
   if (showPixPayment && pixOrderData) {
@@ -725,46 +1050,99 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
           <div className="space-y-3">
             <h4 className="font-medium text-sm">Forma de Pagamento</h4>
             
-            {/* PIX Button - Primary */}
-            {pixConfigured && (
-              <Button
-                variant="hero"
-                className="w-full bg-green-600 hover:bg-green-700"
-                size="lg"
-                onClick={handlePixCheckout}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Processando...
-                  </>
-                ) : (
-                  <>
-                    <QrCode className="w-5 h-5 mr-2" />
-                    Pagar com PIX - {formatPrice(total)}
-                  </>
-                )}
-              </Button>
-            )}
-
-            {pixConfigured === false && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-                <p className="text-sm text-amber-700">
-                  PIX ainda não configurado pela loja. Entre em contato para outras formas de pagamento.
-                </p>
+            {/* Loading state */}
+            {(pixConfigured === null || boletoConfigured === null) && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
             )}
 
-            {pixConfigured === null && (
-              <div className="flex justify-center py-4">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            {/* Payment method buttons */}
+            {pixConfigured !== null && boletoConfigured !== null && (
+              <div className="space-y-2">
+                {/* PIX */}
+                {pixConfigured && (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto py-3 px-4 border-2 hover:border-green-500 hover:bg-green-50"
+                    onClick={handlePixCheckout}
+                    disabled={isLoading}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                        <QrCode className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="font-medium">PIX</p>
+                        <p className="text-xs text-muted-foreground">Aprovação imediata</p>
+                      </div>
+                      {isLoading && selectedPaymentMethod === "pix" && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
+                    </div>
+                  </Button>
+                )}
+
+                {/* Credit Card */}
+                {cardConfigured && (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto py-3 px-4 border-2 hover:border-blue-500 hover:bg-blue-50"
+                    onClick={handleCardCheckout}
+                    disabled={isLoading}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <CreditCard className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="font-medium">Cartão de Crédito</p>
+                        <p className="text-xs text-muted-foreground">Parcele em até 12x</p>
+                      </div>
+                      {isLoading && selectedPaymentMethod === "credit_card" && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
+                    </div>
+                  </Button>
+                )}
+
+                {/* Boleto */}
+                {boletoConfigured && (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto py-3 px-4 border-2 hover:border-orange-500 hover:bg-orange-50"
+                    onClick={handleBoletoCheckout}
+                    disabled={isLoading}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="font-medium">Depósito / Transferência</p>
+                        <p className="text-xs text-muted-foreground">Aprovação em até 24h</p>
+                      </div>
+                      {isLoading && selectedPaymentMethod === "boleto" && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
+                    </div>
+                  </Button>
+                )}
+
+                {/* No payment methods configured */}
+                {!pixConfigured && !boletoConfigured && !cardConfigured && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                    <p className="text-sm text-amber-700">
+                      Nenhuma forma de pagamento configurada. Entre em contato com a loja.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           <p className="text-xs text-center text-muted-foreground">
-            O pagamento é processado diretamente para a conta do vendedor via PIX
+            Valor total: <span className="font-semibold text-primary">{formatPrice(total)}</span>
           </p>
         </div>
       </DialogContent>
