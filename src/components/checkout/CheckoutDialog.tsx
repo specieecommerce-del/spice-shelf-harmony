@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CreditCard, QrCode, ShoppingBag, Tag, X, CheckCircle2, Copy, Check, ArrowLeft } from "lucide-react";
+import { Loader2, CreditCard, QrCode, ShoppingBag, Tag, X, CheckCircle2, Copy, Check, ArrowLeft, PartyPopper } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { generatePixCode, PixPaymentData } from "@/lib/pix-generator";
 import { QRCodeSVG } from "qrcode.react";
@@ -60,6 +60,9 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const [pixOrderData, setPixOrderData] = useState<PixOrderData | null>(null);
   const [pixCode, setPixCode] = useState("");
   const [copied, setCopied] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [pixConfigured, setPixConfigured] = useState<boolean | null>(null);
 
   const formatPrice = (price: number) => {
@@ -84,6 +87,70 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     };
     if (open) {
       checkPixConfig();
+    }
+  }, [open]);
+
+  // Function to check payment status
+  const checkPaymentStatus = useCallback(async (orderNsu: string) => {
+    try {
+      setIsCheckingPayment(true);
+      const { data, error } = await supabase.functions.invoke("check-payment", {
+        body: { orderNsu },
+      });
+
+      if (error) {
+        console.error("Error checking payment:", error);
+        return false;
+      }
+
+      if (data?.success && data?.order?.status === "paid") {
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      console.error("Payment check error:", err);
+      return false;
+    } finally {
+      setIsCheckingPayment(false);
+    }
+  }, []);
+
+  // Start polling when PIX payment screen is shown
+  useEffect(() => {
+    if (showPixPayment && pixOrderData && !paymentConfirmed) {
+      // Start polling every 5 seconds
+      pollingIntervalRef.current = setInterval(async () => {
+        const isPaid = await checkPaymentStatus(pixOrderData.orderNsu);
+        if (isPaid) {
+          setPaymentConfirmed(true);
+          // Stop polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          toast({
+            title: "🎉 Pagamento confirmado!",
+            description: "Seu pagamento foi recebido com sucesso.",
+          });
+        }
+      }, 5000); // Check every 5 seconds
+
+      // Cleanup on unmount or when payment is confirmed
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
+    }
+  }, [showPixPayment, pixOrderData, paymentConfirmed, checkPaymentStatus, toast]);
+
+  // Cleanup polling when dialog closes
+  useEffect(() => {
+    if (!open && pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
   }, [open]);
 
@@ -239,26 +306,98 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   };
 
   const handlePixPaymentDone = () => {
+    // Stop polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
     clearCart();
     onOpenChange(false);
     setIsCartOpen(false);
     setShowPixPayment(false);
     setPixOrderData(null);
     setPixCode("");
+    setPaymentConfirmed(false);
     toast({
-      title: "Obrigado!",
-      description: "Assim que identificarmos o pagamento, você receberá a confirmação por email.",
+      title: paymentConfirmed ? "Compra finalizada!" : "Obrigado!",
+      description: paymentConfirmed 
+        ? "Seu pedido foi confirmado com sucesso." 
+        : "Assim que identificarmos o pagamento, você receberá a confirmação por email.",
     });
   };
 
   const handleBackToCart = () => {
+    // Stop polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
     setShowPixPayment(false);
     setPixOrderData(null);
     setPixCode("");
+    setPaymentConfirmed(false);
   };
 
   // PIX Payment Screen
   if (showPixPayment && pixOrderData) {
+    // Payment Confirmed Screen
+    if (paymentConfirmed) {
+      return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 font-serif text-green-700">
+                <PartyPopper className="w-5 h-5" />
+                Pagamento Confirmado!
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+              <div className="bg-green-100 border border-green-300 rounded-xl p-6 text-center">
+                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-10 h-10 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-green-800 mb-2">
+                  Pagamento recebido!
+                </h3>
+                <p className="text-green-700">
+                  Seu pedido foi confirmado com sucesso.
+                </p>
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Pedido</span>
+                  <span className="font-medium">{pixOrderData.orderNsu}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Valor pago</span>
+                  <span className="font-bold text-green-600">
+                    {formatPrice(pixOrderData.totalAmount)}
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                variant="hero"
+                className="w-full"
+                size="lg"
+                onClick={handlePixPaymentDone}
+              >
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Concluir
+              </Button>
+
+              <p className="text-xs text-center text-muted-foreground">
+                Você receberá os detalhes do pedido por email.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      );
+    }
+
+    // PIX QR Code Screen with Polling
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -353,6 +492,25 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
               )}
             </Button>
 
+            {/* Payment Status Indicator */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-3">
+              <div className="flex-shrink-0">
+                {isCheckingPayment ? (
+                  <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-800">
+                  Aguardando pagamento...
+                </p>
+                <p className="text-xs text-amber-600">
+                  A confirmação será automática após o pagamento
+                </p>
+              </div>
+            </div>
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
               <h4 className="font-medium text-blue-800 text-sm">Como pagar:</h4>
               <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
@@ -382,7 +540,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
             </div>
 
             <p className="text-xs text-center text-muted-foreground">
-              Após o pagamento, você receberá a confirmação por email em até 5 minutos.
+              A página atualizará automaticamente quando o pagamento for confirmado.
             </p>
           </div>
         </DialogContent>
