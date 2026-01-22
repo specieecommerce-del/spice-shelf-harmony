@@ -95,6 +95,12 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
 
   // Card state
   const [cardConfigured, setCardConfigured] = useState<boolean | null>(null);
+  const [cardGatewayConfig, setCardGatewayConfig] = useState<{
+    gateway_type?: string;
+    payment_link?: string;
+    whatsapp_number?: string;
+    instructions?: string;
+  } | null>(null);
 
   const formatPrice = (price: number) => {
     return `R$ ${price.toFixed(2).replace(".", ",")}`;
@@ -120,9 +126,9 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         });
         setBoletoConfigured(boletoData?.configured || false);
 
-        // Check Card (InfinitePay handle) - make a config check call
+        // Check Card gateway settings
         try {
-          const { data: cardData, error: cardError } = await supabase.functions.invoke("create-payment-link", {
+          const { data: cardData, error: cardError } = await supabase.functions.invoke("card-gateway-settings", {
             body: { action: "check_config" },
           });
           if (cardError) {
@@ -130,6 +136,14 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
             setCardConfigured(false);
           } else {
             setCardConfigured(cardData?.configured === true);
+            if (cardData?.configured) {
+              setCardGatewayConfig({
+                gateway_type: cardData.gateway_type,
+                payment_link: cardData.payment_link,
+                whatsapp_number: cardData.whatsapp_number,
+                instructions: cardData.instructions,
+              });
+            }
           }
         } catch (cardErr) {
           console.error("Card config check failed:", cardErr);
@@ -431,7 +445,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     setSelectedPaymentMethod(null);
   };
 
-  // Credit Card checkout
+  // Credit Card checkout - handles different gateway types
   const handleCardCheckout = async () => {
     if (!customerInfo.name || !customerInfo.email) {
       toast({
@@ -442,87 +456,123 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       return;
     }
 
-    setIsLoading(true);
+    const gatewayType = cardGatewayConfig?.gateway_type;
 
-    try {
-      const redirectUrl = `${window.location.origin}/payment-confirmation`;
+    // Handle WhatsApp gateway
+    if (gatewayType === 'whatsapp') {
+      const whatsappNumber = cardGatewayConfig?.whatsapp_number;
+      if (whatsappNumber) {
+        const message = encodeURIComponent(
+          `Olá! Gostaria de finalizar uma compra com cartão.\n\nNome: ${customerInfo.name}\nEmail: ${customerInfo.email}\nValor: R$ ${total.toFixed(2).replace(".", ",")}\n\nItens:\n${items.map(i => `- ${i.quantity}x ${i.name}`).join('\n')}`
+        );
+        window.open(`https://wa.me/55${whatsappNumber}?text=${message}`, '_blank');
+        return;
+      }
+    }
 
-      const { data, error } = await supabase.functions.invoke("create-payment-link", {
-        body: {
-          items: items.map((item) => ({
-            id: Number(item.id) || 1,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            image: item.image || "",
-            category: item.category || "",
-          })),
-          customer: {
-            name: customerInfo.name,
-            email: customerInfo.email,
-            phone: customerInfo.phone,
-          },
-          redirectUrl,
-        },
+    // Handle external link gateway
+    if (gatewayType === 'external_link') {
+      const paymentLink = cardGatewayConfig?.payment_link;
+      if (paymentLink) {
+        window.open(paymentLink, '_blank');
+        return;
+      }
+    }
+
+    // Handle manual gateway - show instructions
+    if (gatewayType === 'manual') {
+      const instructions = cardGatewayConfig?.instructions || 'Entre em contato conosco para finalizar o pagamento.';
+      toast({
+        title: "Pagamento com Cartão",
+        description: instructions,
       });
+      return;
+    }
 
-      if (error) {
-        const anyErr = error as any;
+    // Handle InfinitePay gateway (existing flow)
+    if (gatewayType === 'infinitepay') {
+      setIsLoading(true);
+
+      try {
+        const redirectUrl = `${window.location.origin}/payment-confirmation`;
+
+        const { data, error } = await supabase.functions.invoke("create-payment-link", {
+          body: {
+            items: items.map((item) => ({
+              id: Number(item.id) || 1,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              image: item.image || "",
+              category: item.category || "",
+            })),
+            customer: {
+              name: customerInfo.name,
+              email: customerInfo.email,
+              phone: customerInfo.phone,
+            },
+            redirectUrl,
+          },
+        });
+
+        if (error) {
+          const anyErr = error as any;
+          const body = anyErr?.context?.body;
+          const gatewayMessage =
+            typeof body?.gatewayMessage === "string"
+              ? body.gatewayMessage
+              : typeof body?.error === "string"
+                ? body.error
+                : typeof body === "string"
+                  ? body
+                  : null;
+
+          console.error("Error creating payment link:", { error, body });
+          toast({
+            title: "Erro ao criar link de pagamento",
+            description:
+              gatewayMessage ||
+              "Não foi possível gerar o link de pagamento. Verifique a configuração do cartão e tente novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!data?.success) {
+          console.error("Payment link function returned failure:", data);
+          toast({
+            title: "Erro ao criar link de pagamento",
+            description:
+              (data as any)?.gatewayMessage ||
+              (data as any)?.error ||
+              "Tente novamente mais tarde.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Redirect to payment page
+        window.location.href = data.paymentUrl;
+
+      } catch (err) {
+        const anyErr = err as any;
         const body = anyErr?.context?.body;
         const gatewayMessage =
           typeof body?.gatewayMessage === "string"
             ? body.gatewayMessage
             : typeof body?.error === "string"
               ? body.error
-              : typeof body === "string"
-                ? body
-                : null;
+              : null;
 
-        console.error("Error creating payment link:", { error, body });
+        console.error("Card checkout error:", { err, body });
         toast({
-          title: "Erro ao criar link de pagamento",
-          description:
-            gatewayMessage ||
-            "Não foi possível gerar o link de pagamento. Verifique a configuração do cartão e tente novamente.",
+          title: "Erro inesperado",
+          description: gatewayMessage || "Por favor, tente novamente.",
           variant: "destructive",
         });
-        return;
+      } finally {
+        setIsLoading(false);
       }
-
-      if (!data?.success) {
-        console.error("Payment link function returned failure:", data);
-        toast({
-          title: "Erro ao criar link de pagamento",
-          description:
-            (data as any)?.gatewayMessage ||
-            (data as any)?.error ||
-            "Tente novamente mais tarde.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Redirect to payment page
-      window.location.href = data.paymentUrl;
-
-    } catch (err) {
-      const anyErr = err as any;
-      const body = anyErr?.context?.body;
-      const gatewayMessage =
-        typeof body?.gatewayMessage === "string"
-          ? body.gatewayMessage
-          : typeof body?.error === "string"
-            ? body.error
-            : null;
-
-      console.error("Card checkout error:", { err, body });
-      toast({
-        title: "Erro inesperado",
-        description: gatewayMessage || "Por favor, tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -1144,7 +1194,15 @@ Pedido: ${boletoOrderData.orderNsu}`;
                       </div>
                       <div className="flex-1 text-left">
                         <p className="font-medium">Cartão de Crédito</p>
-                        <p className="text-xs text-muted-foreground">Parcele em até 12x</p>
+                        <p className="text-xs text-muted-foreground">
+                          {cardGatewayConfig?.gateway_type === 'whatsapp' 
+                            ? 'Fale conosco via WhatsApp' 
+                            : cardGatewayConfig?.gateway_type === 'external_link'
+                              ? 'Link de pagamento externo'
+                              : cardGatewayConfig?.gateway_type === 'manual'
+                                ? 'Entre em contato'
+                                : 'Parcele em até 12x'}
+                        </p>
                       </div>
                       {isLoading && selectedPaymentMethod === "credit_card" && (
                         <Loader2 className="w-4 h-4 animate-spin" />
