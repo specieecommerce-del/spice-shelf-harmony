@@ -60,6 +60,40 @@ serve(async (req) => {
   }
 
   try {
+    // Parse body first to check for config check action
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      rawBody = {};
+    }
+
+    const bodyObj = rawBody as Record<string, unknown>;
+
+    // Handle config check action
+    if (bodyObj.action === 'check_config') {
+      const infinitePayHandle = normalizeInfinitePayHandle(Deno.env.get('INFINITEPAY_HANDLE'));
+      if (!infinitePayHandle) {
+        return new Response(
+          JSON.stringify({ configured: false, reason: 'INFINITEPAY_HANDLE not set' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Validate handle format (basic check)
+      if (!/^[A-Za-z0-9._-]{2,120}$/.test(infinitePayHandle)) {
+        return new Response(
+          JSON.stringify({ configured: false, reason: 'Invalid handle format' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ configured: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const infinitePayHandle = normalizeInfinitePayHandle(Deno.env.get('INFINITEPAY_HANDLE'));
     if (!infinitePayHandle) {
       console.error('INFINITEPAY_HANDLE not configured');
@@ -78,19 +112,8 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse and validate input
-    let rawBody: unknown;
-    try {
-      rawBody = await req.json();
-    } catch {
-      console.error('Invalid JSON in request body');
-      return new Response(
-        JSON.stringify({ error: 'Invalid request format' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const validationResult = RequestSchema.safeParse(rawBody);
+    // Validate input using already parsed body
+    const validationResult = RequestSchema.safeParse(bodyObj);
     if (!validationResult.success) {
       console.error('Validation errors:', validationResult.error.errors);
       return new Response(
