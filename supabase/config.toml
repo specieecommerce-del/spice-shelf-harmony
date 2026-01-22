@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.create-boleto-order]
 verify_jwt = false
+
+[functions.card-gateway-settings]
+verify_jwt = false
