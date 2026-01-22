@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings as SettingsIcon, CreditCard, ArrowLeft, CheckCircle2, AlertCircle, Building2, Loader2, Tag, ShieldAlert, QrCode, Download, Share2, Wallet } from "lucide-react";
+import { Settings as SettingsIcon, CreditCard, ArrowLeft, CheckCircle2, AlertCircle, Building2, Loader2, Tag, ShieldAlert, QrCode, Download, Share2, Wallet, Percent, Gift, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,9 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import CouponsManager from "@/components/settings/CouponsManager";
 import CardGatewaySettings from "@/components/settings/CardGatewaySettings";
+import PromotionsManager from "@/components/settings/PromotionsManager";
+import KitsGiftsManager from "@/components/settings/KitsGiftsManager";
+import AboutUsManager from "@/components/settings/AboutUsManager";
 import { detectPixKeyType, generatePixCode, PixPaymentData } from "@/lib/pix-generator";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -376,7 +379,7 @@ try {
           </div>
 
           <Tabs defaultValue="pix" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 h-auto">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-8 h-auto">
               <TabsTrigger value="pix" className="flex items-center gap-2 py-3">
                 <QrCode className="h-4 w-4" />
                 PIX
@@ -385,6 +388,14 @@ try {
                 <Tag className="h-4 w-4" />
                 Cupons
               </TabsTrigger>
+              <TabsTrigger value="promotions" className="flex items-center gap-2 py-3">
+                <Percent className="h-4 w-4" />
+                Promoções
+              </TabsTrigger>
+              <TabsTrigger value="kits" className="flex items-center gap-2 py-3">
+                <Gift className="h-4 w-4" />
+                Kits
+              </TabsTrigger>
               <TabsTrigger value="bank" className="flex items-center gap-2 py-3">
                 <Building2 className="h-4 w-4" />
                 Conta
@@ -392,6 +403,10 @@ try {
               <TabsTrigger value="payment" className="flex items-center gap-2 py-3">
                 <CreditCard className="h-4 w-4" />
                 Cartão
+              </TabsTrigger>
+              <TabsTrigger value="about" className="flex items-center gap-2 py-3">
+                <Users className="h-4 w-4" />
+                Quem Somos
               </TabsTrigger>
               <TabsTrigger value="store" className="flex items-center gap-2 py-3">
                 <SettingsIcon className="h-4 w-4" />
@@ -614,6 +629,16 @@ try {
             {/* Coupons Tab */}
             <TabsContent value="coupons">
               <CouponsManager />
+            </TabsContent>
+
+            {/* Promotions Tab */}
+            <TabsContent value="promotions">
+              <PromotionsManager />
+            </TabsContent>
+
+            {/* Kits & Gifts Tab */}
+            <TabsContent value="kits">
+              <KitsGiftsManager />
             </TabsContent>
 
             {/* Bank Account Tab */}
@@ -992,6 +1017,11 @@ try {
                   </Button>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* About Us Tab */}
+            <TabsContent value="about">
+              <AboutUsManager />
             </TabsContent>
           </Tabs>
         </div>
