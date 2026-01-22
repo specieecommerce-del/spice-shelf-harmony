@@ -26,17 +26,15 @@ interface AboutUsData {
 }
 
 const defaultAboutUs: AboutUsData = {
-  title: "Nossa História",
-  subtitle: "Temperos naturais com amor e tradição",
-  story: "A Species nasceu do amor por temperos naturais e da vontade de trazer sabores autênticos para sua cozinha. Nossa jornada começou em uma pequena cozinha, com receitas de família passadas de geração em geração.\n\nAcreditamos que a comida conecta pessoas e cria memórias. Por isso, selecionamos cuidadosamente cada ingrediente, trabalhando diretamente com produtores locais que compartilham nossa paixão por qualidade e sustentabilidade.\n\nCada tempero que oferecemos carrega consigo uma história de dedicação, conhecimento tradicional e respeito à natureza. Nosso compromisso é trazer até você o melhor da gastronomia natural, sem conservantes ou aditivos químicos.",
-  mission: "Oferecer temperos naturais de alta qualidade, valorizando a agricultura familiar e práticas sustentáveis, para que cada refeição seja uma experiência única de sabor.",
-  vision: "Ser referência nacional em temperos naturais, conectando produtores locais a consumidores conscientes que valorizam qualidade, sabor e sustentabilidade.",
+  title: "No que a Species acredita?",
+  subtitle: "Alimentação nutritiva, prazerosa e prática",
+  story: "A Species acredita que uma alimentação nutritiva pode também ser prazerosa e prática.\n\nO preparo dos pratos precisa ser fácil, mas não podemos abrir mão da qualidade e da origem dos temperos: os ingredientes que trazem harmonia para tudo.",
+  mission: "Colocar nas mãos e bocas das pessoas os melhores temperos e condimentos.",
+  vision: "Oferecer cada vez mais e melhores opções de sabores que tragam harmonia para a alimentação de todos.",
   values: [
-    "Qualidade sem compromisso",
-    "Sustentabilidade em cada etapa",
-    "Valorização dos produtores locais",
-    "Transparência e honestidade",
-    "Paixão pela gastronomia",
+    "Alimentação sustentável",
+    "Alimentação prazerosa",
+    "Alimentação inteligente",
   ],
   team_title: "Nossa Equipe",
   team_description: "Uma equipe apaixonada por gastronomia e sabores autênticos, trabalhando todos os dias para trazer o melhor até você.",
@@ -46,9 +44,9 @@ const defaultAboutUs: AboutUsData = {
   founder_role: "Fundador(a)",
   founder_image_url: "",
   founder_bio: "",
-  contact_email: "contato@species.com.br",
-  contact_phone: "(11) 99999-9999",
-  contact_address: "São Paulo - SP",
+  contact_email: "specieecommerce@gmail.com",
+  contact_phone: "(11) 91977-8073",
+  contact_address: "Rua Peixoto Gomide 448\nSão Paulo, SP - 01409-000",
 };
 
 const AboutUs = () => {
@@ -120,7 +118,7 @@ const AboutUs = () => {
           <div className="container-species">
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
-                <div className="flex items-center gap-2 text-spice-terracotta mb-4">
+                <div className="flex items-center gap-2 text-primary mb-4">
                   <Heart className="h-5 w-5" />
                   <span className="text-sm font-medium uppercase tracking-wide">Nossa História</span>
                 </div>
@@ -141,8 +139,8 @@ const AboutUs = () => {
                     className="rounded-2xl shadow-xl w-full aspect-[4/3] object-cover"
                   />
                 ) : (
-                  <div className="rounded-2xl bg-gradient-to-br from-spice-forest/10 to-spice-terracotta/10 w-full aspect-[4/3] flex items-center justify-center">
-                    <Leaf className="h-24 w-24 text-spice-forest/30" />
+                  <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 w-full aspect-[4/3] flex items-center justify-center">
+                    <Leaf className="h-24 w-24 text-primary/30" />
                   </div>
                 )}
               </div>
@@ -172,10 +170,10 @@ const AboutUs = () => {
               </Card>
 
               {/* Visão */}
-              <Card className="border-2 border-spice-terracotta/20 bg-spice-terracotta/5">
+              <Card className="border-2 border-accent/40 bg-accent/5">
                 <CardContent className="pt-8 pb-6 text-center">
-                  <div className="h-16 w-16 rounded-full bg-spice-terracotta/10 flex items-center justify-center mx-auto mb-4">
-                    <Eye className="h-8 w-8 text-spice-terracotta" />
+                  <div className="h-16 w-16 rounded-full bg-accent/20 flex items-center justify-center mx-auto mb-4">
+                    <Eye className="h-8 w-8 text-accent" />
                   </div>
                   <h3 className="text-xl font-bold text-foreground mb-3">Visão</h3>
                   <p className="text-muted-foreground">{aboutUs.vision}</p>
@@ -209,7 +207,7 @@ const AboutUs = () => {
             <div className="container-species">
               <div className="max-w-4xl mx-auto">
                 <div className="text-center mb-12">
-                  <div className="flex items-center justify-center gap-2 text-spice-terracotta mb-4">
+                  <div className="flex items-center justify-center gap-2 text-primary mb-4">
                     <Users className="h-5 w-5" />
                     <span className="text-sm font-medium uppercase tracking-wide">Quem está por trás</span>
                   </div>
@@ -261,13 +259,13 @@ const AboutUs = () => {
                 {aboutUs.contact_email && (
                   <Card className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6 text-center">
-                      <div className="h-12 w-12 rounded-full bg-spice-forest/10 flex items-center justify-center mx-auto mb-3">
-                        <Mail className="h-5 w-5 text-spice-forest" />
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                        <Mail className="h-5 w-5 text-primary" />
                       </div>
                       <p className="font-medium text-foreground">E-mail</p>
                       <a 
                         href={`mailto:${aboutUs.contact_email}`}
-                        className="text-sm text-muted-foreground hover:text-spice-forest transition-colors"
+                        className="text-sm text-muted-foreground hover:text-primary transition-colors"
                       >
                         {aboutUs.contact_email}
                       </a>
@@ -278,13 +276,13 @@ const AboutUs = () => {
                 {aboutUs.contact_phone && (
                   <Card className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6 text-center">
-                      <div className="h-12 w-12 rounded-full bg-spice-terracotta/10 flex items-center justify-center mx-auto mb-3">
-                        <Phone className="h-5 w-5 text-spice-terracotta" />
+                      <div className="h-12 w-12 rounded-full bg-accent/20 flex items-center justify-center mx-auto mb-3">
+                        <Phone className="h-5 w-5 text-accent" />
                       </div>
                       <p className="font-medium text-foreground">Telefone</p>
                       <a 
                         href={`tel:${aboutUs.contact_phone.replace(/\D/g, '')}`}
-                        className="text-sm text-muted-foreground hover:text-spice-terracotta transition-colors"
+                        className="text-sm text-muted-foreground hover:text-accent transition-colors"
                       >
                         {aboutUs.contact_phone}
                       </a>

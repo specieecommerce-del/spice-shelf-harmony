@@ -21,6 +21,7 @@ import TermsOfUse from "./pages/TermsOfUse";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
 import AboutUs from "./pages/AboutUs";
+import Recipes from "./pages/Recipes";
 import ChatBot from "@/components/chat/ChatBot";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
                 <Route path="/termos" element={<TermsOfUse />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/quem-somos" element={<AboutUs />} />
+                <Route path="/receitas" element={<Recipes />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

@@ -117,8 +117,8 @@ const RecipesSection = () => {
 
         {/* View all button */}
         <div className="text-center mt-12">
-          <Button variant="default" size="lg">
-            Ver Todas as Receitas
+          <Button variant="default" size="lg" asChild>
+            <a href="/receitas">Ver Todas as Receitas</a>
           </Button>
         </div>
       </div>
