@@ -7,6 +7,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const normalizeInfinitePayHandle = (value: string | undefined | null) => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  // Users may paste any of these forms:
+  // - "@minhatag"
+  // - "minhatag"
+  // - "https://.../@minhatag" or "https://.../minhatag"
+  // Normalize to just the handle.
+  try {
+    const url = new URL(trimmed);
+    const parts = url.pathname.split('/').filter(Boolean);
+    const last = parts[parts.length - 1] ?? '';
+    const fromUrl = last.replace(/^@/, '').trim();
+    if (fromUrl) return fromUrl;
+  } catch {
+    // Not a URL
+  }
+
+  const afterAt = trimmed.includes('@') ? trimmed.slice(trimmed.lastIndexOf('@') + 1) : trimmed;
+  const clean = afterAt.split(/[/?#]/)[0].trim();
+  return clean || null;
+};
+
 // Input validation schemas
 const CartItemSchema = z.object({
   id: z.number().int().positive(),
@@ -36,7 +60,7 @@ serve(async (req) => {
   }
 
   try {
-    const infinitePayHandle = Deno.env.get('INFINITEPAY_HANDLE');
+    const infinitePayHandle = normalizeInfinitePayHandle(Deno.env.get('INFINITEPAY_HANDLE'));
     if (!infinitePayHandle) {
       console.error('INFINITEPAY_HANDLE not configured');
       return new Response(
@@ -44,6 +68,11 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('InfinitePay handle loaded', {
+      length: infinitePayHandle.length,
+      preview: `${infinitePayHandle.slice(0, 3)}***${infinitePayHandle.slice(-2)}`,
+    });
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -135,12 +164,34 @@ serve(async (req) => {
       body: JSON.stringify(infinitePayBody),
     });
 
-    const infinitePayData = await infinitePayResponse.json();
+    let infinitePayData: any = null;
+    try {
+      infinitePayData = await infinitePayResponse.json();
+    } catch (parseError) {
+      console.error('Failed to parse InfinitePay response as JSON', parseError);
+      try {
+        infinitePayData = await infinitePayResponse.text();
+      } catch {
+        infinitePayData = null;
+      }
+    }
 
     if (!infinitePayResponse.ok) {
-      console.error('InfinitePay API error for order:', orderNsu, infinitePayData);
+      const gatewayMessage =
+        typeof infinitePayData?.message === 'string'
+          ? infinitePayData.message
+          : (typeof infinitePayData === 'string' ? infinitePayData : null);
+
+      console.error('InfinitePay API error for order:', orderNsu, {
+        status: infinitePayResponse.status,
+        gatewayMessage,
+        raw: infinitePayData,
+      });
       return new Response(
-        JSON.stringify({ error: 'Unable to create payment link' }),
+        JSON.stringify({
+          error: 'Unable to create payment link',
+          gatewayMessage,
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
