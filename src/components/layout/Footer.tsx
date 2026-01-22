@@ -1,6 +1,6 @@
 import { Facebook, Instagram, Youtube, MapPin, Phone, Mail, CreditCard, Shield } from "lucide-react";
 const Footer = () => {
-  return <footer className="bg-spice-brown text-spice-cream">
+  return <footer className="bg-spice-dark-green text-spice-warm-white">
       {/* Main footer */}
       <div className="container-species py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
