@@ -127,25 +127,27 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         setBoletoConfigured(boletoData?.configured || false);
 
         // Check Card gateway settings
-        try {
-          const { data: cardData, error: cardError } = await supabase.functions.invoke("card-gateway-settings", {
-            body: { action: "check_config" },
-          });
-          if (cardError) {
-            console.error("Card config check error:", cardError);
-            setCardConfigured(false);
-          } else {
-            setCardConfigured(cardData?.configured === true);
-            if (cardData?.configured) {
-              setCardGatewayConfig({
-                gateway_type: cardData.gateway_type,
-                payment_link: cardData.payment_link,
-                whatsapp_number: cardData.whatsapp_number,
-                instructions: cardData.instructions,
-              });
-            }
-          }
-        } catch (cardErr) {
+         try {
+           const { data: cardData, error: cardError } = await supabase.functions.invoke("card-gateway-settings", {
+             body: { action: "check_config" },
+           });
+           if (cardError) {
+             console.error("Card config check error:", cardError);
+             setCardConfigured(false);
+           } else {
+             // Be defensive: older responses could return non-boolean truthy values.
+             const configured = Boolean(cardData?.configured);
+             setCardConfigured(configured);
+             if (configured) {
+               setCardGatewayConfig({
+                 gateway_type: cardData.gateway_type,
+                 payment_link: cardData.payment_link,
+                 whatsapp_number: cardData.whatsapp_number,
+                 instructions: cardData.instructions,
+               });
+             }
+           }
+         } catch (cardErr) {
           console.error("Card config check failed:", cardErr);
           setCardConfigured(false);
         }
@@ -1224,7 +1226,7 @@ Pedido: ${boletoOrderData.orderNsu}`;
                         <FileText className="w-5 h-5 text-orange-600" />
                       </div>
                       <div className="flex-1 text-left">
-                        <p className="font-medium">Depósito / Transferência</p>
+                        <p className="font-medium">Boleto</p>
                         <p className="text-xs text-muted-foreground">Aprovação em até 24h</p>
                       </div>
                       {isLoading && selectedPaymentMethod === "boleto" && (

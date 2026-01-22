@@ -78,7 +78,7 @@ serve(async (req) => {
         );
       }
 
-      const settings = data.value as {
+       const settings = data.value as {
         enabled?: boolean;
         gateway_type?: string;
         payment_link?: string;
@@ -87,27 +87,27 @@ serve(async (req) => {
       };
 
       // Check if enabled and has required fields
-      const isConfigured = settings.enabled === true && (
-        // For external link mode, need a payment link
-        (settings.gateway_type === 'external_link' && settings.payment_link) ||
-        // For WhatsApp mode, need a number
-        (settings.gateway_type === 'whatsapp' && settings.whatsapp_number) ||
-        // For InfinitePay, check the secret
-        (settings.gateway_type === 'infinitepay' && Deno.env.get('INFINITEPAY_HANDLE')) ||
-        // For manual/contact mode, just needs to be enabled
-        (settings.gateway_type === 'manual')
-      );
+       // IMPORTANT: ensure this is a boolean (JS &&/|| returns last operand).
+       const hasPaymentLink = !!settings.payment_link;
+       const hasWhatsAppNumber = !!settings.whatsapp_number;
+       const hasInfinitePayHandle = !!Deno.env.get('INFINITEPAY_HANDLE');
+       const isConfigured = settings.enabled === true && (
+         (settings.gateway_type === 'external_link' && hasPaymentLink) ||
+         (settings.gateway_type === 'whatsapp' && hasWhatsAppNumber) ||
+         (settings.gateway_type === 'infinitepay' && hasInfinitePayHandle) ||
+         (settings.gateway_type === 'manual')
+       );
 
-      return new Response(
-        JSON.stringify({ 
-          configured: isConfigured,
-          gateway_type: settings.gateway_type,
-          payment_link: settings.payment_link,
-          whatsapp_number: settings.whatsapp_number,
-          instructions: settings.instructions,
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+       return new Response(
+         JSON.stringify({
+           configured: !!isConfigured,
+           gateway_type: settings.gateway_type,
+           payment_link: settings.payment_link,
+           whatsapp_number: settings.whatsapp_number,
+           instructions: settings.instructions,
+         }),
+         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+       );
     }
 
     // Save card gateway settings (admin only)
