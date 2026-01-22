@@ -20,6 +20,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
+import AboutUs from "./pages/AboutUs";
 import ChatBot from "@/components/chat/ChatBot";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
                 <Route path="/privacidade" element={<PrivacyPolicy />} />
                 <Route path="/termos" element={<TermsOfUse />} />
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/quem-somos" element={<AboutUs />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
