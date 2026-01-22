@@ -576,6 +576,67 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         setIsLoading(false);
       }
     }
+
+    // Handle PagSeguro gateway
+    if (gatewayType === 'pagseguro') {
+      setIsLoading(true);
+
+      try {
+        const redirectUrl = `${window.location.origin}/payment-confirmation`;
+
+        const { data, error } = await supabase.functions.invoke("create-pagseguro-payment", {
+          body: {
+            items: items.map((item) => ({
+              id: Number(item.id) || 1,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              image: item.image || "",
+              category: item.category || "",
+            })),
+            customer: {
+              name: customerInfo.name,
+              email: customerInfo.email,
+              phone: customerInfo.phone,
+            },
+            redirectUrl,
+          },
+        });
+
+        if (error) {
+          console.error("Error creating PagSeguro payment:", error);
+          toast({
+            title: "Erro ao criar pagamento",
+            description: "Não foi possível gerar o link de pagamento PagSeguro.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!data?.success) {
+          console.error("PagSeguro function returned failure:", data);
+          toast({
+            title: "Erro ao criar pagamento",
+            description: data?.error || "Tente novamente mais tarde.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Redirect to PagSeguro payment page
+        window.location.href = data.paymentUrl;
+
+      } catch (err) {
+        console.error("PagSeguro checkout error:", err);
+        toast({
+          title: "Erro inesperado",
+          description: "Por favor, tente novamente.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   // Boleto checkout

@@ -91,10 +91,12 @@ serve(async (req) => {
        const hasPaymentLink = !!settings.payment_link;
        const hasWhatsAppNumber = !!settings.whatsapp_number;
        const hasInfinitePayHandle = !!Deno.env.get('INFINITEPAY_HANDLE');
+       const hasPagSeguroCredentials = !!(Deno.env.get('PAGSEGURO_EMAIL') && Deno.env.get('PAGSEGURO_TOKEN'));
        const isConfigured = settings.enabled === true && (
          (settings.gateway_type === 'external_link' && hasPaymentLink) ||
          (settings.gateway_type === 'whatsapp' && hasWhatsAppNumber) ||
          (settings.gateway_type === 'infinitepay' && hasInfinitePayHandle) ||
+         (settings.gateway_type === 'pagseguro' && hasPagSeguroCredentials) ||
          (settings.gateway_type === 'manual')
        );
 

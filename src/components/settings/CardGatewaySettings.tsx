@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
-type GatewayType = 'external_link' | 'whatsapp' | 'manual' | 'infinitepay';
+type GatewayType = 'external_link' | 'whatsapp' | 'manual' | 'infinitepay' | 'pagseguro';
 
 interface CardGatewaySettingsData {
   enabled: boolean;
@@ -198,6 +198,24 @@ const CardGatewaySettings = () => {
 
                 <button
                   type="button"
+                  onClick={() => setSettings(prev => ({ ...prev, gateway_type: 'pagseguro' }))}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    settings.gateway_type === 'pagseguro'
+                      ? 'border-spice-forest bg-spice-forest/5'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <CreditCard className={`h-5 w-5 ${settings.gateway_type === 'pagseguro' ? 'text-spice-forest' : 'text-muted-foreground'}`} />
+                    <div>
+                      <p className="font-medium">PagSeguro</p>
+                      <p className="text-xs text-muted-foreground">Integração automática</p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setSettings(prev => ({ ...prev, gateway_type: 'manual' }))}
                   className={`p-4 rounded-lg border-2 text-left transition-all ${
                     settings.gateway_type === 'manual'
@@ -266,6 +284,21 @@ const CardGatewaySettings = () => {
                     <p className="text-sm text-purple-700 mt-1">
                       Configure o Handle da InfinitePay nos secrets do servidor (INFINITEPAY_HANDLE) 
                       para ativar pagamentos automáticos via InfinitePay.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {settings.gateway_type === 'pagseguro' && (
+              <div className="space-y-4 p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-yellow-800">Integração PagSeguro</p>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      As credenciais do PagSeguro (PAGSEGURO_EMAIL e PAGSEGURO_TOKEN) já estão configuradas.
+                      Os clientes serão redirecionados para a página de pagamento do PagSeguro.
                     </p>
                   </div>
                 </div>
