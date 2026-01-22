@@ -120,9 +120,21 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         });
         setBoletoConfigured(boletoData?.configured || false);
 
-        // Check Card (InfinitePay handle)
-        // Card is configured if the payment link function works
-        setCardConfigured(true); // Assume configured, will fail gracefully if not
+        // Check Card (InfinitePay handle) - make a config check call
+        try {
+          const { data: cardData, error: cardError } = await supabase.functions.invoke("create-payment-link", {
+            body: { action: "check_config" },
+          });
+          if (cardError) {
+            console.error("Card config check error:", cardError);
+            setCardConfigured(false);
+          } else {
+            setCardConfigured(cardData?.configured === true);
+          }
+        } catch (cardErr) {
+          console.error("Card config check failed:", cardErr);
+          setCardConfigured(false);
+        }
       } catch {
         setPixConfigured(false);
         setBoletoConfigured(false);
