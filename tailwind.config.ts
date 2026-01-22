@@ -54,12 +54,12 @@ export default {
         spice: {
           gold: "hsl(var(--spice-gold))",
           "gold-foreground": "hsl(var(--spice-gold-foreground))",
-          terracotta: "hsl(var(--spice-terracotta))",
-          "terracotta-light": "hsl(var(--spice-terracotta-light))",
+          green: "hsl(var(--spice-green))",
+          "green-light": "hsl(var(--spice-green-light))",
           cream: "hsl(var(--spice-cream))",
           forest: "hsl(var(--spice-forest))",
           "forest-light": "hsl(var(--spice-forest-light))",
-          brown: "hsl(var(--spice-brown))",
+          "dark-green": "hsl(var(--spice-dark-green))",
           "warm-white": "hsl(var(--spice-warm-white))",
         },
         sidebar: {
