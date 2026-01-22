@@ -454,11 +454,37 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         },
       });
 
-      if (error || !data?.success) {
-        console.error("Error creating payment link:", error || data?.error);
+      if (error) {
+        const anyErr = error as any;
+        const body = anyErr?.context?.body;
+        const gatewayMessage =
+          typeof body?.gatewayMessage === "string"
+            ? body.gatewayMessage
+            : typeof body?.error === "string"
+              ? body.error
+              : typeof body === "string"
+                ? body
+                : null;
+
+        console.error("Error creating payment link:", { error, body });
         toast({
           title: "Erro ao criar link de pagamento",
-          description: "Tente novamente mais tarde.",
+          description:
+            gatewayMessage ||
+            "Não foi possível gerar o link de pagamento. Verifique a configuração do cartão e tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!data?.success) {
+        console.error("Payment link function returned failure:", data);
+        toast({
+          title: "Erro ao criar link de pagamento",
+          description:
+            (data as any)?.gatewayMessage ||
+            (data as any)?.error ||
+            "Tente novamente mais tarde.",
           variant: "destructive",
         });
         return;
@@ -468,10 +494,19 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       window.location.href = data.paymentUrl;
 
     } catch (err) {
-      console.error("Card checkout error:", err);
+      const anyErr = err as any;
+      const body = anyErr?.context?.body;
+      const gatewayMessage =
+        typeof body?.gatewayMessage === "string"
+          ? body.gatewayMessage
+          : typeof body?.error === "string"
+            ? body.error
+            : null;
+
+      console.error("Card checkout error:", { err, body });
       toast({
         title: "Erro inesperado",
-        description: "Por favor, tente novamente.",
+        description: gatewayMessage || "Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
