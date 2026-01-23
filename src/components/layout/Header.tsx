@@ -25,19 +25,19 @@ const Header = () => {
   
   const navLinks = [{
     name: "Produtos",
-    href: "#produtos"
+    href: "/produtos"
   }, {
     name: "Quem Somos",
-    href: "#quem-somos"
+    href: "/quem-somos"
   }, {
     name: "Receitas",
-    href: "#receitas"
+    href: "/receitas"
   }, {
     name: "Kits & Presentes",
-    href: "#kits"
+    href: "/kits-presentes"
   }, {
     name: "Promoções",
-    href: "#promocoes"
+    href: "/promocoes"
   }];
 
   useEffect(() => {
@@ -90,9 +90,9 @@ const Header = () => {
           {/* Desktop navigation */}
           <nav className="hidden lg:flex items-center gap-8">
             {navLinks.map(link => (
-              <a key={link.name} href={link.href} className="text-foreground hover:text-primary transition-colors font-medium">
+              <Link key={link.name} to={link.href} className="text-foreground hover:text-primary transition-colors font-medium">
                 {link.name}
-              </a>
+              </Link>
             ))}
           </nav>
 
@@ -234,9 +234,9 @@ const Header = () => {
               </div>
 
               {navLinks.map(link => (
-                <a key={link.name} href={link.href} className="px-2 py-2 text-foreground hover:text-primary transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
+                <Link key={link.name} to={link.href} className="px-2 py-2 text-foreground hover:text-primary transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
                   {link.name}
-                </a>
+                </Link>
               ))}
 
               {/* Mobile user links */}
