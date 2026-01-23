@@ -29,11 +29,22 @@ interface SiteContent {
   hero: {
     title: string;
     subtitle: string;
+    description: string;
     cta_text: string;
     cta_link: string;
     secondary_cta_text: string;
     secondary_cta_link: string;
     background_image: string;
+    badge_text: string;
+    badge_enabled: boolean;
+    trust_badge_1_icon: string;
+    trust_badge_1_text: string;
+    trust_badge_2_icon: string;
+    trust_badge_2_text: string;
+    trust_badge_3_icon: string;
+    trust_badge_3_text: string;
+    show_trust_badges: boolean;
+    overlay_opacity: number;
   };
   benefits_bar: {
     items: { icon: string; title: string; description: string }[];
@@ -60,13 +71,24 @@ const defaultContent: SiteContent = {
     promo_bar_enabled: true,
   },
   hero: {
-    title: "Temperos que Transformam suas Receitas",
-    subtitle: "Descubra a arte de cozinhar com especiarias selecionadas que elevam o sabor de cada prato.",
+    title: "Receitas incríveis",
+    subtitle: "começam aqui",
+    description: "Descubra nossa seleção de temperos, ervas e especiarias artesanais que transformam qualquer prato em uma experiência gastronômica única.",
     cta_text: "Compre Agora",
     cta_link: "/produtos",
     secondary_cta_text: "Ver Receitas",
     secondary_cta_link: "/receitas",
     background_image: "",
+    badge_text: "✨ Temperos Premium & Artesanais",
+    badge_enabled: true,
+    trust_badge_1_icon: "🚚",
+    trust_badge_1_text: "Frete Grátis +R$150",
+    trust_badge_2_icon: "🔒",
+    trust_badge_2_text: "Pagamento Seguro",
+    trust_badge_3_icon: "⭐",
+    trust_badge_3_text: "+5000 Clientes Felizes",
+    show_trust_badges: true,
+    overlay_opacity: 60,
   },
   benefits_bar: {
     items: [
@@ -430,57 +452,178 @@ const SiteContentManager = () => {
                 <Image className="h-5 w-5" />
                 Banner Principal
               </CardTitle>
-              <CardDescription>Configure o banner hero da página inicial</CardDescription>
+              <CardDescription>Configure todos os elementos do banner hero da página inicial</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Título Principal</Label>
-                <Input
-                  value={content.hero.title}
-                  onChange={(e) => updateSection("hero", "title", e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Subtítulo</Label>
-                <Textarea
-                  value={content.hero.subtitle}
-                  onChange={(e) => updateSection("hero", "subtitle", e.target.value)}
-                  rows={2}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Texto do Botão Principal</Label>
-                  <Input
-                    value={content.hero.cta_text}
-                    onChange={(e) => updateSection("hero", "cta_text", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Link do Botão Principal</Label>
-                  <Input
-                    value={content.hero.cta_link}
-                    onChange={(e) => updateSection("hero", "cta_link", e.target.value)}
-                  />
+            <CardContent className="space-y-6">
+              {/* Badge/Tag */}
+              <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+                <h4 className="font-medium">Tag/Badge</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Texto do Badge</Label>
+                    <Input
+                      value={content.hero.badge_text}
+                      onChange={(e) => updateSection("hero", "badge_text", e.target.value)}
+                      placeholder="✨ Temperos Premium & Artesanais"
+                    />
+                  </div>
+                  <div className="flex items-end gap-2 pb-2">
+                    <input
+                      type="checkbox"
+                      checked={content.hero.badge_enabled}
+                      onChange={(e) => updateSection("hero", "badge_enabled", e.target.checked)}
+                      className="rounded"
+                    />
+                    <Label>Exibir badge</Label>
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Texto do Botão Secundário</Label>
-                  <Input
-                    value={content.hero.secondary_cta_text}
-                    onChange={(e) => updateSection("hero", "secondary_cta_text", e.target.value)}
-                  />
+
+              {/* Títulos */}
+              <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+                <h4 className="font-medium">Títulos</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Título Principal (1ª linha)</Label>
+                    <Input
+                      value={content.hero.title}
+                      onChange={(e) => updateSection("hero", "title", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Subtítulo (2ª linha - em destaque)</Label>
+                    <Input
+                      value={content.hero.subtitle}
+                      onChange={(e) => updateSection("hero", "subtitle", e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div>
-                  <Label>Link do Botão Secundário</Label>
-                  <Input
-                    value={content.hero.secondary_cta_link}
-                    onChange={(e) => updateSection("hero", "secondary_cta_link", e.target.value)}
+                  <Label>Descrição</Label>
+                  <Textarea
+                    value={content.hero.description}
+                    onChange={(e) => updateSection("hero", "description", e.target.value)}
+                    rows={3}
+                    placeholder="Texto descritivo abaixo do título..."
                   />
                 </div>
               </div>
-              {renderImageInput("hero", "background_image", "Imagem de Fundo", heroInputRef, content.hero.background_image)}
+
+              {/* Botões CTA */}
+              <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+                <h4 className="font-medium">Botões de Ação (CTA)</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Texto do Botão Principal</Label>
+                    <Input
+                      value={content.hero.cta_text}
+                      onChange={(e) => updateSection("hero", "cta_text", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Link do Botão Principal</Label>
+                    <Input
+                      value={content.hero.cta_link}
+                      onChange={(e) => updateSection("hero", "cta_link", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Texto do Botão Secundário</Label>
+                    <Input
+                      value={content.hero.secondary_cta_text}
+                      onChange={(e) => updateSection("hero", "secondary_cta_text", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Link do Botão Secundário</Label>
+                    <Input
+                      value={content.hero.secondary_cta_link}
+                      onChange={(e) => updateSection("hero", "secondary_cta_link", e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Trust Badges */}
+              <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Selos de Confiança</h4>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={content.hero.show_trust_badges}
+                      onChange={(e) => updateSection("hero", "show_trust_badges", e.target.checked)}
+                      className="rounded"
+                    />
+                    <Label className="text-sm">Exibir selos</Label>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Selo 1 - Ícone (emoji)</Label>
+                    <Input
+                      value={content.hero.trust_badge_1_icon}
+                      onChange={(e) => updateSection("hero", "trust_badge_1_icon", e.target.value)}
+                      placeholder="🚚"
+                    />
+                    <Label>Selo 1 - Texto</Label>
+                    <Input
+                      value={content.hero.trust_badge_1_text}
+                      onChange={(e) => updateSection("hero", "trust_badge_1_text", e.target.value)}
+                      placeholder="Frete Grátis +R$150"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Selo 2 - Ícone (emoji)</Label>
+                    <Input
+                      value={content.hero.trust_badge_2_icon}
+                      onChange={(e) => updateSection("hero", "trust_badge_2_icon", e.target.value)}
+                      placeholder="🔒"
+                    />
+                    <Label>Selo 2 - Texto</Label>
+                    <Input
+                      value={content.hero.trust_badge_2_text}
+                      onChange={(e) => updateSection("hero", "trust_badge_2_text", e.target.value)}
+                      placeholder="Pagamento Seguro"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Selo 3 - Ícone (emoji)</Label>
+                    <Input
+                      value={content.hero.trust_badge_3_icon}
+                      onChange={(e) => updateSection("hero", "trust_badge_3_icon", e.target.value)}
+                      placeholder="⭐"
+                    />
+                    <Label>Selo 3 - Texto</Label>
+                    <Input
+                      value={content.hero.trust_badge_3_text}
+                      onChange={(e) => updateSection("hero", "trust_badge_3_text", e.target.value)}
+                      placeholder="+5000 Clientes Felizes"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Imagem e Overlay */}
+              <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+                <h4 className="font-medium">Imagem de Fundo</h4>
+                {renderImageInput("hero", "background_image", "Imagem de Fundo", heroInputRef, content.hero.background_image)}
+                <div>
+                  <Label>Opacidade do Overlay ({content.hero.overlay_opacity}%)</Label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={content.hero.overlay_opacity}
+                    onChange={(e) => updateSection("hero", "overlay_opacity", parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">Controla a transparência da camada sobre a imagem de fundo</p>
+                </div>
+              </div>
+
               {renderSectionActions("hero")}
             </CardContent>
           </Card>
