@@ -86,7 +86,7 @@ const ProductSearch = ({ onClose, className = "", autoFocus = false }: ProductSe
           const allText = `${name} ${category} ${description} ${shortDescription}`;
           
           // Check if any word matches
-          const wordMatch = queryWords.some(word => allText.includes(word));
+          const wordMatch = queryWords.length > 0 && queryWords.some(word => allText.includes(word));
           
           // Direct matches
           const directMatch = 
@@ -95,7 +95,11 @@ const ProductSearch = ({ onClose, className = "", autoFocus = false }: ProductSe
             description.includes(normalizedQuery) ||
             shortDescription.includes(normalizedQuery);
           
-          return directMatch || wordMatch || variationMatch;
+          // Partial character matching (for typos) - check if 60% of chars match
+          const partialMatch = normalizedQuery.length >= 3 && 
+            [...normalizedQuery].filter(char => name.includes(char)).length >= normalizedQuery.length * 0.6;
+          
+          return directMatch || wordMatch || variationMatch || partialMatch;
         });
 
         // Score and sort results by relevance
