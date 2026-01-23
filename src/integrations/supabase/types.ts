@@ -182,6 +182,96 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_items: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          created_at: string
+          file_url: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          notes: string | null
+          shipping_cost: number | null
+          supplier_cnpj: string | null
+          supplier_name: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          notes?: string | null
+          shipping_cost?: number | null
+          supplier_cnpj?: string | null
+          supplier_name?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          notes?: string | null
+          shipping_cost?: number | null
+          supplier_cnpj?: string | null
+          supplier_name?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string
@@ -296,75 +386,158 @@ export type Database = {
         }
         Relationships: []
       }
+      product_variations: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          price_adjustment: number | null
+          product_id: string
+          sku: string | null
+          stock_quantity: number | null
+          updated_at: string
+          variation_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          price_adjustment?: number | null
+          product_id: string
+          sku?: string | null
+          stock_quantity?: number | null
+          updated_at?: string
+          variation_type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          price_adjustment?: number | null
+          product_id?: string
+          sku?: string | null
+          stock_quantity?: number | null
+          updated_at?: string
+          variation_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
+          additional_images: string[] | null
           badges: string[] | null
           category: string | null
           category_id: string | null
           cost_price: number | null
           created_at: string
           description: string | null
+          dimensions: Json | null
+          icms_percentage: number | null
           id: string
           image_url: string | null
           is_active: boolean | null
+          is_bestseller: boolean | null
+          is_featured: boolean | null
+          long_description: string | null
           low_stock_threshold: number
           name: string
+          nutritional_info: Json | null
           original_price: number | null
           price: number
           profit_margin: number | null
           rating: number | null
           reserved_stock: number
           reviews: number | null
+          short_description: string | null
+          sku: string | null
           sort_order: number | null
           stock_quantity: number
+          supplier_cnpj: string | null
+          supplier_name: string | null
           tax_percentage: number | null
           updated_at: string
+          weight: number | null
         }
         Insert: {
+          additional_images?: string[] | null
           badges?: string[] | null
           category?: string | null
           category_id?: string | null
           cost_price?: number | null
           created_at?: string
           description?: string | null
+          dimensions?: Json | null
+          icms_percentage?: number | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_bestseller?: boolean | null
+          is_featured?: boolean | null
+          long_description?: string | null
           low_stock_threshold?: number
           name: string
+          nutritional_info?: Json | null
           original_price?: number | null
           price?: number
           profit_margin?: number | null
           rating?: number | null
           reserved_stock?: number
           reviews?: number | null
+          short_description?: string | null
+          sku?: string | null
           sort_order?: number | null
           stock_quantity?: number
+          supplier_cnpj?: string | null
+          supplier_name?: string | null
           tax_percentage?: number | null
           updated_at?: string
+          weight?: number | null
         }
         Update: {
+          additional_images?: string[] | null
           badges?: string[] | null
           category?: string | null
           category_id?: string | null
           cost_price?: number | null
           created_at?: string
           description?: string | null
+          dimensions?: Json | null
+          icms_percentage?: number | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_bestseller?: boolean | null
+          is_featured?: boolean | null
+          long_description?: string | null
           low_stock_threshold?: number
           name?: string
+          nutritional_info?: Json | null
           original_price?: number | null
           price?: number
           profit_margin?: number | null
           rating?: number | null
           reserved_stock?: number
           reviews?: number | null
+          short_description?: string | null
+          sku?: string | null
           sort_order?: number | null
           stock_quantity?: number
+          supplier_cnpj?: string | null
+          supplier_name?: string | null
           tax_percentage?: number | null
           updated_at?: string
+          weight?: number | null
         }
         Relationships: [
           {
@@ -415,6 +588,99 @@ export type Database = {
           state?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      promotional_banners: {
+        Row: {
+          button_text: string | null
+          created_at: string
+          end_date: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          link_url: string | null
+          sort_order: number | null
+          start_date: string | null
+          subtitle: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          button_text?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          link_url?: string | null
+          sort_order?: number | null
+          start_date?: string | null
+          subtitle?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          button_text?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          link_url?: string | null
+          sort_order?: number | null
+          start_date?: string | null
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      promotions: {
+        Row: {
+          banner_image_url: string | null
+          created_at: string
+          description: string | null
+          discount_type: string
+          discount_value: number
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          is_featured: boolean | null
+          name: string
+          product_ids: string[] | null
+          start_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          banner_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          name: string
+          product_ids?: string[] | null
+          start_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          banner_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          name?: string
+          product_ids?: string[] | null
+          start_date?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
