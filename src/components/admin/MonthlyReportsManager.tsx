@@ -15,11 +15,13 @@ import {
   Package,
   Percent,
   BarChart3,
-  Calendar
+  Calendar,
+  FileSpreadsheet
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, PieChart, Pie, Cell, LineChart, Line } from "recharts";
+import * as XLSX from "xlsx";
 
 interface Report {
   period: { month: number; year: number; monthName: string };
@@ -104,62 +106,91 @@ const MonthlyReportsManager = () => {
     }
   };
 
-  const downloadReport = () => {
+  const downloadExcel = () => {
     if (!report) return;
 
-    const reportText = `
-RELATÓRIO MENSAL - ${report.period.monthName.toUpperCase()} ${report.period.year}
-Gerado em: ${new Date(report.generatedAt).toLocaleString("pt-BR")}
+    const workbook = XLSX.utils.book_new();
 
-═══════════════════════════════════════════════════════════════
+    // Sheet 1: Resumo Financeiro
+    const resumoData = [
+      ["RELATÓRIO MENSAL", `${report.period.monthName.toUpperCase()} ${report.period.year}`],
+      ["Gerado em", new Date(report.generatedAt).toLocaleString("pt-BR")],
+      [""],
+      ["RESUMO FINANCEIRO"],
+      ["Receita Total", report.summary.totalRevenue],
+      ["Total de Pedidos", report.summary.totalOrders],
+      ["Ticket Médio", report.summary.averageTicket],
+      [""],
+      ["Despesas Totais", report.summary.totalExpenses],
+      ["Despesas Fixas", report.summary.fixedExpenses],
+      ["Despesas Variáveis", report.summary.variableExpenses],
+      [""],
+      ["Impostos Estimados", report.summary.estimatedTaxes],
+      ["Lucro Líquido", report.summary.netProfit],
+      ["Margem de Lucro (%)", report.summary.profitMargin],
+      [""],
+      ["COMPARATIVO MÊS ANTERIOR"],
+      ["Receita Anterior", report.comparison.previousRevenue],
+      ["Crescimento Receita (%)", report.comparison.revenueGrowth],
+      ["Pedidos Anterior", report.comparison.previousOrders],
+      ["Crescimento Pedidos (%)", report.comparison.ordersGrowth],
+    ];
+    const resumoSheet = XLSX.utils.aoa_to_sheet(resumoData);
+    resumoSheet["!cols"] = [{ wch: 25 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(workbook, resumoSheet, "Resumo");
 
-RESUMO FINANCEIRO
-─────────────────────────────────────────────────────────────────
-Receita Total:        ${formatCurrency(report.summary.totalRevenue)}
-Total de Pedidos:     ${report.summary.totalOrders}
-Ticket Médio:         ${formatCurrency(report.summary.averageTicket)}
+    // Sheet 2: Vendas por Dia
+    const vendasDiaData = [
+      ["Data", "Receita (R$)", "Pedidos"],
+      ...report.charts.salesByDay.map(d => [d.date, d.revenue, d.orders])
+    ];
+    const vendasDiaSheet = XLSX.utils.aoa_to_sheet(vendasDiaData);
+    vendasDiaSheet["!cols"] = [{ wch: 15 }, { wch: 15 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(workbook, vendasDiaSheet, "Vendas por Dia");
 
-Despesas Totais:      ${formatCurrency(report.summary.totalExpenses)}
-  • Fixas:            ${formatCurrency(report.summary.fixedExpenses)}
-  • Variáveis:        ${formatCurrency(report.summary.variableExpenses)}
+    // Sheet 3: Métodos de Pagamento
+    const metodosData = [
+      ["Método", "Quantidade"],
+      ...report.charts.salesByMethod.map(m => [m.method, m.count])
+    ];
+    const metodosSheet = XLSX.utils.aoa_to_sheet(metodosData);
+    metodosSheet["!cols"] = [{ wch: 20 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(workbook, metodosSheet, "Pagamentos");
 
-Impostos Estimados:   ${formatCurrency(report.summary.estimatedTaxes)}
-Lucro Líquido:        ${formatCurrency(report.summary.netProfit)}
-Margem de Lucro:      ${report.summary.profitMargin.toFixed(1)}%
+    // Sheet 4: Despesas por Categoria
+    const despesasData = [
+      ["Categoria", "Valor (R$)"],
+      ...report.charts.expensesByCategory.map(e => [e.category, e.amount])
+    ];
+    const despesasSheet = XLSX.utils.aoa_to_sheet(despesasData);
+    despesasSheet["!cols"] = [{ wch: 25 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(workbook, despesasSheet, "Despesas");
 
-═══════════════════════════════════════════════════════════════
+    // Sheet 5: Top Produtos
+    const produtosData = [
+      ["#", "Produto", "Quantidade", "Receita (R$)"],
+      ...report.topProducts.map((p, i) => [i + 1, p.name, p.quantity, p.revenue / 100])
+    ];
+    const produtosSheet = XLSX.utils.aoa_to_sheet(produtosData);
+    produtosSheet["!cols"] = [{ wch: 5 }, { wch: 40 }, { wch: 12 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(workbook, produtosSheet, "Top Produtos");
 
-COMPARATIVO COM MÊS ANTERIOR
-─────────────────────────────────────────────────────────────────
-Receita Anterior:     ${formatCurrency(report.comparison.previousRevenue)}
-Crescimento:          ${report.comparison.revenueGrowth >= 0 ? "+" : ""}${report.comparison.revenueGrowth.toFixed(1)}%
-Pedidos Anterior:     ${report.comparison.previousOrders}
-Var. Pedidos:         ${report.comparison.ordersGrowth >= 0 ? "+" : ""}${report.comparison.ordersGrowth.toFixed(1)}%
+    // Sheet 6: Estoque
+    const estoqueData = [
+      ["RESUMO DO ESTOQUE"],
+      [""],
+      ["Total de Produtos", report.inventory.totalProducts],
+      ["Valor de Venda (R$)", report.inventory.stockValue],
+      ["Custo do Estoque (R$)", report.inventory.stockCost],
+      ["Lucro Potencial (R$)", report.inventory.potentialProfit],
+    ];
+    const estoqueSheet = XLSX.utils.aoa_to_sheet(estoqueData);
+    estoqueSheet["!cols"] = [{ wch: 25 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(workbook, estoqueSheet, "Estoque");
 
-═══════════════════════════════════════════════════════════════
-
-TOP 10 PRODUTOS
-─────────────────────────────────────────────────────────────────
-${report.topProducts.map((p, i) => `${i + 1}. ${p.name}\n   Qtd: ${p.quantity} | Receita: ${formatCurrency(p.revenue / 100)}`).join("\n")}
-
-═══════════════════════════════════════════════════════════════
-
-ESTOQUE
-─────────────────────────────────────────────────────────────────
-Total de Produtos:    ${report.inventory.totalProducts}
-Valor do Estoque:     ${formatCurrency(report.inventory.stockValue)}
-Custo do Estoque:     ${formatCurrency(report.inventory.stockCost)}
-Lucro Potencial:      ${formatCurrency(report.inventory.potentialProfit)}
-`;
-
-    const blob = new Blob([reportText], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `relatorio-${report.period.monthName}-${report.period.year}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Relatório baixado!");
+    // Download
+    XLSX.writeFile(workbook, `relatorio-${report.period.monthName}-${report.period.year}.xlsx`);
+    toast.success("Relatório Excel baixado!");
   };
 
   return (
@@ -215,9 +246,9 @@ Lucro Potencial:      ${formatCurrency(report.inventory.potentialProfit)}
               <FileText className="h-4 w-4 mr-2" />
               {report.period.monthName} {report.period.year}
             </Badge>
-            <Button variant="outline" onClick={downloadReport}>
-              <Download className="h-4 w-4 mr-2" />
-              Baixar Relatório
+            <Button variant="outline" onClick={downloadExcel}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Baixar Excel
             </Button>
           </div>
 
