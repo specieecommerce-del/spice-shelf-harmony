@@ -7,8 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Loader2, GripVertical, Eye, EyeOff, Image, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, GripVertical, Eye, EyeOff, Image, ExternalLink, Upload, Link } from "lucide-react";
 
 interface Banner {
   id: string;
@@ -31,6 +32,7 @@ const BannersManager = () => {
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageInputMode, setImageInputMode] = useState<"upload" | "url">("upload");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -79,6 +81,7 @@ const BannersManager = () => {
     });
     setImageFile(null);
     setImagePreview(null);
+    setImageInputMode("upload");
     setIsDialogOpen(true);
   };
 
@@ -96,6 +99,7 @@ const BannersManager = () => {
     });
     setImageFile(null);
     setImagePreview(banner.image_url);
+    setImageInputMode(banner.image_url ? "url" : "upload");
     setIsDialogOpen(true);
   };
 
@@ -103,12 +107,19 @@ const BannersManager = () => {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
+      setFormData({ ...formData, image_url: "" });
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleUrlChange = (url: string) => {
+    setFormData({ ...formData, image_url: url });
+    setImageFile(null);
+    setImagePreview(url || null);
   };
 
   const uploadImage = async (file: File): Promise<string> => {
@@ -385,43 +396,83 @@ const BannersManager = () => {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Image Upload */}
+            {/* Image Input - Upload or URL */}
             <div>
               <Label>Imagem do Banner</Label>
-              <div className="mt-2">
-                {imagePreview ? (
-                  <div className="relative">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-full h-40 object-cover rounded-lg"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-2 right-2"
-                      onClick={() => {
-                        setImageFile(null);
-                        setImagePreview(null);
-                        setFormData({ ...formData, image_url: "" });
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50">
-                    <Image className="h-8 w-8 text-muted-foreground mb-2" />
-                    <span className="text-sm text-muted-foreground">Clique para upload</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImageChange}
-                    />
-                  </label>
-                )}
-              </div>
+              <Tabs value={imageInputMode} onValueChange={(v) => setImageInputMode(v as "upload" | "url")} className="mt-2">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="upload" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Carregar Arquivo
+                  </TabsTrigger>
+                  <TabsTrigger value="url" className="flex items-center gap-2">
+                    <Link className="h-4 w-4" />
+                    URL da Imagem
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="upload" className="mt-3">
+                  {imagePreview && imageInputMode === "upload" ? (
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-40 object-cover rounded-lg"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview(null);
+                          setFormData({ ...formData, image_url: "" });
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                      <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">Clique para selecionar arquivo</span>
+                      <span className="text-xs text-muted-foreground mt-1">JPG, PNG ou WebP</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageChange}
+                      />
+                    </label>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="url" className="mt-3 space-y-3">
+                  <Input
+                    placeholder="https://exemplo.com/imagem.jpg"
+                    value={formData.image_url}
+                    onChange={(e) => handleUrlChange(e.target.value)}
+                  />
+                  {imagePreview && imageInputMode === "url" && (
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-40 object-cover rounded-lg"
+                        onError={() => setImagePreview(null)}
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={() => handleUrlChange("")}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
 
             <div>
