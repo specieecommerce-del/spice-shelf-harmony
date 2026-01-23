@@ -1,4 +1,4 @@
-import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -22,13 +22,20 @@ interface AdminSidebarProps {
 
 const menuItems = [
   { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
+  { id: "financial", title: "Dashboard Financeiro", icon: PieChart },
   { id: "orders", title: "Pedidos", icon: Package },
   { id: "shipping", title: "Histórico & Envios", icon: PackageOpen },
   { id: "invoices", title: "Comprovantes", icon: FileText },
   { id: "nfe", title: "Notas Fiscais (NF-e)", icon: Receipt },
   { id: "products", title: "Produtos", icon: ShoppingBag },
+  { id: "categories", title: "Categorias", icon: FolderOpen },
   { id: "stock", title: "Gestão de Estoque", icon: Boxes },
+  { id: "pricing", title: "Precificação", icon: Calculator },
+  { id: "expenses", title: "Custos e Gastos", icon: DollarSign },
   { id: "payments", title: "Pagamentos", icon: CreditCard },
+  { id: "recipes", title: "Receitas", icon: ChefHat },
+  { id: "testimonials", title: "Depoimentos", icon: MessageSquareQuote },
+  { id: "site-content", title: "Conteúdo do Site", icon: Globe },
   { id: "whatsapp", title: "Alertas WhatsApp", icon: MessageSquare },
   { id: "admins", title: "Administradores", icon: Users },
 ];

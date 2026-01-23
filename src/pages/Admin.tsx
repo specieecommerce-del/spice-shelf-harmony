@@ -9,10 +9,17 @@ import {
 } from "@/components/ui/sidebar";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import DashboardManager from "@/components/admin/DashboardManager";
+import FinancialDashboard from "@/components/admin/FinancialDashboard";
 import OrdersManager from "@/components/admin/OrdersManager";
 import ShippingManager from "@/components/admin/ShippingManager";
 import ProductsManager from "@/components/admin/ProductsManager";
+import CategoriesManager from "@/components/admin/CategoriesManager";
 import StockManager from "@/components/admin/StockManager";
+import PricingManager from "@/components/admin/PricingManager";
+import ExpensesManager from "@/components/admin/ExpensesManager";
+import RecipesManager from "@/components/admin/RecipesManager";
+import TestimonialsManager from "@/components/admin/TestimonialsManager";
+import SiteContentManager from "@/components/admin/SiteContentManager";
 import WhatsAppAlertsManager from "@/components/admin/WhatsAppAlertsManager";
 import { AdminsManager } from "@/components/admin/AdminsManager";
 import InvoiceManager from "@/components/admin/InvoiceManager";
@@ -102,13 +109,20 @@ const Admin = () => {
           
           <div className="flex-1 p-6 overflow-auto">
             {activeSection === "dashboard" && <DashboardManager />}
+            {activeSection === "financial" && <FinancialDashboard />}
             {activeSection === "orders" && <OrdersManager />}
             {activeSection === "shipping" && <ShippingManager />}
             {activeSection === "invoices" && <InvoiceManager />}
             {activeSection === "nfe" && <FocusNFeSettings />}
             {activeSection === "products" && <ProductsManager />}
+            {activeSection === "categories" && <CategoriesManager />}
             {activeSection === "stock" && <StockManager />}
+            {activeSection === "pricing" && <PricingManager />}
+            {activeSection === "expenses" && <ExpensesManager />}
             {activeSection === "payments" && <BoletoSettingsManager />}
+            {activeSection === "recipes" && <RecipesManager />}
+            {activeSection === "testimonials" && <TestimonialsManager />}
+            {activeSection === "site-content" && <SiteContentManager />}
             {activeSection === "whatsapp" && <WhatsAppAlertsManager />}
             {activeSection === "admins" && <AdminsManager />}
           </div>
