@@ -54,8 +54,9 @@ const defaultContent: HeroContent = {
 };
 
 const HeroSection = () => {
-  const [heroContent, setHeroContent] = useState<HeroContent>(defaultContent);
-  const [backgroundImage, setBackgroundImage] = useState<string>(heroSpicesBg);
+  const [heroContent, setHeroContent] = useState<HeroContent | null>(null);
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadHeroContent();
@@ -72,14 +73,41 @@ const HeroSection = () => {
       if (data?.content) {
         const content = data.content as HeroContent;
         setHeroContent({ ...defaultContent, ...content });
-        if (content.background_image) {
-          setBackgroundImage(content.background_image);
-        }
+        setBackgroundImage(content.background_image || heroSpicesBg);
+      } else {
+        // No data in DB, use defaults
+        setHeroContent(defaultContent);
+        setBackgroundImage(heroSpicesBg);
       }
     } catch (error) {
-      console.log("Using default hero content");
+      // Error or no record, use defaults
+      setHeroContent(defaultContent);
+      setBackgroundImage(heroSpicesBg);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  // Show loading skeleton while fetching data
+  if (isLoading || !heroContent || !backgroundImage) {
+    return (
+      <section className="relative min-h-[85vh] flex items-center pt-32 overflow-hidden bg-muted/30">
+        <div className="container-species relative z-10">
+          <div className="max-w-2xl animate-pulse">
+            <div className="h-8 w-48 bg-muted rounded-full mb-6" />
+            <div className="h-16 w-full bg-muted rounded mb-4" />
+            <div className="h-16 w-3/4 bg-muted rounded mb-6" />
+            <div className="h-6 w-full bg-muted rounded mb-2" />
+            <div className="h-6 w-2/3 bg-muted rounded mb-8" />
+            <div className="flex gap-4">
+              <div className="h-14 w-40 bg-muted rounded" />
+              <div className="h-14 w-40 bg-muted rounded" />
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const overlayOpacity = heroContent.overlay_opacity ?? 60;
   const posX = heroContent.background_position_x ?? 50;
