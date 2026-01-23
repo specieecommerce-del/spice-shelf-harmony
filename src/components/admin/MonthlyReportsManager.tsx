@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,15 @@ import {
   Percent,
   BarChart3,
   Calendar,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileImage
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
 interface Report {
   period: { month: number; year: number; monthName: string };
@@ -80,9 +83,11 @@ const years = [currentYear - 1, currentYear, currentYear + 1].map(y => ({ value:
 
 const MonthlyReportsManager = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(currentYear));
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -193,6 +198,53 @@ const MonthlyReportsManager = () => {
     toast.success("Relatório Excel baixado!");
   };
 
+  const downloadPdf = async () => {
+    if (!report || !reportRef.current) return;
+    
+    setIsDownloadingPdf(true);
+    toast.info("Gerando PDF com gráficos...");
+    
+    try {
+      const element = reportRef.current;
+      
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+      });
+      
+      const imgData = canvas.toDataURL("image/png");
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      const pdf = new jsPDF("p", "mm", "a4");
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      // First page
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      // Add more pages if needed
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      pdf.save(`relatorio-${report.period.monthName}-${report.period.year}.pdf`);
+      toast.success("PDF com gráficos baixado!");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Erro ao gerar PDF");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -246,12 +298,21 @@ const MonthlyReportsManager = () => {
               <FileText className="h-4 w-4 mr-2" />
               {report.period.monthName} {report.period.year}
             </Badge>
+            <Button variant="outline" onClick={downloadPdf} disabled={isDownloadingPdf}>
+              {isDownloadingPdf ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileImage className="h-4 w-4 mr-2" />
+              )}
+              Baixar PDF
+            </Button>
             <Button variant="outline" onClick={downloadExcel}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Baixar Excel
             </Button>
           </div>
 
+          <div ref={reportRef} className="space-y-6 bg-background p-4">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
@@ -425,6 +486,7 @@ const MonthlyReportsManager = () => {
               </div>
             </CardContent>
           </Card>
+          </div>
         </>
       )}
     </div>
