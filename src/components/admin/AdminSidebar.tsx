@@ -1,4 +1,4 @@
-import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon, BarChart3, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -23,11 +23,13 @@ interface AdminSidebarProps {
 const menuItems = [
   { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
   { id: "financial", title: "Dashboard Financeiro", icon: PieChart },
+  { id: "reports", title: "Relatórios Mensais", icon: BarChart3 },
   { id: "orders", title: "Pedidos", icon: Package },
   { id: "shipping", title: "Histórico & Envios", icon: PackageOpen },
   { id: "invoices", title: "Comprovantes", icon: FileText },
   { id: "nfe", title: "Notas Fiscais (NF-e)", icon: Receipt },
   { id: "products", title: "Produtos", icon: ShoppingBag },
+  { id: "ai-products", title: "Criar com IA", icon: Sparkles },
   { id: "categories", title: "Categorias", icon: FolderOpen },
   { id: "stock", title: "Gestão de Estoque", icon: Boxes },
   { id: "pricing", title: "Precificação", icon: Calculator },
