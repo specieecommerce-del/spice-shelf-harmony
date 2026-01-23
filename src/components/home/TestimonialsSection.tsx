@@ -1,33 +1,92 @@
+import { useState, useEffect } from "react";
 import { Star, Quote } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-const testimonials = [
-  {
-    id: 1,
-    name: "Maria Clara",
-    location: "São Paulo, SP",
-    rating: 5,
-    text: "Os temperos da Species transformaram completamente minha cozinha! A qualidade é incomparável e o aroma é incrível.",
-    avatar: "MC",
-  },
-  {
-    id: 2,
-    name: "João Pedro",
-    location: "Rio de Janeiro, RJ",
-    rating: 5,
-    text: "Comprei o kit para presentear minha mãe e ela adorou! Embalagem linda e temperos de altíssima qualidade.",
-    avatar: "JP",
-  },
-  {
-    id: 3,
-    name: "Ana Beatriz",
-    location: "Belo Horizonte, MG",
-    rating: 5,
-    text: "Sou chef profissional e confio nos produtos Species. O frescor e a intensidade dos sabores fazem toda diferença.",
-    avatar: "AB",
-  },
-];
+interface Testimonial {
+  id: string;
+  name: string;
+  location: string | null;
+  rating: number;
+  text: string;
+  avatar_url: string | null;
+}
 
 const TestimonialsSection = () => {
+  const [testimonials, setTestimonials] = useState<Testimonial[] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadTestimonials();
+  }, []);
+
+  const loadTestimonials = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("testimonials")
+        .select("*")
+        .eq("is_active", true)
+        .order("is_featured", { ascending: false })
+        .order("sort_order", { ascending: true })
+        .limit(3);
+
+      if (error) throw error;
+      setTestimonials(data || []);
+    } catch (error) {
+      console.error("Error loading testimonials:", error);
+      setTestimonials([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .substring(0, 2)
+      .toUpperCase();
+  };
+
+  // Loading skeleton
+  if (isLoading || testimonials === null) {
+    return (
+      <section className="py-16 lg:py-24 bg-background">
+        <div className="container-species">
+          <div className="text-center mb-12">
+            <div className="h-8 w-32 bg-muted rounded-full mx-auto mb-4 animate-pulse" />
+            <div className="h-10 w-80 bg-muted rounded mx-auto mb-4 animate-pulse" />
+            <div className="h-6 w-64 bg-muted rounded mx-auto animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-card p-8 rounded-2xl animate-pulse">
+                <div className="flex gap-1 mb-4">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <div key={s} className="h-4 w-4 bg-muted rounded" />
+                  ))}
+                </div>
+                <div className="h-20 bg-muted rounded mb-6" />
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-muted" />
+                  <div>
+                    <div className="h-4 w-24 bg-muted rounded mb-1" />
+                    <div className="h-3 w-20 bg-muted rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Empty state - don't show section if no testimonials
+  if (testimonials.length === 0) {
+    return null;
+  }
+
   return (
     <section className="py-16 lg:py-24 bg-background">
       <div className="container-species">
@@ -72,16 +131,26 @@ const TestimonialsSection = () => {
 
               {/* Author */}
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-                  {testimonial.avatar}
-                </div>
+                {testimonial.avatar_url ? (
+                  <img
+                    src={testimonial.avatar_url}
+                    alt={testimonial.name}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
+                    {getInitials(testimonial.name)}
+                  </div>
+                )}
                 <div>
                   <h4 className="font-semibold text-foreground">
                     {testimonial.name}
                   </h4>
-                  <p className="text-sm text-muted-foreground">
-                    {testimonial.location}
-                  </p>
+                  {testimonial.location && (
+                    <p className="text-sm text-muted-foreground">
+                      {testimonial.location}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
