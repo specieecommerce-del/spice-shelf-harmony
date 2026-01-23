@@ -6,6 +6,9 @@ import heroSpicesBg from "@/assets/hero-spices-bg.jpg";
 
 interface HeroContent {
   background_image?: string;
+  background_position_x?: number;
+  background_position_y?: number;
+  background_scale?: number;
   title?: string;
   subtitle?: string;
   description?: string;
@@ -45,6 +48,9 @@ const defaultContent: HeroContent = {
   show_trust_badges: true,
   overlay_color: "spice-cream",
   overlay_opacity: 60,
+  background_position_x: 50,
+  background_position_y: 50,
+  background_scale: 100,
 };
 
 const HeroSection = () => {
@@ -76,13 +82,21 @@ const HeroSection = () => {
   };
 
   const overlayOpacity = heroContent.overlay_opacity ?? 60;
+  const posX = heroContent.background_position_x ?? 50;
+  const posY = heroContent.background_position_y ?? 50;
+  const scale = heroContent.background_scale ?? 100;
 
   return (
-    <section className="relative min-h-[85vh] flex items-center pt-32">
+    <section className="relative min-h-[85vh] flex items-center pt-32 overflow-hidden">
       {/* Background with spices */}
       <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${backgroundImage})` }}
+        className="absolute inset-0"
+        style={{ 
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundPosition: `${posX}% ${posY}%`,
+          backgroundSize: `${scale}%`,
+          backgroundRepeat: 'no-repeat',
+        }}
       >
         <div 
           className="absolute inset-0" 
