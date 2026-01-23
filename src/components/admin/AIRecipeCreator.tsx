@@ -57,6 +57,7 @@ interface AIRecipe {
   };
   tips?: string[];
   matched_products?: MatchedProduct[];
+  image_url?: string;
 }
 
 interface Recipe {
@@ -221,9 +222,9 @@ const AIRecipeCreator = () => {
           preparation: generatedRecipe.preparation,
           spices: generatedRecipe.spices,
           nutritional_info: generatedRecipe.nutritional_info,
+          image_url: generatedRecipe.image_url || null,
           is_draft: asDraft,
           is_active: !asDraft,
-          ai_generated: true,
         })
         .select()
         .single();
@@ -592,7 +593,6 @@ const AIRecipeCreator = () => {
                   <TableRow key={recipe.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {recipe.ai_generated && <Sparkles className="h-4 w-4 text-primary" />}
                         <div>
                           <p className="font-medium">{recipe.title}</p>
                           <p className="text-sm text-muted-foreground">{recipe.prep_time}</p>

@@ -74,12 +74,6 @@ const RecipeCard = ({ recipe, isOpen, onToggle, onBuyIngredients, linkedProducts
                   <h3 className="font-serif text-xl font-bold text-foreground">
                     {recipe.title}
                   </h3>
-                  {recipe.ai_generated && (
-                    <Badge variant="secondary" className="text-xs">
-                      <Sparkles className="h-3 w-3 mr-1" />
-                      IA
-                    </Badge>
-                  )}
                   {recipe.is_featured && (
                     <Badge className="bg-yellow-500 text-xs">
                       <Star className="h-3 w-3 mr-1" />
