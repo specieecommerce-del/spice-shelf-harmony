@@ -128,10 +128,20 @@ const ProductSearch = ({ onClose, className = "", autoFocus = false }: ProductSe
   }, [query]);
 
   const handleProductClick = (productId: string) => {
+    // Navigate first, then clean up
+    const targetUrl = `/produto/${productId}`;
+    console.log("Navigating to:", targetUrl);
+    
+    // Clear state
     setQuery("");
     setIsOpen(false);
+    setResults([]);
+    
+    // Close modal if exists
     onClose?.();
-    navigate(`/produto/${productId}`);
+    
+    // Navigate to product page
+    navigate(targetUrl);
   };
 
   const handleViewAll = () => {
@@ -178,10 +188,21 @@ const ProductSearch = ({ onClose, className = "", autoFocus = false }: ProductSe
             <>
               <div className="divide-y">
                 {results.map((product) => (
-                  <button
+                  <div
                     key={product.id}
-                    onClick={() => handleProductClick(product.id)}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleProductClick(product.id);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleProductClick(product.id);
+                      }
+                    }}
                   >
                     {product.image_url ? (
                       <img
@@ -203,7 +224,7 @@ const ProductSearch = ({ onClose, className = "", autoFocus = false }: ProductSe
                     <div className="font-semibold text-primary">
                       R$ {product.price.toFixed(2).replace(".", ",")}
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
               <button
