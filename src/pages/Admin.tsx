@@ -25,6 +25,8 @@ import { AdminsManager } from "@/components/admin/AdminsManager";
 import InvoiceManager from "@/components/admin/InvoiceManager";
 import FocusNFeSettings from "@/components/admin/FocusNFeSettings";
 import BoletoSettingsManager from "@/components/admin/BoletoSettingsManager";
+import PromotionsManager from "@/components/admin/PromotionsManager";
+import BannersManager from "@/components/admin/BannersManager";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -120,6 +122,8 @@ const Admin = () => {
             {activeSection === "pricing" && <PricingManager />}
             {activeSection === "expenses" && <ExpensesManager />}
             {activeSection === "payments" && <BoletoSettingsManager />}
+            {activeSection === "promotions" && <PromotionsManager />}
+            {activeSection === "banners" && <BannersManager />}
             {activeSection === "recipes" && <RecipesManager />}
             {activeSection === "testimonials" && <TestimonialsManager />}
             {activeSection === "site-content" && <SiteContentManager />}

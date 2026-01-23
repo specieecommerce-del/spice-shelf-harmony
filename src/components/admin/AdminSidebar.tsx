@@ -33,6 +33,8 @@ const menuItems = [
   { id: "pricing", title: "Precificação", icon: Calculator },
   { id: "expenses", title: "Custos e Gastos", icon: DollarSign },
   { id: "payments", title: "Pagamentos", icon: CreditCard },
+  { id: "promotions", title: "Promoções", icon: DollarSign },
+  { id: "banners", title: "Banners", icon: Globe },
   { id: "recipes", title: "Receitas", icon: ChefHat },
   { id: "testimonials", title: "Depoimentos", icon: MessageSquareQuote },
   { id: "site-content", title: "Conteúdo do Site", icon: Globe },
