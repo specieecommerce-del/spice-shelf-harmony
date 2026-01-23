@@ -27,6 +27,7 @@ import FocusNFeSettings from "@/components/admin/FocusNFeSettings";
 import BoletoSettingsManager from "@/components/admin/BoletoSettingsManager";
 import PromotionsManager from "@/components/admin/PromotionsManager";
 import BannersManager from "@/components/admin/BannersManager";
+import ImageEditorManager from "@/components/admin/ImageEditorManager";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -124,6 +125,7 @@ const Admin = () => {
             {activeSection === "payments" && <BoletoSettingsManager />}
             {activeSection === "promotions" && <PromotionsManager />}
             {activeSection === "banners" && <BannersManager />}
+            {activeSection === "image-editor" && <ImageEditorManager />}
             {activeSection === "recipes" && <RecipesManager />}
             {activeSection === "testimonials" && <TestimonialsManager />}
             {activeSection === "site-content" && <SiteContentManager />}

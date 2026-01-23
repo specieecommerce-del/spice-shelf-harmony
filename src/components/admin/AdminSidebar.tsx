@@ -1,4 +1,4 @@
-import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -35,6 +35,7 @@ const menuItems = [
   { id: "payments", title: "Pagamentos", icon: CreditCard },
   { id: "promotions", title: "Promoções", icon: DollarSign },
   { id: "banners", title: "Banners", icon: Globe },
+  { id: "image-editor", title: "Editor de Imagens", icon: ImageIcon },
   { id: "recipes", title: "Receitas", icon: ChefHat },
   { id: "testimonials", title: "Depoimentos", icon: MessageSquareQuote },
   { id: "site-content", title: "Conteúdo do Site", icon: Globe },
