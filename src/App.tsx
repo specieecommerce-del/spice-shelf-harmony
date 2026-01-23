@@ -22,6 +22,9 @@ import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
 import AboutUs from "./pages/AboutUs";
 import Recipes from "./pages/Recipes";
+import Products from "./pages/Products";
+import KitsGifts from "./pages/KitsGifts";
+import Promotions from "./pages/Promotions";
 import ChatBot from "@/components/chat/ChatBot";
 
 const queryClient = new QueryClient();
@@ -51,6 +54,9 @@ const App = () => (
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/quem-somos" element={<AboutUs />} />
                 <Route path="/receitas" element={<Recipes />} />
+                <Route path="/produtos" element={<Products />} />
+                <Route path="/kits-presentes" element={<KitsGifts />} />
+                <Route path="/promocoes" element={<Promotions />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
