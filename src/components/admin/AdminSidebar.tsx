@@ -39,6 +39,7 @@ const menuItems = [
   { id: "banners", title: "Banners", icon: Globe },
   { id: "image-editor", title: "Editor de Imagens", icon: ImageIcon },
   { id: "recipes", title: "Receitas", icon: ChefHat },
+  { id: "ai-recipes", title: "Receitas com IA", icon: Sparkles },
   { id: "testimonials", title: "Depoimentos", icon: MessageSquareQuote },
   { id: "site-content", title: "Conteúdo do Site", icon: Globe },
   { id: "whatsapp", title: "Alertas WhatsApp", icon: MessageSquare },

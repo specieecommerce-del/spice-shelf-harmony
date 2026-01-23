@@ -684,48 +684,168 @@ export type Database = {
         }
         Relationships: []
       }
+      recipe_products: {
+        Row: {
+          created_at: string
+          id: string
+          is_optional: boolean | null
+          notes: string | null
+          product_id: string
+          quantity: number | null
+          recipe_id: string
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_optional?: boolean | null
+          notes?: string | null
+          product_id: string
+          quantity?: number | null
+          recipe_id: string
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_optional?: boolean | null
+          notes?: string | null
+          product_id?: string
+          quantity?: number | null
+          recipe_id?: string
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_products_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipe_sales: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string | null
+          products_sold: Json | null
+          recipe_id: string
+          total_amount: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          products_sold?: Json | null
+          recipe_id: string
+          total_amount?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          products_sold?: Json | null
+          recipe_id?: string
+          total_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_sales_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_sales_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recipes: {
         Row: {
+          ai_generated: boolean | null
           benefits: string | null
           category: string
           created_at: string
+          description: string | null
+          difficulty: string | null
           id: string
           image_url: string | null
           ingredients: string[] | null
           is_active: boolean | null
+          is_draft: boolean | null
+          is_featured: boolean | null
+          nutritional_info: Json | null
+          prep_time: string | null
           preparation: string[] | null
+          recipe_category: string | null
+          sales_count: number | null
           sort_order: number | null
           spices: string[] | null
           title: string
           updated_at: string
+          views: number | null
         }
         Insert: {
+          ai_generated?: boolean | null
           benefits?: string | null
           category?: string
           created_at?: string
+          description?: string | null
+          difficulty?: string | null
           id?: string
           image_url?: string | null
           ingredients?: string[] | null
           is_active?: boolean | null
+          is_draft?: boolean | null
+          is_featured?: boolean | null
+          nutritional_info?: Json | null
+          prep_time?: string | null
           preparation?: string[] | null
+          recipe_category?: string | null
+          sales_count?: number | null
           sort_order?: number | null
           spices?: string[] | null
           title: string
           updated_at?: string
+          views?: number | null
         }
         Update: {
+          ai_generated?: boolean | null
           benefits?: string | null
           category?: string
           created_at?: string
+          description?: string | null
+          difficulty?: string | null
           id?: string
           image_url?: string | null
           ingredients?: string[] | null
           is_active?: boolean | null
+          is_draft?: boolean | null
+          is_featured?: boolean | null
+          nutritional_info?: Json | null
+          prep_time?: string | null
           preparation?: string[] | null
+          recipe_category?: string | null
+          sales_count?: number | null
           sort_order?: number | null
           spices?: string[] | null
           title?: string
           updated_at?: string
+          views?: number | null
         }
         Relationships: []
       }
