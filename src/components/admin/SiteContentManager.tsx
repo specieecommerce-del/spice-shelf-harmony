@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Save, Globe, Type, Image, Palette, Upload, Link, Trash2, RotateCcw } from "lucide-react";
+import { Loader2, Save, Globe, Type, Image, Palette, Upload, Link, Trash2, RotateCcw, Move } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import ImagePositionEditor from "./ImagePositionEditor";
 
 interface SiteContent {
   header: {
@@ -124,6 +125,7 @@ const SiteContentManager = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [imageInputMode, setImageInputMode] = useState<Record<string, "file" | "url">>({});
+  const [isPositionEditorOpen, setIsPositionEditorOpen] = useState(false);
   
   const logoInputRef = useRef<HTMLInputElement>(null);
   const heroInputRef = useRef<HTMLInputElement>(null);
@@ -617,10 +619,43 @@ const SiteContentManager = () => {
                 <h4 className="font-medium">Imagem de Fundo</h4>
                 {renderImageInput("hero", "background_image", "Imagem de Fundo", heroInputRef, content.hero.background_image)}
                 
-                {/* Posição da Imagem */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Botão para abrir editor visual */}
+                {content.hero.background_image && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsPositionEditorOpen(true)}
+                    className="w-full"
+                  >
+                    <Move className="h-4 w-4 mr-2" />
+                    Abrir Editor de Posição (Arrastar para Enquadrar)
+                  </Button>
+                )}
+
+                {/* Preview da posição atual */}
+                {content.hero.background_image && (
+                  <div className="relative h-32 rounded-lg overflow-hidden border">
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage: `url(${content.hero.background_image})`,
+                        backgroundPosition: `${content.hero.background_position_x}% ${content.hero.background_position_y}%`,
+                        backgroundSize: `${content.hero.background_scale}%`,
+                        backgroundRepeat: "no-repeat",
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                      <span className="text-white text-xs bg-black/50 px-2 py-1 rounded">
+                        Posição: {content.hero.background_position_x}% x {content.hero.background_position_y}% | Zoom: {content.hero.background_scale}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Sliders para ajuste fino */}
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <Label>Posição Horizontal ({content.hero.background_position_x}%)</Label>
+                    <Label className="text-xs">Horizontal ({content.hero.background_position_x}%)</Label>
                     <input
                       type="range"
                       min="0"
@@ -629,10 +664,9 @@ const SiteContentManager = () => {
                       onChange={(e) => updateSection("hero", "background_position_x", parseInt(e.target.value))}
                       className="w-full"
                     />
-                    <p className="text-xs text-muted-foreground">0% = esquerda, 50% = centro, 100% = direita</p>
                   </div>
                   <div>
-                    <Label>Posição Vertical ({content.hero.background_position_y}%)</Label>
+                    <Label className="text-xs">Vertical ({content.hero.background_position_y}%)</Label>
                     <input
                       type="range"
                       min="0"
@@ -641,22 +675,18 @@ const SiteContentManager = () => {
                       onChange={(e) => updateSection("hero", "background_position_y", parseInt(e.target.value))}
                       className="w-full"
                     />
-                    <p className="text-xs text-muted-foreground">0% = topo, 50% = centro, 100% = base</p>
                   </div>
-                </div>
-
-                {/* Escala da Imagem */}
-                <div>
-                  <Label>Escala/Zoom da Imagem ({content.hero.background_scale}%)</Label>
-                  <input
-                    type="range"
-                    min="50"
-                    max="200"
-                    value={content.hero.background_scale}
-                    onChange={(e) => updateSection("hero", "background_scale", parseInt(e.target.value))}
-                    className="w-full"
-                  />
-                  <p className="text-xs text-muted-foreground">100% = tamanho original, valores maiores = zoom in</p>
+                  <div>
+                    <Label className="text-xs">Zoom ({content.hero.background_scale}%)</Label>
+                    <input
+                      type="range"
+                      min="50"
+                      max="200"
+                      value={content.hero.background_scale}
+                      onChange={(e) => updateSection("hero", "background_scale", parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
 
                 {/* Opacidade do Overlay */}
@@ -675,6 +705,22 @@ const SiteContentManager = () => {
               </div>
 
               {renderSectionActions("hero")}
+
+              {/* Editor de Posição da Imagem */}
+              <ImagePositionEditor
+                isOpen={isPositionEditorOpen}
+                onClose={() => setIsPositionEditorOpen(false)}
+                imageUrl={content.hero.background_image}
+                positionX={content.hero.background_position_x}
+                positionY={content.hero.background_position_y}
+                scale={content.hero.background_scale}
+                onSave={(posX, posY, scale) => {
+                  updateSection("hero", "background_position_x", posX);
+                  updateSection("hero", "background_position_y", posY);
+                  updateSection("hero", "background_scale", scale);
+                  toast.success("Posição aplicada! Clique em Salvar para confirmar.");
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
