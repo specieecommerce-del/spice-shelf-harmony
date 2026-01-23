@@ -1,13 +1,51 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import heroSpicesBg from "@/assets/hero-spices-bg.jpg";
 
+interface HeroContent {
+  background_image?: string;
+  title?: string;
+  subtitle?: string;
+  cta_text?: string;
+  cta_link?: string;
+}
+
 const HeroSection = () => {
+  const [heroContent, setHeroContent] = useState<HeroContent>({});
+  const [backgroundImage, setBackgroundImage] = useState<string>(heroSpicesBg);
+
+  useEffect(() => {
+    loadHeroContent();
+  }, []);
+
+  const loadHeroContent = async () => {
+    try {
+      const { data } = await supabase
+        .from("site_content")
+        .select("content")
+        .eq("section", "hero")
+        .single();
+
+      if (data?.content) {
+        const content = data.content as HeroContent;
+        setHeroContent(content);
+        if (content.background_image) {
+          setBackgroundImage(content.background_image);
+        }
+      }
+    } catch (error) {
+      // Use default image if no custom content found
+      console.log("Using default hero image");
+    }
+  };
+
   return (
     <section className="relative min-h-[85vh] flex items-center pt-32">
       {/* Background with spices */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${heroSpicesBg})` }}
+        style={{ backgroundImage: `url(${backgroundImage})` }}
       >
         <div className="absolute inset-0 bg-spice-cream/60" />
       </div>
@@ -20,9 +58,9 @@ const HeroSection = () => {
           </span>
 
           <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 animate-slide-up">
-            Receitas incríveis
+            {heroContent.title || "Receitas incríveis"}
             <br />
-            <span className="text-primary">começam aqui</span>
+            <span className="text-primary">{heroContent.subtitle || "começam aqui"}</span>
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-lg animate-slide-up" style={{ animationDelay: "0.1s" }}>
@@ -32,7 +70,7 @@ const HeroSection = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 animate-slide-up" style={{ animationDelay: "0.2s" }}>
             <Button variant="default" size="xl">
-              Compre Agora
+              {heroContent.cta_text || "Compre Agora"}
             </Button>
             <Button variant="outline" size="xl">
               Ver Receitas

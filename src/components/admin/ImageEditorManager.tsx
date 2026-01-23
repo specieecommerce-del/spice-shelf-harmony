@@ -22,6 +22,7 @@ interface SiteImage {
   source_table: string;
   source_id: string;
   source_field: string;
+  content_key?: string; // For site_content JSON updates
 }
 
 interface ImageFilters {
@@ -195,6 +196,43 @@ const ImageEditorManager = () => {
         }
       });
 
+      // Fetch site_content images (hero backgrounds, etc.)
+      const { data: siteContent } = await supabase
+        .from("site_content")
+        .select("id, section, content");
+      
+      siteContent?.forEach(content => {
+        const jsonContent = content.content as Record<string, unknown>;
+        
+        // Hero background image
+        if (content.section === "hero" && jsonContent?.background_image) {
+          allImages.push({
+            id: `site-hero-bg-${content.id}`,
+            url: jsonContent.background_image as string,
+            type: "background",
+            name: "Fundo do Hero (Capa)",
+            source_table: "site_content",
+            source_id: content.id,
+            source_field: "content",
+            content_key: "background_image",
+          });
+        }
+        
+        // Header logo
+        if (content.section === "header" && jsonContent?.logo_url) {
+          allImages.push({
+            id: `site-header-logo-${content.id}`,
+            url: jsonContent.logo_url as string,
+            type: "site_content",
+            name: "Logo do Site",
+            source_table: "site_content",
+            source_id: content.id,
+            source_field: "content",
+            content_key: "logo_url",
+          });
+        }
+      });
+
       setImages(allImages);
     } catch (error) {
       console.error("Error fetching images:", error);
@@ -308,6 +346,28 @@ const ImageEditorManager = () => {
             if (error) throw error;
           }
         }
+      } else if (selectedImage.source_table === "site_content" && selectedImage.content_key) {
+        // Handle site_content JSON updates
+        const { data: content } = await supabase
+          .from("site_content")
+          .select("content")
+          .eq("id", selectedImage.source_id)
+          .single();
+        
+        if (content) {
+          const currentContent = content.content as Record<string, string | number | boolean | null>;
+          const updatedContent: Record<string, string | number | boolean | null> = {
+            ...currentContent,
+            [selectedImage.content_key]: newImageUrl,
+          };
+          
+          const { error } = await supabase
+            .from("site_content")
+            .update({ content: updatedContent as unknown as Record<string, never> })
+            .eq("id", selectedImage.source_id);
+          
+          if (error) throw error;
+        }
       } else {
         const { error } = await supabase
           .from(selectedImage.source_table as "products" | "promotional_banners" | "product_categories" | "recipes" | "testimonials" | "promotions")
@@ -419,8 +479,8 @@ const ImageEditorManager = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        {["all", "product", "banner", "category", "recipe", "testimonial"].map((type) => (
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        {["all", "product", "banner", "background", "category", "recipe", "testimonial", "site_content"].map((type) => (
           <Card 
             key={type} 
             className={`cursor-pointer transition-all ${activeTab === type ? "ring-2 ring-primary" : ""}`}
