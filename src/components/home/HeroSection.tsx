@@ -156,13 +156,6 @@ const HeroSection = () => {
         </div>
       </div>
 
-      {/* Decorative floating elements */}
-      <div className="absolute bottom-20 right-10 hidden lg:block animate-float">
-        <div className="w-24 h-24 rounded-full bg-spice-gold/20 backdrop-blur-sm" />
-      </div>
-      <div className="absolute top-40 right-20 hidden lg:block animate-float" style={{ animationDelay: "1s" }}>
-        <div className="w-16 h-16 rounded-full bg-spice-warm-white/10 backdrop-blur-sm" />
-      </div>
     </section>
   );
 };
