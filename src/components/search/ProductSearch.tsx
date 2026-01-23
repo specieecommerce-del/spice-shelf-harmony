@@ -48,15 +48,69 @@ const ProductSearch = ({ onClose, className = "", autoFocus = false }: ProductSe
 
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
+        // Normalize query for better matching
+        const normalizedQuery = query
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, ""); // Remove accents
+        
+        // Fetch products with variations
+        const { data: productsData, error: productsError } = await supabase
           .from("products")
-          .select("id, name, price, image_url, category")
-          .eq("is_active", true)
-          .or(`name.ilike.%${query}%,category.ilike.%${query}%,description.ilike.%${query}%`)
-          .limit(8);
+          .select(`
+            id, name, price, image_url, category, description, short_description,
+            product_variations(id, name, variation_type)
+          `)
+          .eq("is_active", true);
 
-        if (error) throw error;
-        setResults(data || []);
+        if (productsError) throw productsError;
+
+        // Smart filtering with fuzzy matching
+        const filtered = (productsData || []).filter(product => {
+          const normalizeText = (text: string | null) => 
+            (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          
+          const name = normalizeText(product.name);
+          const category = normalizeText(product.category);
+          const description = normalizeText(product.description);
+          const shortDescription = normalizeText(product.short_description);
+          
+          // Check variations
+          const variations = product.product_variations || [];
+          const variationMatch = variations.some((v: any) => 
+            normalizeText(v.name).includes(normalizedQuery)
+          );
+          
+          // Split query into words for partial matching
+          const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 1);
+          const allText = `${name} ${category} ${description} ${shortDescription}`;
+          
+          // Check if any word matches
+          const wordMatch = queryWords.some(word => allText.includes(word));
+          
+          // Direct matches
+          const directMatch = 
+            name.includes(normalizedQuery) ||
+            category.includes(normalizedQuery) ||
+            description.includes(normalizedQuery) ||
+            shortDescription.includes(normalizedQuery);
+          
+          return directMatch || wordMatch || variationMatch;
+        });
+
+        // Score and sort results by relevance
+        const scored = filtered.map(product => {
+          const name = product.name.toLowerCase();
+          let score = 0;
+          if (name === normalizedQuery) score += 100; // Exact match
+          if (name.startsWith(normalizedQuery)) score += 50; // Starts with
+          if (name.includes(normalizedQuery)) score += 25; // Contains
+          return { ...product, score };
+        });
+
+        scored.sort((a, b) => b.score - a.score);
+        
+        setResults(scored.slice(0, 8).map(({ score, product_variations, ...rest }) => rest) as Product[]);
         setIsOpen(true);
       } catch (error) {
         console.error("Error searching products:", error);

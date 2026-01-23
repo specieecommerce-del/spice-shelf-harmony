@@ -1,10 +1,84 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+async function generateRecipeImage(lovableApiKey: string, recipeTitle: string, ingredients: string[]): Promise<string | null> {
+  try {
+    const prompt = `Professional food photography of a delicious dish called "${recipeTitle}". 
+The dish features ingredients like ${ingredients.slice(0, 5).join(', ')}. 
+Style: appetizing, warm lighting, rustic table setting, garnished beautifully, restaurant quality presentation.
+Ultra high resolution, 16:9 aspect ratio hero image.`;
+
+    console.log('Generating image for recipe:', recipeTitle);
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${lovableApiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-image-preview',
+        messages: [{ role: 'user', content: prompt }],
+        modalities: ['image', 'text'],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Image generation failed:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    if (imageUrl) {
+      console.log('Image generated successfully');
+      return imageUrl;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error generating image:', error);
+    return null;
+  }
+}
+
+async function uploadImageToStorage(supabase: any, base64Image: string, recipeTitle: string): Promise<string | null> {
+  try {
+    // Remove data:image prefix if present
+    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+    const imageBytes = decode(base64Data);
+    
+    const fileName = `recipe-${Date.now()}-${recipeTitle.toLowerCase().replace(/\s+/g, '-').substring(0, 30)}.png`;
+    
+    const { data, error } = await supabase.storage
+      .from('product-images')
+      .upload(`recipes/${fileName}`, imageBytes, {
+        contentType: 'image/png',
+        upsert: true,
+      });
+
+    if (error) {
+      console.error('Upload error:', error);
+      return null;
+    }
+
+    const { data: publicUrl } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(`recipes/${fileName}`);
+
+    return publicUrl.publicUrl;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    return null;
+  }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,7 +86,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, recipeId, prompt, variation } = await req.json();
+    const { action, recipeId, prompt, variation, generateImage = true } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -153,7 +227,7 @@ RESPONDA EM JSON: { "substitutes": [{ "original": "nome original", "substitute":
       userPrompt = 'Sugira os melhores substitutos disponíveis.';
     }
 
-    // Call Lovable AI Gateway
+    // Call Lovable AI Gateway for recipe content
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -222,6 +296,28 @@ RESPONDA EM JSON: { "substitutes": [{ "original": "nome original", "substitute":
         }
       }
       parsedContent.matched_products = matchedProducts;
+    }
+
+    // Generate image for the recipe if requested and it's a new recipe
+    if (action === 'generate' && generateImage && parsedContent.title) {
+      console.log('Generating image for recipe...');
+      const base64Image = await generateRecipeImage(
+        lovableApiKey, 
+        parsedContent.title, 
+        parsedContent.ingredients || []
+      );
+      
+      if (base64Image) {
+        // Upload to storage and get public URL
+        const publicUrl = await uploadImageToStorage(supabase, base64Image, parsedContent.title);
+        if (publicUrl) {
+          parsedContent.image_url = publicUrl;
+          console.log('Image uploaded:', publicUrl);
+        } else {
+          // Fallback: use base64 directly (not ideal for storage)
+          parsedContent.image_url = base64Image;
+        }
+      }
     }
 
     return new Response(
