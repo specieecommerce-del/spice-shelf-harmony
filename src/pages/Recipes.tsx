@@ -1,11 +1,15 @@
-import { useState } from "react";
-import { Clock, ChefHat, Leaf, Coffee, Sun, Moon, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Clock, ChefHat, Leaf, Coffee, Sun, Moon, ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useCart } from "@/contexts/CartContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 import recipeBreakfast from "@/assets/recipe-breakfast.jpg";
 import recipeLunch from "@/assets/recipe-lunch.jpg";
@@ -263,7 +267,14 @@ const dinnerRecipes: Recipe[] = [
   },
 ];
 
-const RecipeCard = ({ recipe, isOpen, onToggle }: { recipe: Recipe; isOpen: boolean; onToggle: () => void }) => {
+interface RecipeCardProps {
+  recipe: Recipe;
+  isOpen: boolean;
+  onToggle: () => void;
+  onBuySpices: (spices: string[]) => void;
+}
+
+const RecipeCard = ({ recipe, isOpen, onToggle, onBuySpices }: RecipeCardProps) => {
   return (
     <Card className="overflow-hidden border-2 border-border hover:border-primary/30 transition-colors">
       <Collapsible open={isOpen} onOpenChange={onToggle}>
@@ -326,6 +337,17 @@ const RecipeCard = ({ recipe, isOpen, onToggle }: { recipe: Recipe; isOpen: bool
                 </ol>
               </div>
             </div>
+            
+            {/* Buy Spices Button */}
+            <div className="mt-6 pt-4 border-t border-border">
+              <Button 
+                onClick={(e) => { e.stopPropagation(); onBuySpices(recipe.spices); }}
+                className="w-full md:w-auto"
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Compre os temperos desta receita
+              </Button>
+            </div>
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -335,11 +357,61 @@ const RecipeCard = ({ recipe, isOpen, onToggle }: { recipe: Recipe; isOpen: bool
 
 const Recipes = () => {
   const [openRecipes, setOpenRecipes] = useState<number[]>([]);
+  const { addToCart, setIsCartOpen } = useCart();
+  const navigate = useNavigate();
 
   const toggleRecipe = (id: number) => {
     setOpenRecipes(prev => 
       prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
     );
+  };
+
+  const handleBuySpices = async (spices: string[]) => {
+    try {
+      // Search for products matching the spice names
+      const searchTerms = spices.map(s => s.replace(" Species", "").toLowerCase());
+      
+      const { data: products, error } = await supabase
+        .from("products")
+        .select("id, name, price, image_url")
+        .eq("is_active", true);
+
+      if (error) throw error;
+
+      // Find matching products
+      const matchingProducts = products?.filter(product => 
+        searchTerms.some(term => 
+          product.name.toLowerCase().includes(term)
+        )
+      ) || [];
+
+      if (matchingProducts.length === 0) {
+        toast.info("Produtos não encontrados. Redirecionando para a loja...");
+        navigate("/produtos");
+        return;
+      }
+
+      // Add matching products to cart
+      matchingProducts.forEach(product => {
+        addToCart({
+          id: parseInt(product.id) || Math.random(),
+          name: product.name,
+          description: "",
+          price: product.price,
+          image: product.image_url || "",
+          rating: 5,
+          reviews: 0,
+          badges: [],
+          category: "",
+        });
+      });
+
+      toast.success(`${matchingProducts.length} tempero(s) adicionado(s) ao carrinho!`);
+      setIsCartOpen(true);
+    } catch (error) {
+      console.error("Error finding products:", error);
+      toast.error("Erro ao buscar produtos");
+    }
   };
 
   return (
@@ -415,6 +487,7 @@ const Recipes = () => {
                         recipe={recipe} 
                         isOpen={openRecipes.includes(recipe.id)}
                         onToggle={() => toggleRecipe(recipe.id)}
+                        onBuySpices={handleBuySpices}
                       />
                     ))}
                   </div>
@@ -443,6 +516,7 @@ const Recipes = () => {
                         recipe={recipe} 
                         isOpen={openRecipes.includes(recipe.id)}
                         onToggle={() => toggleRecipe(recipe.id)}
+                        onBuySpices={handleBuySpices}
                       />
                     ))}
                   </div>
@@ -473,6 +547,7 @@ const Recipes = () => {
                         recipe={recipe} 
                         isOpen={openRecipes.includes(recipe.id)}
                         onToggle={() => toggleRecipe(recipe.id)}
+                        onBuySpices={handleBuySpices}
                       />
                     ))}
                   </div>

@@ -28,6 +28,8 @@ import BoletoSettingsManager from "@/components/admin/BoletoSettingsManager";
 import PromotionsManager from "@/components/admin/PromotionsManager";
 import BannersManager from "@/components/admin/BannersManager";
 import ImageEditorManager from "@/components/admin/ImageEditorManager";
+import MonthlyReportsManager from "@/components/admin/MonthlyReportsManager";
+import AIProductCreator from "@/components/admin/AIProductCreator";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -113,11 +115,13 @@ const Admin = () => {
           <div className="flex-1 p-6 overflow-auto">
             {activeSection === "dashboard" && <DashboardManager />}
             {activeSection === "financial" && <FinancialDashboard />}
+            {activeSection === "reports" && <MonthlyReportsManager />}
             {activeSection === "orders" && <OrdersManager />}
             {activeSection === "shipping" && <ShippingManager />}
             {activeSection === "invoices" && <InvoiceManager />}
             {activeSection === "nfe" && <FocusNFeSettings />}
             {activeSection === "products" && <ProductsManager />}
+            {activeSection === "ai-products" && <AIProductCreator />}
             {activeSection === "categories" && <CategoriesManager />}
             {activeSection === "stock" && <StockManager />}
             {activeSection === "pricing" && <PricingManager />}
