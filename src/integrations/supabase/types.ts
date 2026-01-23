@@ -137,6 +137,51 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          date: string
+          description: string
+          id: string
+          invoice_number: string | null
+          invoice_url: string | null
+          is_recurring: boolean | null
+          recurrence_period: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category: string
+          created_at?: string
+          date?: string
+          description: string
+          id?: string
+          invoice_number?: string | null
+          invoice_url?: string | null
+          is_recurring?: boolean | null
+          recurrence_period?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          invoice_number?: string | null
+          invoice_url?: string | null
+          is_recurring?: boolean | null
+          recurrence_period?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string
@@ -215,10 +260,48 @@ export type Database = {
         }
         Relationships: []
       }
+      product_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          name: string
+          slug: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name: string
+          slug: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string
+          slug?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           badges: string[] | null
           category: string | null
+          category_id: string | null
+          cost_price: number | null
           created_at: string
           description: string | null
           id: string
@@ -228,16 +311,20 @@ export type Database = {
           name: string
           original_price: number | null
           price: number
+          profit_margin: number | null
           rating: number | null
           reserved_stock: number
           reviews: number | null
           sort_order: number | null
           stock_quantity: number
+          tax_percentage: number | null
           updated_at: string
         }
         Insert: {
           badges?: string[] | null
           category?: string | null
+          category_id?: string | null
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -247,16 +334,20 @@ export type Database = {
           name: string
           original_price?: number | null
           price?: number
+          profit_margin?: number | null
           rating?: number | null
           reserved_stock?: number
           reviews?: number | null
           sort_order?: number | null
           stock_quantity?: number
+          tax_percentage?: number | null
           updated_at?: string
         }
         Update: {
           badges?: string[] | null
           category?: string | null
+          category_id?: string | null
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -266,14 +357,24 @@ export type Database = {
           name?: string
           original_price?: number | null
           price?: number
+          profit_margin?: number | null
           rating?: number | null
           reserved_stock?: number
           reviews?: number | null
           sort_order?: number | null
           stock_quantity?: number
+          tax_percentage?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -314,6 +415,75 @@ export type Database = {
           state?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      recipes: {
+        Row: {
+          benefits: string | null
+          category: string
+          created_at: string
+          id: string
+          image_url: string | null
+          ingredients: string[] | null
+          is_active: boolean | null
+          preparation: string[] | null
+          sort_order: number | null
+          spices: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          benefits?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          ingredients?: string[] | null
+          is_active?: boolean | null
+          preparation?: string[] | null
+          sort_order?: number | null
+          spices?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          benefits?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          ingredients?: string[] | null
+          is_active?: boolean | null
+          preparation?: string[] | null
+          sort_order?: number | null
+          spices?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      site_content: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          section: string
+          updated_at: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          section: string
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          section?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -421,6 +591,48 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      testimonials: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          is_featured: boolean | null
+          location: string | null
+          name: string
+          rating: number | null
+          sort_order: number | null
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          location?: string | null
+          name: string
+          rating?: number | null
+          sort_order?: number | null
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          location?: string | null
+          name?: string
+          rating?: number | null
+          sort_order?: number | null
+          text?: string
+          updated_at?: string
         }
         Relationships: []
       }
