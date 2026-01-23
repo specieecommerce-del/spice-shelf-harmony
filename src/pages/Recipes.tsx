@@ -1,280 +1,68 @@
 import { useState, useEffect } from "react";
-import { Clock, ChefHat, Leaf, Coffee, Sun, Moon, ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
+import { Clock, ChefHat, Leaf, Coffee, Sun, Moon, ChevronDown, ChevronUp, ShoppingCart, Sparkles, Star, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-import recipeBreakfast from "@/assets/recipe-breakfast.jpg";
-import recipeLunch from "@/assets/recipe-lunch.jpg";
-import recipeDinner from "@/assets/recipe-dinner.jpg";
-
 interface Recipe {
-  id: number;
+  id: string;
   title: string;
+  description?: string;
   benefits: string;
   ingredients: string[];
   preparation: string[];
   spices: string[];
+  prep_time?: string;
+  difficulty?: string;
+  recipe_category?: string;
+  nutritional_info?: any;
+  image_url?: string;
+  is_featured?: boolean;
+  ai_generated?: boolean;
 }
 
-const breakfastIntro = {
-  title: "Receitas de Café da Manhã",
-  description: "Saiba o porquê de usar alguns temperos e condimentos em seu café da manhã!",
-  tips: [
-    { spice: "Cúrcuma", benefit: "Poderoso antioxidante" },
-    { spice: "Pimenta-do-reino", benefit: "Melhora a absorção de nutrientes e acelera o metabolismo" },
-    { spice: "Canela", benefit: "Ajuda no controle glicêmico" },
-    { spice: "Gengibre em pó", benefit: "Ajuda no metabolismo" },
-  ],
+interface LinkedProduct {
+  id: string;
+  product_id: string;
+  quantity: number;
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    stock_quantity: number;
+    image_url: string | null;
+    description: string | null;
+  };
+}
+
+const recipeCategoryLabels: Record<string, string> = {
+  fitness: "💪 Fitness",
+  caseira: "🏠 Caseira",
+  gourmet: "👨‍🍳 Gourmet",
+  vegana: "🌱 Vegana",
+  rapida: "⚡ Rápida",
+  economica: "💰 Econômica",
+  premium: "⭐ Premium",
+  saudavel: "🥗 Saudável",
 };
-
-const breakfastRecipes: Recipe[] = [
-  {
-    id: 1,
-    title: "Mingau de Aveia FIT com Canela",
-    benefits: "Rico em fibras, saciedade e energia gradual",
-    ingredients: [
-      "3 colheres (sopa) de aveia em flocos finos",
-      "200 ml de bebida vegetal sem açúcar (amêndoas, coco ou aveia)",
-      "1 colher (chá) de canela em pó Species",
-      "1 colher (chá) de chia ou linhaça",
-      "Adoçante natural a gosto (opcional)",
-    ],
-    preparation: [
-      "Aqueça a bebida vegetal com a aveia em fogo baixo.",
-      "Mexa até engrossar.",
-      "Acrescente canela e chia.",
-      "Sirva quente.",
-    ],
-    spices: ["Canela Species"],
-  },
-  {
-    id: 2,
-    title: "Torrada Integral FIT com Canela e Pasta de Amendoim",
-    benefits: "Energia + gordura boa",
-    ingredients: [
-      "1 fatia de pão integral 100%",
-      "1 colher (sopa) de pasta de amendoim integral (sem açúcar)",
-      "1 pitada de canela em pó Species",
-    ],
-    preparation: [
-      "Torre o pão.",
-      "Espalhe a pasta de amendoim.",
-      "Polvilhe canela.",
-    ],
-    spices: ["Canela Species"],
-  },
-  {
-    id: 3,
-    title: "Vitamina FIT de Banana com Canela e Gengibre em Pó",
-    benefits: "Pré-treino natural e digestivo",
-    ingredients: [
-      "1 banana pequena congelada",
-      "200 ml de bebida vegetal ou leite desnatado",
-      "1 colher (chá) de canela Species",
-      "1 pitada de gengibre em pó Species",
-      "1 colher (sopa) de aveia ou proteína vegetal (opcional)",
-    ],
-    preparation: [
-      "Bata tudo no liquidificador.",
-      "Sirva imediatamente.",
-    ],
-    spices: ["Canela Species", "Gengibre em pó Species"],
-  },
-  {
-    id: 4,
-    title: "Ovos Mexidos FIT com Cúrcuma e Pimenta-do-Reino",
-    benefits: "Alto teor de proteína e baixo carboidrato",
-    ingredients: [
-      "2 ovos",
-      "1 colher (chá) de azeite de oliva",
-      "1 pitada de cúrcuma em pó Species",
-      "Pimenta-do-reino a gosto",
-      "Sal rosa Species",
-    ],
-    preparation: [
-      "Bata os ovos com a cúrcuma, pimenta e sal.",
-      "Aqueça o azeite em fogo baixo.",
-      "Cozinhe mexendo lentamente até ficarem cremosos.",
-    ],
-    spices: ["Cúrcuma Species", "Pimenta-do-reino", "Sal rosa Species"],
-  },
-];
-
-const lunchIntro = {
-  title: "Receitas para Almoço",
-  description: "Essas receitas são práticas, mas também valorizam especiarias e temperos que atuam como protagonistas perfeitas para a refeição que vai dar aquela energia para terminar as tarefas restantes do dia.",
-  tip: "Especiarias e temperos naturais intensificam o sabor dos alimentos, reduzindo a necessidade de sal e produtos industrializados.",
-};
-
-const lunchRecipes: Recipe[] = [
-  {
-    id: 5,
-    title: "Frango Grelhado com Páprica, Alho e Ervas",
-    benefits: "Proteína magra com sabor intenso",
-    ingredients: [
-      "Peito de frango",
-      "Páprica doce",
-      "Alho amassado",
-      "Alecrim fresco ou seco",
-      "Pimenta-do-reino",
-      "Azeite e sal",
-    ],
-    preparation: [
-      "Tempere o frango com todos os ingredientes.",
-      "Deixe marinar 20 minutos.",
-      "Grelhe até dourar.",
-    ],
-    spices: ["Páprica doce", "Alho", "Alecrim", "Pimenta-do-reino"],
-  },
-  {
-    id: 6,
-    title: "Arroz Integral Aromatizado com Cúrcuma e Louro",
-    benefits: "Carboidrato complexo com propriedades anti-inflamatórias",
-    ingredients: [
-      "Arroz integral",
-      "Cúrcuma em pó",
-      "Folha de louro",
-      "Cebola e alho",
-      "Azeite e sal",
-    ],
-    preparation: [
-      "Refogue os temperos.",
-      "Acrescente o arroz.",
-      "Adicione água quente e cozinhe até ficar macio.",
-    ],
-    spices: ["Cúrcuma Species", "Louro", "Alho", "Cebola"],
-  },
-  {
-    id: 7,
-    title: "Legumes Assados com Cominho, Páprica e Tomilho",
-    benefits: "Rico em fibras e vitaminas",
-    ingredients: [
-      "Abobrinha, cenoura, batata-doce, cebola",
-      "Cominho",
-      "Páprica",
-      "Tomilho",
-      "Azeite e sal",
-    ],
-    preparation: [
-      "Misture todos os ingredientes.",
-      "Leve ao forno a 200°C por 30-40 minutos.",
-    ],
-    spices: ["Cominho", "Páprica", "Tomilho"],
-  },
-  {
-    id: 8,
-    title: "Carne Moída Refogada com Canela, Noz-Moscada e Pimenta",
-    benefits: "Proteína com toque especial",
-    ingredients: [
-      "Carne moída magra",
-      "Cebola e alho",
-      "Canela (pitada)",
-      "Noz-moscada",
-      "Pimenta-do-reino",
-    ],
-    preparation: [
-      "Refogue a carne com cebola e alho.",
-      "Finalize com as especiarias.",
-    ],
-    spices: ["Canela", "Noz-moscada", "Pimenta-do-reino"],
-  },
-];
-
-const dinnerIntro = {
-  title: "Receitas para Jantar",
-  description: "O uso de temperos e especiarias no jantar ajudam na digestão e promovem sensação de bem-estar.",
-  tip: "Escolhemos para o jantar dicas de receitas que usem especiarias e temperos que tragam calma e que sejam confortantes. Tudo o que precisamos para encerrar bem o dia e nos prepararmos para o dia seguinte.",
-};
-
-const dinnerRecipes: Recipe[] = [
-  {
-    id: 9,
-    title: "Peixe Grelhado com Limão, Coentro e Pimenta Rosa",
-    benefits: "Leve e rico em ômega-3",
-    ingredients: [
-      "Filé de peixe",
-      "Limão",
-      "Coentro fresco ou seco",
-      "Pimenta rosa",
-      "Azeite e sal",
-    ],
-    preparation: [
-      "Tempere o peixe.",
-      "Grelhe rapidamente em fogo médio.",
-    ],
-    spices: ["Coentro", "Pimenta rosa"],
-  },
-  {
-    id: 10,
-    title: "Sopa de Abóbora com Gengibre e Cúrcuma",
-    benefits: "Reconfortante e anti-inflamatória",
-    ingredients: [
-      "Abóbora",
-      "Gengibre fresco ralado",
-      "Cúrcuma",
-      "Caldo de legumes",
-      "Sal e azeite",
-    ],
-    preparation: [
-      "Cozinhe a abóbora com os temperos.",
-      "Bata no liquidificador.",
-      "Ajuste os temperos.",
-    ],
-    spices: ["Gengibre Species", "Cúrcuma Species", "Pimenta-do-reino"],
-  },
-  {
-    id: 11,
-    title: "Omelete de Ervas com Orégano, Cebolinha e Pimenta",
-    benefits: "Proteína leve para a noite",
-    ingredients: [
-      "Ovos",
-      "Orégano",
-      "Cebolinha",
-      "Pimenta-do-reino",
-      "Sal e azeite",
-    ],
-    preparation: [
-      "Misture tudo.",
-      "Prepare em frigideira antiaderente.",
-    ],
-    spices: ["Orégano", "Pimenta-do-reino"],
-  },
-  {
-    id: 12,
-    title: "Grão-de-Bico Refogado com Curry e Páprica Defumada",
-    benefits: "Rico em proteínas vegetais",
-    ingredients: [
-      "Grão-de-bico cozido",
-      "Curry em pó",
-      "Páprica defumada",
-      "Alho e cebola",
-      "Azeite e sal",
-    ],
-    preparation: [
-      "Refogue os temperos.",
-      "Acrescente o grão-de-bico.",
-      "Salteie até aromatizar.",
-    ],
-    spices: ["Curry", "Páprica defumada", "Alho"],
-  },
-];
 
 interface RecipeCardProps {
   recipe: Recipe;
   isOpen: boolean;
   onToggle: () => void;
-  onBuySpices: (spices: string[]) => void;
+  onBuyIngredients: (recipeId: string, spices: string[]) => void;
+  linkedProducts?: LinkedProduct[];
 }
 
-const RecipeCard = ({ recipe, isOpen, onToggle, onBuySpices }: RecipeCardProps) => {
+const RecipeCard = ({ recipe, isOpen, onToggle, onBuyIngredients, linkedProducts }: RecipeCardProps) => {
   return (
     <Card className="overflow-hidden border-2 border-border hover:border-primary/30 transition-colors">
       <Collapsible open={isOpen} onOpenChange={onToggle}>
@@ -282,14 +70,54 @@ const RecipeCard = ({ recipe, isOpen, onToggle, onBuySpices }: RecipeCardProps) 
           <div className="p-6 cursor-pointer hover:bg-secondary/50 transition-colors">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="font-serif text-xl font-bold text-foreground mb-2">
-                  {recipe.title}
-                </h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="font-serif text-xl font-bold text-foreground">
+                    {recipe.title}
+                  </h3>
+                  {recipe.ai_generated && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      IA
+                    </Badge>
+                  )}
+                  {recipe.is_featured && (
+                    <Badge className="bg-yellow-500 text-xs">
+                      <Star className="h-3 w-3 mr-1" />
+                      Destaque
+                    </Badge>
+                  )}
+                </div>
+                
+                {recipe.description && (
+                  <p className="text-sm text-muted-foreground mb-2">{recipe.description}</p>
+                )}
+                
                 <p className="text-sm text-primary font-medium mb-2">
                   ✨ {recipe.benefits}
                 </p>
+                
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {recipe.prep_time && (
+                    <Badge variant="outline" className="text-xs">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {recipe.prep_time}
+                    </Badge>
+                  )}
+                  {recipe.difficulty && (
+                    <Badge variant="outline" className="text-xs">
+                      <ChefHat className="h-3 w-3 mr-1" />
+                      {recipe.difficulty}
+                    </Badge>
+                  )}
+                  {recipe.recipe_category && (
+                    <Badge variant="secondary" className="text-xs">
+                      {recipeCategoryLabels[recipe.recipe_category] || recipe.recipe_category}
+                    </Badge>
+                  )}
+                </div>
+                
                 <div className="flex flex-wrap gap-2">
-                  {recipe.spices.map((spice, idx) => (
+                  {recipe.spices.slice(0, 4).map((spice, idx) => (
                     <span 
                       key={idx} 
                       className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full"
@@ -297,6 +125,11 @@ const RecipeCard = ({ recipe, isOpen, onToggle, onBuySpices }: RecipeCardProps) 
                       🌿 {spice}
                     </span>
                   ))}
+                  {recipe.spices.length > 4 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{recipe.spices.length - 4} mais
+                    </span>
+                  )}
                 </div>
               </div>
               <Button variant="ghost" size="icon" className="ml-4">
@@ -337,15 +170,62 @@ const RecipeCard = ({ recipe, isOpen, onToggle, onBuySpices }: RecipeCardProps) 
                 </ol>
               </div>
             </div>
+
+            {/* Nutritional Info */}
+            {recipe.nutritional_info && Object.keys(recipe.nutritional_info).length > 0 && (
+              <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                <h4 className="font-semibold text-foreground mb-2">📊 Informações Nutricionais (por porção)</h4>
+                <div className="flex flex-wrap gap-3 text-sm">
+                  {recipe.nutritional_info.calories && (
+                    <span className="px-2 py-1 bg-background rounded">🔥 {recipe.nutritional_info.calories}</span>
+                  )}
+                  {recipe.nutritional_info.protein && (
+                    <span className="px-2 py-1 bg-background rounded">💪 {recipe.nutritional_info.protein}</span>
+                  )}
+                  {recipe.nutritional_info.carbs && (
+                    <span className="px-2 py-1 bg-background rounded">🌾 {recipe.nutritional_info.carbs}</span>
+                  )}
+                  {recipe.nutritional_info.fat && (
+                    <span className="px-2 py-1 bg-background rounded">🥑 {recipe.nutritional_info.fat}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Linked Products Preview */}
+            {linkedProducts && linkedProducts.length > 0 && (
+              <div className="mt-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4 text-primary" />
+                  Produtos Recomendados
+                </h4>
+                <div className="flex flex-wrap gap-3">
+                  {linkedProducts.map((lp) => (
+                    <div key={lp.id} className="flex items-center gap-2 bg-background p-2 rounded-lg">
+                      {lp.product.image_url && (
+                        <img src={lp.product.image_url} alt="" className="w-8 h-8 rounded object-cover" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">{lp.product.name}</p>
+                        <p className="text-xs text-muted-foreground">R$ {lp.product.price.toFixed(2)}</p>
+                      </div>
+                      {lp.product.stock_quantity === 0 && (
+                        <Badge variant="destructive" className="text-xs">Esgotado</Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
-            {/* Buy Spices Button */}
+            {/* Buy Ingredients Button */}
             <div className="mt-6 pt-4 border-t border-border">
               <Button 
-                onClick={(e) => { e.stopPropagation(); onBuySpices(recipe.spices); }}
+                onClick={(e) => { e.stopPropagation(); onBuyIngredients(recipe.id, recipe.spices); }}
                 className="w-full md:w-auto"
               >
                 <ShoppingCart className="h-4 w-4 mr-2" />
-                Compre os temperos desta receita
+                Compre os ingredientes desta receita
               </Button>
             </div>
           </div>
@@ -356,33 +236,156 @@ const RecipeCard = ({ recipe, isOpen, onToggle, onBuySpices }: RecipeCardProps) 
 };
 
 const Recipes = () => {
-  const [openRecipes, setOpenRecipes] = useState<number[]>([]);
+  const [openRecipes, setOpenRecipes] = useState<string[]>([]);
+  const [dbRecipes, setDbRecipes] = useState<Recipe[]>([]);
+  const [recipeProducts, setRecipeProducts] = useState<Record<string, LinkedProduct[]>>({});
+  const [loading, setLoading] = useState(true);
   const { addToCart, setIsCartOpen } = useCart();
   const navigate = useNavigate();
 
-  const toggleRecipe = (id: number) => {
+  useEffect(() => {
+    fetchRecipes();
+  }, []);
+
+  const fetchRecipes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('recipes')
+        .select('*')
+        .eq('is_active', true)
+        .eq('is_draft', false)
+        .order('is_featured', { ascending: false })
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+
+      // Transform to Recipe interface
+      const recipes: Recipe[] = (data || []).map(r => ({
+        id: r.id,
+        title: r.title,
+        description: r.description || undefined,
+        benefits: r.benefits || '',
+        ingredients: r.ingredients || [],
+        preparation: r.preparation || [],
+        spices: r.spices || [],
+        prep_time: r.prep_time || undefined,
+        difficulty: r.difficulty || undefined,
+        recipe_category: r.recipe_category || undefined,
+        nutritional_info: r.nutritional_info || undefined,
+        image_url: r.image_url || undefined,
+        is_featured: r.is_featured || false,
+        ai_generated: r.ai_generated || false,
+      }));
+
+      setDbRecipes(recipes);
+
+      // Fetch linked products for all recipes
+      if (recipes.length > 0) {
+        const { data: products } = await supabase
+          .from('recipe_products')
+          .select(`
+            id,
+            recipe_id,
+            product_id,
+            quantity,
+            product:products(id, name, price, stock_quantity, image_url, description)
+          `)
+          .in('recipe_id', recipes.map(r => r.id));
+
+        if (products) {
+          const grouped: Record<string, LinkedProduct[]> = {};
+          products.forEach((p: any) => {
+            if (!grouped[p.recipe_id]) grouped[p.recipe_id] = [];
+            grouped[p.recipe_id].push(p);
+          });
+          setRecipeProducts(grouped);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching recipes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleRecipe = (id: string) => {
     setOpenRecipes(prev => 
       prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
     );
   };
 
-  const handleBuySpices = async (spices: string[]) => {
+  const handleBuyIngredients = async (recipeId: string, spices: string[]) => {
     try {
-      // Search for products matching the spice names
+      // First check for linked products
+      const linkedProds = recipeProducts[recipeId];
+      
+      if (linkedProds && linkedProds.length > 0) {
+        // Add linked products that are in stock
+        const inStockProducts = linkedProds.filter(lp => lp.product.stock_quantity > 0);
+        
+        if (inStockProducts.length === 0) {
+          toast.error("Todos os produtos desta receita estão esgotados");
+          return;
+        }
+
+        inStockProducts.forEach(lp => {
+          addToCart({
+            id: parseInt(lp.product.id.slice(0, 8), 16) || Math.random(),
+            name: lp.product.name,
+            description: lp.product.description || "",
+            price: lp.product.price,
+            image: lp.product.image_url || "",
+            rating: 5,
+            reviews: 0,
+            badges: [],
+            category: "",
+          }, lp.quantity);
+        });
+
+        // Track the sale intent
+        await supabase.from('recipe_sales').insert({
+          recipe_id: recipeId,
+          products_sold: inStockProducts.map(lp => ({ 
+            product_id: lp.product_id, 
+            name: lp.product.name,
+            price: lp.product.price 
+          })),
+          total_amount: inStockProducts.reduce((sum, lp) => sum + (lp.product.price * lp.quantity), 0),
+        });
+
+        // Update recipe sales count
+        const { data: recipe } = await supabase
+          .from('recipes')
+          .select('sales_count')
+          .eq('id', recipeId)
+          .single();
+        
+        if (recipe) {
+          await supabase
+            .from('recipes')
+            .update({ sales_count: (recipe.sales_count || 0) + 1 })
+            .eq('id', recipeId);
+        }
+
+        toast.success(`${inStockProducts.length} produto(s) adicionado(s) ao carrinho!`);
+        setIsCartOpen(true);
+        return;
+      }
+
+      // Fallback: search by spice names
       const searchTerms = spices.map(s => s.replace(" Species", "").toLowerCase());
       
       const { data: products, error } = await supabase
         .from("products")
-        .select("id, name, price, image_url")
+        .select("id, name, price, image_url, description, stock_quantity")
         .eq("is_active", true);
 
       if (error) throw error;
 
-      // Find matching products
       const matchingProducts = products?.filter(product => 
         searchTerms.some(term => 
           product.name.toLowerCase().includes(term)
-        )
+        ) && product.stock_quantity > 0
       ) || [];
 
       if (matchingProducts.length === 0) {
@@ -391,12 +394,11 @@ const Recipes = () => {
         return;
       }
 
-      // Add matching products to cart
       matchingProducts.forEach(product => {
         addToCart({
-          id: parseInt(product.id) || Math.random(),
+          id: parseInt(product.id.slice(0, 8), 16) || Math.random(),
           name: product.name,
-          description: "",
+          description: product.description || "",
           price: product.price,
           image: product.image_url || "",
           rating: 5,
@@ -413,6 +415,27 @@ const Recipes = () => {
       toast.error("Erro ao buscar produtos");
     }
   };
+
+  // Separate recipes by category
+  const breakfastRecipes = dbRecipes.filter(r => r.id && dbRecipes.some(d => d.id === r.id) && 
+    (dbRecipes.find(d => d.id === r.id) as any)?.category === 'breakfast'
+  ) || dbRecipes.filter((_, i) => i % 3 === 0);
+  
+  const lunchRecipes = dbRecipes.filter((_, i) => i % 3 === 1);
+  const dinnerRecipes = dbRecipes.filter((_, i) => i % 3 === 2);
+
+  // Also filter by actual category from db
+  const getRecipesByCategory = (category: string) => {
+    return dbRecipes.filter(r => {
+      const dbRecipe = dbRecipes.find(d => d.id === r.id);
+      // Use stored category or fallback to distribution
+      return (dbRecipe as any)?.category === category;
+    });
+  };
+
+  const breakfastFromDb = getRecipesByCategory('breakfast');
+  const lunchFromDb = getRecipesByCategory('lunch');
+  const dinnerFromDb = getRecipesByCategory('dinner');
 
   return (
     <div className="min-h-screen bg-background">
@@ -434,145 +457,157 @@ const Recipes = () => {
           </div>
         </section>
 
+        {/* Featured Recipes */}
+        {dbRecipes.filter(r => r.is_featured).length > 0 && (
+          <section className="py-12 bg-primary/5">
+            <div className="container-species">
+              <h2 className="font-serif text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
+                <Star className="h-6 w-6 text-yellow-500" />
+                Receitas em Destaque
+              </h2>
+              <div className="space-y-4">
+                {dbRecipes.filter(r => r.is_featured).map(recipe => (
+                  <RecipeCard 
+                    key={recipe.id} 
+                    recipe={recipe} 
+                    isOpen={openRecipes.includes(recipe.id)}
+                    onToggle={() => toggleRecipe(recipe.id)}
+                    onBuyIngredients={handleBuyIngredients}
+                    linkedProducts={recipeProducts[recipe.id]}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Tabs Section */}
         <section className="py-16 md:py-24">
           <div className="container-species">
-            <Tabs defaultValue="breakfast" className="w-full">
-              <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 mb-12">
-                <TabsTrigger value="breakfast" className="flex items-center gap-2">
-                  <Coffee className="h-4 w-4" />
-                  <span className="hidden sm:inline">Café da Manhã</span>
-                  <span className="sm:hidden">Manhã</span>
-                </TabsTrigger>
-                <TabsTrigger value="lunch" className="flex items-center gap-2">
-                  <Sun className="h-4 w-4" />
-                  <span className="hidden sm:inline">Almoço</span>
-                  <span className="sm:hidden">Almoço</span>
-                </TabsTrigger>
-                <TabsTrigger value="dinner" className="flex items-center gap-2">
-                  <Moon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Jantar</span>
-                  <span className="sm:hidden">Jantar</span>
-                </TabsTrigger>
-              </TabsList>
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-4 text-muted-foreground">Carregando receitas...</p>
+              </div>
+            ) : dbRecipes.length === 0 ? (
+              <div className="text-center py-12">
+                <ChefHat className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-2">Nenhuma receita disponível</h2>
+                <p className="text-muted-foreground">
+                  Em breve teremos receitas deliciosas para você!
+                </p>
+              </div>
+            ) : (
+              <Tabs defaultValue="breakfast" className="w-full">
+                <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 mb-12">
+                  <TabsTrigger value="breakfast" className="flex items-center gap-2">
+                    <Coffee className="h-4 w-4" />
+                    <span className="hidden sm:inline">Café da Manhã</span>
+                    <span className="sm:hidden">Manhã</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="lunch" className="flex items-center gap-2">
+                    <Sun className="h-4 w-4" />
+                    <span>Almoço</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="dinner" className="flex items-center gap-2">
+                    <Moon className="h-4 w-4" />
+                    <span>Jantar</span>
+                  </TabsTrigger>
+                </TabsList>
 
-              {/* Breakfast Tab */}
-              <TabsContent value="breakfast">
-                <div className="max-w-4xl mx-auto">
-                  <div className="text-center mb-12">
-                    <h2 className="font-serif text-3xl lg:text-4xl font-bold text-foreground mb-4">
-                      {breakfastIntro.title}
-                    </h2>
-                    <p className="text-lg text-muted-foreground mb-6">
-                      {breakfastIntro.description}
-                    </p>
-                    
-                    {/* Tips Grid */}
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-                      {breakfastIntro.tips.map((tip, idx) => (
-                        <Card key={idx} className="bg-primary/5 border-primary/20">
-                          <CardContent className="p-4 text-center">
-                            <p className="font-semibold text-primary">{tip.spice}</p>
-                            <p className="text-sm text-muted-foreground">{tip.benefit}</p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
+                <TabsContent value="breakfast">
+                  <div className="max-w-4xl mx-auto space-y-4">
+                    {breakfastFromDb.length > 0 ? (
+                      breakfastFromDb.map(recipe => (
+                        <RecipeCard 
+                          key={recipe.id} 
+                          recipe={recipe} 
+                          isOpen={openRecipes.includes(recipe.id)}
+                          onToggle={() => toggleRecipe(recipe.id)}
+                          onBuyIngredients={handleBuyIngredients}
+                          linkedProducts={recipeProducts[recipe.id]}
+                        />
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Coffee className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Nenhuma receita de café da manhã disponível ainda.</p>
+                      </div>
+                    )}
                   </div>
+                </TabsContent>
 
-                  <div className="space-y-4">
-                    {breakfastRecipes.map(recipe => (
-                      <RecipeCard 
-                        key={recipe.id} 
-                        recipe={recipe} 
-                        isOpen={openRecipes.includes(recipe.id)}
-                        onToggle={() => toggleRecipe(recipe.id)}
-                        onBuySpices={handleBuySpices}
-                      />
-                    ))}
+                <TabsContent value="lunch">
+                  <div className="max-w-4xl mx-auto space-y-4">
+                    {lunchFromDb.length > 0 ? (
+                      lunchFromDb.map(recipe => (
+                        <RecipeCard 
+                          key={recipe.id} 
+                          recipe={recipe} 
+                          isOpen={openRecipes.includes(recipe.id)}
+                          onToggle={() => toggleRecipe(recipe.id)}
+                          onBuyIngredients={handleBuyIngredients}
+                          linkedProducts={recipeProducts[recipe.id]}
+                        />
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Sun className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Nenhuma receita de almoço disponível ainda.</p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </TabsContent>
+                </TabsContent>
 
-              {/* Lunch Tab */}
-              <TabsContent value="lunch">
-                <div className="max-w-4xl mx-auto">
-                  <div className="text-center mb-12">
-                    <h2 className="font-serif text-3xl lg:text-4xl font-bold text-foreground mb-4">
-                      🍽️ {lunchIntro.title}
-                    </h2>
-                    <p className="text-lg text-muted-foreground mb-4">
-                      {lunchIntro.description}
-                    </p>
-                    <p className="text-sm text-primary bg-primary/10 inline-block px-4 py-2 rounded-lg">
-                      💡 {lunchIntro.tip}
-                    </p>
+                <TabsContent value="dinner">
+                  <div className="max-w-4xl mx-auto space-y-4">
+                    {dinnerFromDb.length > 0 ? (
+                      dinnerFromDb.map(recipe => (
+                        <RecipeCard 
+                          key={recipe.id} 
+                          recipe={recipe} 
+                          isOpen={openRecipes.includes(recipe.id)}
+                          onToggle={() => toggleRecipe(recipe.id)}
+                          onBuyIngredients={handleBuyIngredients}
+                          linkedProducts={recipeProducts[recipe.id]}
+                        />
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Moon className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Nenhuma receita de jantar disponível ainda.</p>
+                      </div>
+                    )}
                   </div>
-
-                  <div className="space-y-4">
-                    {lunchRecipes.map(recipe => (
-                      <RecipeCard 
-                        key={recipe.id} 
-                        recipe={recipe} 
-                        isOpen={openRecipes.includes(recipe.id)}
-                        onToggle={() => toggleRecipe(recipe.id)}
-                        onBuySpices={handleBuySpices}
-                      />
-                    ))}
-                  </div>
-                  
-                  <p className="text-center text-2xl mt-8">🍴 Bom apetite!</p>
-                </div>
-              </TabsContent>
-
-              {/* Dinner Tab */}
-              <TabsContent value="dinner">
-                <div className="max-w-4xl mx-auto">
-                  <div className="text-center mb-12">
-                    <h2 className="font-serif text-3xl lg:text-4xl font-bold text-foreground mb-4">
-                      🌙 {dinnerIntro.title}
-                    </h2>
-                    <p className="text-lg text-muted-foreground mb-4">
-                      {dinnerIntro.description}
-                    </p>
-                    <p className="text-sm text-accent bg-accent/10 inline-block px-4 py-2 rounded-lg">
-                      ✨ {dinnerIntro.tip}
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    {dinnerRecipes.map(recipe => (
-                      <RecipeCard 
-                        key={recipe.id} 
-                        recipe={recipe} 
-                        isOpen={openRecipes.includes(recipe.id)}
-                        onToggle={() => toggleRecipe(recipe.id)}
-                        onBuySpices={handleBuySpices}
-                      />
-                    ))}
-                  </div>
-                  
-                  <p className="text-center text-2xl mt-8">🌙 Bom apetite!</p>
-                </div>
-              </TabsContent>
-            </Tabs>
+                </TabsContent>
+              </Tabs>
+            )}
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-16 bg-secondary">
-          <div className="container-species text-center">
-            <h2 className="font-serif text-2xl lg:text-3xl font-bold text-foreground mb-4">
-              Quer preparar essas receitas?
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Confira nossos temperos premium para criar pratos incríveis!
-            </p>
-            <Button variant="default" size="lg" asChild>
-              <a href="/#produtos">Ver Temperos Species</a>
-            </Button>
-          </div>
-        </section>
+        {/* All Recipes Grid */}
+        {dbRecipes.filter(r => !r.is_featured).length > 0 && (
+          <section className="py-12 bg-muted/30">
+            <div className="container-species">
+              <h2 className="font-serif text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
+                <TrendingUp className="h-6 w-6 text-primary" />
+                Todas as Receitas
+              </h2>
+              <div className="space-y-4">
+                {dbRecipes.filter(r => !r.is_featured).map(recipe => (
+                  <RecipeCard 
+                    key={recipe.id} 
+                    recipe={recipe} 
+                    isOpen={openRecipes.includes(recipe.id)}
+                    onToggle={() => toggleRecipe(recipe.id)}
+                    onBuyIngredients={handleBuyIngredients}
+                    linkedProducts={recipeProducts[recipe.id]}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
       <Footer />

@@ -30,6 +30,7 @@ import BannersManager from "@/components/admin/BannersManager";
 import ImageEditorManager from "@/components/admin/ImageEditorManager";
 import MonthlyReportsManager from "@/components/admin/MonthlyReportsManager";
 import AIProductCreator from "@/components/admin/AIProductCreator";
+import AIRecipeCreator from "@/components/admin/AIRecipeCreator";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -131,6 +132,7 @@ const Admin = () => {
             {activeSection === "banners" && <BannersManager />}
             {activeSection === "image-editor" && <ImageEditorManager />}
             {activeSection === "recipes" && <RecipesManager />}
+            {activeSection === "ai-recipes" && <AIRecipeCreator />}
             {activeSection === "testimonials" && <TestimonialsManager />}
             {activeSection === "site-content" && <SiteContentManager />}
             {activeSection === "whatsapp" && <WhatsAppAlertsManager />}
