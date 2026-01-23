@@ -849,6 +849,36 @@ export type Database = {
         }
         Relationships: []
       }
+      security_audit: {
+        Row: {
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       site_content: {
         Row: {
           content: Json
@@ -1119,6 +1149,10 @@ export type Database = {
           total_amount: number
           tracking_code: string
         }[]
+      }
+      get_public_product_fields: {
+        Args: { p: Database["public"]["Tables"]["products"]["Row"] }
+        Returns: Json
       }
       has_role: {
         Args: {
