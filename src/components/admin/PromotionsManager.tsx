@@ -103,7 +103,7 @@ const PromotionsManager = () => {
     setFormData({
       name: promotion.name,
       description: promotion.description || "",
-      discount_type: promotion.discount_type,
+      discount_type: promotion.discount_type as "percentage" | "fixed",
       discount_value: promotion.discount_value,
       start_date: promotion.start_date ? promotion.start_date.split("T")[0] : "",
       end_date: promotion.end_date ? promotion.end_date.split("T")[0] : "",
