@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Save, Globe, Type, Image, Palette } from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Loader2, Save, Globe, Type, Image, Palette, Upload, Link, Trash2, RotateCcw } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface SiteContent {
   header: {
@@ -84,6 +94,11 @@ const SiteContentManager = () => {
   const [content, setContent] = useState<SiteContent>(defaultContent);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageInputMode, setImageInputMode] = useState<Record<string, "file" | "url">>({});
+  
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const heroInputRef = useRef<HTMLInputElement>(null);
 
   const loadContent = async () => {
     const { data, error } = await supabase
@@ -115,6 +130,45 @@ const SiteContentManager = () => {
     loadContent();
   }, []);
 
+  const handleImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    section: "header" | "hero",
+    field: "logo_url" | "background_image"
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${section}-${field}-${Date.now()}.${fileExt}`;
+      const filePath = `site-content/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(filePath);
+
+      if (section === "header") {
+        updateSection("header", field as keyof SiteContent["header"], urlData.publicUrl);
+      } else {
+        updateSection("hero", field as keyof SiteContent["hero"], urlData.publicUrl);
+      }
+      toast.success("Imagem enviada com sucesso!");
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Erro ao enviar imagem");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const saveSection = async (section: keyof SiteContent) => {
     setIsSaving(true);
 
@@ -135,6 +189,36 @@ const SiteContentManager = () => {
     setIsSaving(false);
   };
 
+  const resetSection = async (section: keyof SiteContent) => {
+    setContent((prev) => ({
+      ...prev,
+      [section]: defaultContent[section],
+    }));
+    toast.success("Seção resetada. Clique em Salvar para confirmar.");
+  };
+
+  const clearSection = (section: keyof SiteContent) => {
+    const emptySection = Object.keys(content[section]).reduce((acc, key) => {
+      const value = (content[section] as any)[key];
+      if (typeof value === "string") {
+        acc[key] = "";
+      } else if (typeof value === "boolean") {
+        acc[key] = false;
+      } else if (Array.isArray(value)) {
+        acc[key] = [];
+      } else {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as any);
+
+    setContent((prev) => ({
+      ...prev,
+      [section]: emptySection,
+    }));
+    toast.success("Seção limpa. Clique em Salvar para confirmar.");
+  };
+
   const updateSection = <T extends keyof SiteContent>(
     section: T,
     field: keyof SiteContent[T],
@@ -149,6 +233,139 @@ const SiteContentManager = () => {
     }));
   };
 
+  const getInputMode = (key: string) => imageInputMode[key] || "file";
+  const setInputMode = (key: string, mode: "file" | "url") => {
+    setImageInputMode((prev) => ({ ...prev, [key]: mode }));
+  };
+
+  const renderImageInput = (
+    section: "header" | "hero",
+    field: "logo_url" | "background_image",
+    label: string,
+    inputRef: React.RefObject<HTMLInputElement>,
+    currentValue: string
+  ) => {
+    const key = `${section}-${field}`;
+    const mode = getInputMode(key);
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>{label}</Label>
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              variant={mode === "file" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setInputMode(key, "file")}
+            >
+              <Upload className="h-3 w-3 mr-1" />
+              Arquivo
+            </Button>
+            <Button
+              type="button"
+              variant={mode === "url" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setInputMode(key, "url")}
+            >
+              <Link className="h-3 w-3 mr-1" />
+              URL
+            </Button>
+          </div>
+        </div>
+
+        {mode === "file" ? (
+          <div className="space-y-2">
+            <Input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleImageUpload(e, section, field)}
+              disabled={isUploading}
+            />
+            {isUploading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Enviando...
+              </div>
+            )}
+          </div>
+        ) : (
+          <Input
+            value={currentValue}
+            onChange={(e) => {
+              if (section === "header") {
+                updateSection("header", field as keyof SiteContent["header"], e.target.value);
+              } else {
+                updateSection("hero", field as keyof SiteContent["hero"], e.target.value);
+              }
+            }}
+            placeholder="https://..."
+          />
+        )}
+
+        {currentValue && (
+          <div className="flex items-center gap-2">
+            <img
+              src={currentValue}
+              alt="Preview"
+              className="h-16 w-auto rounded border object-cover"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (section === "header") {
+                  updateSection("header", field as keyof SiteContent["header"], "");
+                } else {
+                  updateSection("hero", field as keyof SiteContent["hero"], "");
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSectionActions = (section: keyof SiteContent) => (
+    <div className="flex gap-2 flex-wrap">
+      <Button onClick={() => saveSection(section)} disabled={isSaving}>
+        {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+        Salvar
+      </Button>
+      <Button variant="outline" onClick={() => resetSection(section)}>
+        <RotateCcw className="h-4 w-4 mr-2" />
+        Restaurar Padrão
+      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="destructive">
+            <Trash2 className="h-4 w-4 mr-2" />
+            Limpar Tudo
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Limpar seção?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai remover todo o conteúdo desta seção. Você precisará salvar para confirmar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => clearSection(section)}>
+              Limpar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -161,7 +378,7 @@ const SiteContentManager = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Conteúdo do Site</h2>
-        <p className="text-muted-foreground">Edite textos, imagens e configurações do site</p>
+        <p className="text-muted-foreground">Edite textos, imagens e configurações do site. Controle total sobre todo o conteúdo.</p>
       </div>
 
       <Tabs defaultValue="header" className="space-y-4">
@@ -183,14 +400,7 @@ const SiteContentManager = () => {
               <CardDescription>Configure o cabeçalho e barra promocional</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label>URL do Logo</Label>
-                <Input
-                  value={content.header.logo_url}
-                  onChange={(e) => updateSection("header", "logo_url", e.target.value)}
-                  placeholder="https://..."
-                />
-              </div>
+              {renderImageInput("header", "logo_url", "Logo", logoInputRef, content.header.logo_url)}
               <div>
                 <Label>Texto da Barra Promocional</Label>
                 <Input
@@ -208,10 +418,7 @@ const SiteContentManager = () => {
                 />
                 <Label>Exibir barra promocional</Label>
               </div>
-              <Button onClick={() => saveSection("header")} disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Salvar Cabeçalho
-              </Button>
+              {renderSectionActions("header")}
             </CardContent>
           </Card>
         </TabsContent>
@@ -273,18 +480,8 @@ const SiteContentManager = () => {
                   />
                 </div>
               </div>
-              <div>
-                <Label>URL da Imagem de Fundo</Label>
-                <Input
-                  value={content.hero.background_image}
-                  onChange={(e) => updateSection("hero", "background_image", e.target.value)}
-                  placeholder="https://..."
-                />
-              </div>
-              <Button onClick={() => saveSection("hero")} disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Salvar Banner
-              </Button>
+              {renderImageInput("hero", "background_image", "Imagem de Fundo", heroInputRef, content.hero.background_image)}
+              {renderSectionActions("hero")}
             </CardContent>
           </Card>
         </TabsContent>
@@ -346,12 +543,36 @@ const SiteContentManager = () => {
                       />
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => {
+                      const newItems = content.benefits_bar.items.filter((_, i) => i !== index);
+                      setContent(prev => ({
+                        ...prev,
+                        benefits_bar: { items: newItems }
+                      }));
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Remover
+                  </Button>
                 </Card>
               ))}
-              <Button onClick={() => saveSection("benefits_bar")} disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Salvar Benefícios
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const newItems = [...content.benefits_bar.items, { icon: "", title: "", description: "" }];
+                  setContent(prev => ({
+                    ...prev,
+                    benefits_bar: { items: newItems }
+                  }));
+                }}
+              >
+                Adicionar Item
               </Button>
+              {renderSectionActions("benefits_bar")}
             </CardContent>
           </Card>
         </TabsContent>
@@ -420,10 +641,7 @@ const SiteContentManager = () => {
                   />
                 </div>
               </div>
-              <Button onClick={() => saveSection("footer")} disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Salvar Rodapé
-              </Button>
+              {renderSectionActions("footer")}
             </CardContent>
           </Card>
         </TabsContent>
@@ -468,10 +686,7 @@ const SiteContentManager = () => {
                   style={{ backgroundColor: `hsl(${content.colors.accent})` }}
                 />
               </div>
-              <Button onClick={() => saveSection("colors")} disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Salvar Cores
-              </Button>
+              {renderSectionActions("colors")}
             </CardContent>
           </Card>
         </TabsContent>
