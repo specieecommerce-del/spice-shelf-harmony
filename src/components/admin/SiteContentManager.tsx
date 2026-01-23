@@ -35,6 +35,9 @@ interface SiteContent {
     secondary_cta_text: string;
     secondary_cta_link: string;
     background_image: string;
+    background_position_x: number;
+    background_position_y: number;
+    background_scale: number;
     badge_text: string;
     badge_enabled: boolean;
     trust_badge_1_icon: string;
@@ -79,6 +82,9 @@ const defaultContent: SiteContent = {
     secondary_cta_text: "Ver Receitas",
     secondary_cta_link: "/receitas",
     background_image: "",
+    background_position_x: 50,
+    background_position_y: 50,
+    background_scale: 100,
     badge_text: "✨ Temperos Premium & Artesanais",
     badge_enabled: true,
     trust_badge_1_icon: "🚚",
@@ -607,9 +613,53 @@ const SiteContentManager = () => {
               </div>
 
               {/* Imagem e Overlay */}
-              <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+              <div className="p-4 border rounded-lg space-y-4 bg-muted/30">
                 <h4 className="font-medium">Imagem de Fundo</h4>
                 {renderImageInput("hero", "background_image", "Imagem de Fundo", heroInputRef, content.hero.background_image)}
+                
+                {/* Posição da Imagem */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Posição Horizontal ({content.hero.background_position_x}%)</Label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={content.hero.background_position_x}
+                      onChange={(e) => updateSection("hero", "background_position_x", parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">0% = esquerda, 50% = centro, 100% = direita</p>
+                  </div>
+                  <div>
+                    <Label>Posição Vertical ({content.hero.background_position_y}%)</Label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={content.hero.background_position_y}
+                      onChange={(e) => updateSection("hero", "background_position_y", parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">0% = topo, 50% = centro, 100% = base</p>
+                  </div>
+                </div>
+
+                {/* Escala da Imagem */}
+                <div>
+                  <Label>Escala/Zoom da Imagem ({content.hero.background_scale}%)</Label>
+                  <input
+                    type="range"
+                    min="50"
+                    max="200"
+                    value={content.hero.background_scale}
+                    onChange={(e) => updateSection("hero", "background_scale", parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">100% = tamanho original, valores maiores = zoom in</p>
+                </div>
+
+                {/* Opacidade do Overlay */}
                 <div>
                   <Label>Opacidade do Overlay ({content.hero.overlay_opacity}%)</Label>
                   <input
