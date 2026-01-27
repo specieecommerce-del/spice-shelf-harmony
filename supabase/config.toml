@@ -56,3 +56,18 @@ verify_jwt = false
 
 [functions.pagseguro-webhook]
 verify_jwt = false
+
+[functions.ai-product-analyzer]
+verify_jwt = false
+
+[functions.ai-nutrition-generator]
+verify_jwt = false
+
+[functions.ai-file-processor]
+verify_jwt = false
+
+[functions.ai-recipe-generator]
+verify_jwt = false
+
+[functions.generate-monthly-report]
+verify_jwt = false
