@@ -72,7 +72,7 @@ const Header = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-spice-warm-white/95 backdrop-blur-md border-b border-border">
       {/* Top bar with promo */}
       <div className="bg-spice-forest text-spice-warm-white text-center py-2 text-sm font-medium">
-        🚚 Frete Grátis em compras acima de R$150 | Use o cupom: <span className="font-bold">SPECIES10</span>
+        🎉 Use o cupom: <span className="font-bold">SPECIES10</span> e ganhe 10% de desconto!
       </div>
 
       <div className="container-species">
