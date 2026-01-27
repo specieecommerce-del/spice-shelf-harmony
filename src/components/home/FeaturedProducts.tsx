@@ -239,7 +239,7 @@ const FeaturedProducts = () => {
             ⭐ Em Destaque
           </span>
           <h2 className="font-serif text-3xl lg:text-4xl font-bold text-foreground mb-4">
-            Nossos Best-Sellers
+            Nossos Mais Vendidos
           </h2>
           <p className="text-muted-foreground max-w-lg mx-auto">
             Os temperos mais amados pelos nossos clientes, selecionados com
@@ -253,7 +253,7 @@ const FeaturedProducts = () => {
             <TabsList className="grid w-full max-w-md grid-cols-2">
               <TabsTrigger value="bestsellers" className="flex items-center gap-2">
                 <Star size={16} />
-                Best-Sellers
+                Mais Vendidos
               </TabsTrigger>
               <TabsTrigger value="favorites" className="flex items-center gap-2">
                 <Heart size={16} />
