@@ -469,6 +469,7 @@ export type Database = {
           is_active: boolean | null
           is_bestseller: boolean | null
           is_featured: boolean | null
+          is_sealed: boolean | null
           long_description: string | null
           low_stock_threshold: number
           name: string
@@ -504,6 +505,7 @@ export type Database = {
           is_active?: boolean | null
           is_bestseller?: boolean | null
           is_featured?: boolean | null
+          is_sealed?: boolean | null
           long_description?: string | null
           low_stock_threshold?: number
           name: string
@@ -539,6 +541,7 @@ export type Database = {
           is_active?: boolean | null
           is_bestseller?: boolean | null
           is_featured?: boolean | null
+          is_sealed?: boolean | null
           long_description?: string | null
           low_stock_threshold?: number
           name?: string

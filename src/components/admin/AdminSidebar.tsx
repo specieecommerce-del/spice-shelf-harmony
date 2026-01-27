@@ -1,4 +1,4 @@
-import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon, BarChart3, Sparkles, Zap, Clock, History, Building2 } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon, BarChart3, Sparkles, Zap, Clock, History, Building2, Camera, Layers } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -54,6 +54,8 @@ const menuGroups = [
     label: "Produtos",
     items: [
       { id: "products", title: "Catálogo", icon: ShoppingBag },
+      { id: "product-photos", title: "Fotos do Produto", icon: Camera },
+      { id: "product-variations", title: "Variações", icon: Layers },
       { id: "ai-products", title: "Criar com IA", icon: Sparkles },
       { id: "categories", title: "Categorias", icon: FolderOpen },
       { id: "stock", title: "Gestão de Estoque", icon: Boxes },

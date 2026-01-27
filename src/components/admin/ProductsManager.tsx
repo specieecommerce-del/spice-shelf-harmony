@@ -78,6 +78,7 @@ interface Product {
   badges: string[];
   category: string | null;
   is_active: boolean;
+  is_sealed: boolean;
   sort_order: number;
   stock_quantity: number;
   low_stock_threshold: number;
@@ -134,6 +135,7 @@ const ProductsManager = () => {
     badges: "",
     category: "",
     is_active: true,
+    is_sealed: false,
     sort_order: "0",
     stock_quantity: "50",
     low_stock_threshold: "5",
@@ -178,6 +180,7 @@ const ProductsManager = () => {
       badges: "",
       category: "",
       is_active: true,
+      is_sealed: false,
       sort_order: String(products.length + 1),
       stock_quantity: "50",
       low_stock_threshold: "5",
@@ -198,6 +201,7 @@ const ProductsManager = () => {
       badges: product.badges?.join(", ") || "",
       category: product.category || "",
       is_active: product.is_active,
+      is_sealed: product.is_sealed || false,
       sort_order: String(product.sort_order),
       stock_quantity: String(product.stock_quantity),
       low_stock_threshold: String(product.low_stock_threshold),
@@ -272,6 +276,7 @@ const ProductsManager = () => {
           .filter(Boolean),
         category: formData.category.trim() || null,
         is_active: formData.is_active,
+        is_sealed: formData.is_sealed,
         sort_order: parseInt(formData.sort_order) || 0,
         stock_quantity: parseInt(formData.stock_quantity) || 0,
         low_stock_threshold: parseInt(formData.low_stock_threshold) || 5,
@@ -1105,15 +1110,30 @@ const ProductsManager = () => {
             </div>
 
             {/* Active Toggle */}
-            <div className="flex items-center gap-2">
-              <Switch
-                id="is_active"
-                checked={formData.is_active}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev, is_active: checked }))
-                }
-              />
-              <Label htmlFor="is_active">Produto ativo (visível na loja)</Label>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="is_active"
+                  checked={formData.is_active}
+                  onCheckedChange={(checked) =>
+                    setFormData((prev) => ({ ...prev, is_active: checked }))
+                  }
+                />
+                <Label htmlFor="is_active">Produto ativo (visível na loja)</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="is_sealed"
+                  checked={formData.is_sealed}
+                  onCheckedChange={(checked) =>
+                    setFormData((prev) => ({ ...prev, is_sealed: checked }))
+                  }
+                />
+                <Label htmlFor="is_sealed" className="flex items-center gap-1">
+                  <Lock className="h-3 w-3" />
+                  Produto lacrado
+                </Label>
+              </div>
             </div>
           </div>
 
