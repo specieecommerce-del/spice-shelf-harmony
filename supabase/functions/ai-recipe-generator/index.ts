@@ -135,6 +135,22 @@ Sua tarefa é criar receitas que:
 PRODUTOS DISPONÍVEIS NA LOJA (use APENAS estes):
 ${productList}
 
+CLASSIFICAÇÃO AUTOMÁTICA DE REFEIÇÃO:
+Analise os ingredientes e características da receita para classificar automaticamente:
+
+REGRAS DE CLASSIFICAÇÃO:
+- "breakfast" (Café da manhã): receitas leves, com frutas, pães, ovos, leite, café, cereais, granola
+- "lunch" (Almoço): receitas mais substanciais com arroz, feijão, carnes, frango, massas, saladas completas
+- "dinner" (Jantar): sopas, massas leves, legumes, caldos, pratos mais leves que almoço
+
+EXEMPLOS:
+- Pão com especiarias + ovo = breakfast
+- Frango grelhado com arroz = lunch
+- Sopa de legumes com temperos = dinner
+- Vitamina com especiarias = breakfast
+- Bife com batatas = lunch
+- Massa leve com ervas = dinner
+
 RESPONDA APENAS EM JSON válido, sem markdown, sem explicações, seguindo exatamente esta estrutura:
 {
   "title": "Nome atrativo da receita",
@@ -157,7 +173,7 @@ RESPONDA APENAS EM JSON válido, sem markdown, sem explicações, seguindo exata
   "tips": ["dica 1", "dica 2"]
 }`;
 
-      userPrompt = prompt || `Crie uma receita deliciosa e saudável que use os temperos: ${productNames.substring(0, 200)}. A receita deve ser fácil de fazer e destacar os benefícios dos temperos.`;
+      userPrompt = prompt || `Crie uma receita deliciosa e saudável que use os temperos: ${productNames.substring(0, 200)}. A receita deve ser fácil de fazer e destacar os benefícios dos temperos. CLASSIFIQUE AUTOMATICAMENTE como café da manhã, almoço ou jantar baseado nos ingredientes.`;
     
     } else if (action === 'variation') {
       // Fetch existing recipe

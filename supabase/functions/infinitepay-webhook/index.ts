@@ -165,8 +165,8 @@ serve(async (req) => {
       );
     }
 
-    // Update order status in database
-    const { error: orderError } = await supabase
+    // Atualizar status do pedido para PAGO automaticamente
+    const { data: updatedOrder, error: orderError } = await supabase
       .from('orders')
       .update({
         status: 'paid',
@@ -177,19 +177,63 @@ serve(async (req) => {
         installments: installments,
         paid_amount: Math.round(paid_amount),
       })
-      .eq('order_nsu', order_nsu);
+      .eq('order_nsu', order_nsu)
+      .select('customer_name, customer_email, customer_phone, total_amount, items')
+      .single();
 
     if (orderError) {
-      console.error('Error updating order:', order_nsu, orderError);
+      console.error('Erro ao atualizar pedido:', order_nsu, orderError);
       return new Response(
-        JSON.stringify({ success: false, message: 'Failed to update order' }),
+        JSON.stringify({ success: false, message: 'Falha ao atualizar pedido' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Order updated successfully:', order_nsu, 'Payment method:', capture_method);
+    console.log('Pedido atualizado com sucesso:', order_nsu, 'Método:', capture_method);
 
-    // Return success response to InfinitePay
+    // Enviar notificações automáticas (email e WhatsApp)
+    try {
+      // Enviar email de confirmação
+      if (updatedOrder?.customer_email) {
+        const items = typeof updatedOrder.items === 'string' 
+          ? JSON.parse(updatedOrder.items) 
+          : updatedOrder.items;
+        
+        await supabase.functions.invoke('send-order-emails', {
+          body: {
+            orderNsu: order_nsu,
+            customerName: updatedOrder.customer_name || 'Cliente',
+            customerEmail: updatedOrder.customer_email,
+            totalAmount: updatedOrder.total_amount / 100,
+            items: items.map((item: any) => ({
+              name: item.name || item.product_name,
+              price: (item.price || 0) / 100,
+              quantity: item.quantity || 1,
+            })),
+          },
+        });
+        console.log('Email de confirmação enviado para:', updatedOrder.customer_email);
+      }
+
+      // Enviar notificação WhatsApp
+      if (updatedOrder?.customer_phone) {
+        await supabase.functions.invoke('order-alert-whatsapp', {
+          body: {
+            orderNsu: order_nsu,
+            customerName: updatedOrder.customer_name || 'Cliente',
+            customerPhone: updatedOrder.customer_phone,
+            totalAmount: updatedOrder.total_amount,
+            status: 'paid',
+          },
+        });
+        console.log('WhatsApp enviado para:', updatedOrder.customer_phone);
+      }
+    } catch (notifyError) {
+      // Log mas não falha o webhook por causa de notificação
+      console.error('Erro ao enviar notificações:', notifyError);
+    }
+
+    // Retornar sucesso para InfinitePay
     return new Response(
       JSON.stringify({ success: true, message: null }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
