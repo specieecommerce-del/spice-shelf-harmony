@@ -1,6 +1,7 @@
 // Cart functionality for Species store
 import { useState, useEffect } from "react";
-import { ShoppingCart, Heart, Star, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ShoppingCart, Heart, Star, Loader2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,8 +36,13 @@ interface DBProduct {
   category: string | null;
 }
 
-const mapDBProductToProduct = (dbProduct: DBProduct, index: number): Product => ({
+interface ExtendedProduct extends Product {
+  dbId: string;
+}
+
+const mapDBProductToProduct = (dbProduct: DBProduct, index: number): ExtendedProduct => ({
   id: index + 1,
+  dbId: dbProduct.id,
   name: dbProduct.name,
   description: dbProduct.description || "",
   price: Number(dbProduct.price),
@@ -49,7 +55,7 @@ const mapDBProductToProduct = (dbProduct: DBProduct, index: number): Product => 
 });
 
 interface ProductCardProps {
-  product: Product;
+  product: ExtendedProduct;
   isFavorite: boolean;
   onToggleFavorite: (id: number) => void;
 }
@@ -138,12 +144,11 @@ const ProductCard = ({ product, isFavorite, onToggleFavorite }: ProductCardProps
         <span className="text-xs text-muted-foreground uppercase tracking-wide">
           {product.category}
         </span>
-        <h3 className="font-serif text-lg font-semibold text-foreground mt-1">
-          {product.name}
-        </h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          {product.description}
-        </p>
+        <Link to={`/produto/${product.dbId}`}>
+          <h3 className="font-serif text-lg font-semibold text-foreground mt-1 hover:text-primary transition-colors cursor-pointer">
+            {product.name}
+          </h3>
+        </Link>
 
         {/* Rating */}
         <div className="flex items-center gap-1 mt-2">
@@ -165,6 +170,14 @@ const ProductCard = ({ product, isFavorite, onToggleFavorite }: ProductCardProps
             </span>
           )}
         </div>
+
+        {/* Ver Detalhes button */}
+        <Link to={`/produto/${product.dbId}`} className="block mt-3">
+          <Button variant="outline" size="sm" className="w-full">
+            <Eye size={16} className="mr-2" />
+            Ver Detalhes
+          </Button>
+        </Link>
       </div>
     </div>
   );
@@ -186,7 +199,7 @@ const EmptyFavorites = () => (
 
 const FeaturedProducts = () => {
   const { favorites, toggleFavorite, isFavorite } = useFavorites();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ExtendedProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -293,9 +306,11 @@ const FeaturedProducts = () => {
 
         {/* View all button */}
         <div className="text-center mt-12">
-          <Button variant="outline" size="lg">
-            Ver Todos os Produtos
-          </Button>
+          <Link to="/produtos">
+            <Button variant="outline" size="lg">
+              Ver Todos os Produtos
+            </Button>
+          </Link>
         </div>
       </div>
     </section>
