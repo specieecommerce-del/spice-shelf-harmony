@@ -94,6 +94,8 @@ serve(async (req: Request) => {
 
     if (charge.status === "PAID") {
       updateData.paid_amount = charge.amount.value;
+      updateData.confirmation_mode = 'realtime';
+      updateData.confirmation_source = 'pagseguro_webhook';
     }
 
     const { data: updatedOrder, error: updateError } = await supabaseAdmin

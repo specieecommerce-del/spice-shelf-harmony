@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.generate-monthly-report]
 verify_jwt = false
+
+[functions.verify-pending-payments]
+verify_jwt = false
