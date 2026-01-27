@@ -6,10 +6,11 @@ const corsHeaders = {
 };
 
 interface NutritionRequest {
-  method: "database" | "ocr" | "calculate";
+  method: "database" | "ocr" | "calculate" | "auto";
   productName?: string;
   productCategory?: string;
   labelImageBase64?: string;
+  imageBase64?: string; // Product image for auto analysis
   ingredients?: Array<{ name: string; quantity: number; unit: string }>;
   portionSize?: number;
 }
@@ -34,7 +35,7 @@ serve(async (req) => {
 
   try {
     const body: NutritionRequest = await req.json();
-    const { method, productName, productCategory, labelImageBase64, ingredients, portionSize } = body;
+    const { method, productName, productCategory, labelImageBase64, imageBase64, ingredients, portionSize } = body;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -47,8 +48,44 @@ serve(async (req) => {
 
     let systemPrompt = "";
     let userContent: any[] = [];
+    let actualMethod = method;
 
-    if (method === "database") {
+    // Auto method: analyze product image to identify and get nutrition
+    if (method === "auto" && imageBase64) {
+      systemPrompt = `Você é um especialista em nutrição com acesso a dados da Tabela TACO (Brasil) e USDA.
+Analise a imagem do produto e identifique:
+1. O que é o produto (tempero, especiaria, alimento, etc.)
+2. A categoria nutricional mais próxima
+3. Forneça informações nutricionais baseadas em dados científicos
+
+IMPORTANTE: Use dados reais de tabelas nutricionais reconhecidas.
+
+Retorne APENAS um JSON válido no formato:
+{
+  "product_identified": "nome do produto identificado",
+  "category": "categoria nutricional",
+  "calories": number (kcal por 100g),
+  "carbohydrates": number (g por 100g),
+  "proteins": number (g por 100g),
+  "total_fat": number (g por 100g),
+  "saturated_fat": number (g por 100g),
+  "trans_fat": number (g por 100g),
+  "fiber": number (g por 100g),
+  "sodium": number (mg por 100g),
+  "portion_size": "100g",
+  "source": "TACO" ou "USDA",
+  "confidence": "alta", "média" ou "baixa",
+  "disclaimer": "Informações nutricionais geradas automaticamente baseadas em análise visual e dados de ${new Date().getFullYear()}. Devem ser validadas pelo fabricante."
+}`;
+
+      userContent = [
+        { type: "text", text: "Identifique este produto alimentício e forneça suas informações nutricionais:" },
+        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+      ];
+      
+      actualMethod = "auto";
+
+    } else if (method === "database") {
       // Method 1: Database lookup (TACO/USDA)
       systemPrompt = `Você é um especialista em nutrição com acesso a dados da Tabela TACO (Brasil) e USDA.
 Analise o produto informado e retorne informações nutricionais precisas baseadas em dados científicos.
