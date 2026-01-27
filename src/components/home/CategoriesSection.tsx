@@ -46,8 +46,9 @@ const CategoriesSection = () => {
       // Fetch product counts for each category
       const categoriesWithCounts = await Promise.all(
         (categoriesData || []).map(async (cat) => {
+          // Use products_public view to avoid exposing sensitive pricing data
           const { count } = await supabase
-            .from("products")
+            .from("products_public")
             .select("*", { count: "exact", head: true })
             .eq("is_active", true)
             .eq("category_id", cat.id);

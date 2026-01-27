@@ -54,13 +54,11 @@ const ProductSearch = ({ onClose, className = "", autoFocus = false }: ProductSe
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, ""); // Remove accents
         
-        // Fetch products with variations
+        // Use products_public view to avoid exposing sensitive pricing data
+        // Note: Cannot join product_variations from view, so we fetch separately
         const { data: productsData, error: productsError } = await supabase
-          .from("products")
-          .select(`
-            id, name, price, image_url, category, description, short_description,
-            product_variations(id, name, variation_type)
-          `)
+          .from("products_public")
+          .select("id, name, price, image_url, category, description, short_description")
           .eq("is_active", true);
 
         if (productsError) throw productsError;
@@ -75,11 +73,7 @@ const ProductSearch = ({ onClose, className = "", autoFocus = false }: ProductSe
           const description = normalizeText(product.description);
           const shortDescription = normalizeText(product.short_description);
           
-          // Check variations
-          const variations = product.product_variations || [];
-          const variationMatch = variations.some((v: any) => 
-            normalizeText(v.name).includes(normalizedQuery)
-          );
+          // Note: Variations are not included in products_public view for security
           
           // Split query into words for partial matching
           const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 1);
@@ -99,7 +93,7 @@ const ProductSearch = ({ onClose, className = "", autoFocus = false }: ProductSe
           const partialMatch = normalizedQuery.length >= 3 && 
             [...normalizedQuery].filter(char => name.includes(char)).length >= normalizedQuery.length * 0.6;
           
-          return directMatch || wordMatch || variationMatch || partialMatch;
+          return directMatch || wordMatch || partialMatch;
         });
 
         // Score and sort results by relevance
@@ -114,7 +108,7 @@ const ProductSearch = ({ onClose, className = "", autoFocus = false }: ProductSe
 
         scored.sort((a, b) => b.score - a.score);
         
-        setResults(scored.slice(0, 8).map(({ score, product_variations, ...rest }) => rest) as Product[]);
+        setResults(scored.slice(0, 8).map(({ score, ...rest }) => rest) as Product[]);
         setIsOpen(true);
       } catch (error) {
         console.error("Error searching products:", error);

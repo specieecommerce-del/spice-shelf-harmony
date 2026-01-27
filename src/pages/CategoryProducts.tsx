@@ -65,9 +65,9 @@ const CategoryProducts = () => {
         
         setCategory(categoryData);
 
-        // Then get products - try by category_id first, then by category name
+        // Use products_public view to avoid exposing sensitive pricing data
         let productsQuery = supabase
-          .from("products")
+          .from("products_public")
           .select("*")
           .eq("is_active", true);
 

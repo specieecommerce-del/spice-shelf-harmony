@@ -228,6 +228,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       invoices: {
@@ -429,6 +436,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
             referencedColumns: ["id"]
           },
         ]
@@ -724,6 +738,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "recipe_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "recipe_products_recipe_id_fkey"
             columns: ["recipe_id"]
             isOneToOne: false
@@ -954,6 +975,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       stock_notifications: {
@@ -1111,7 +1139,104 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      products_public: {
+        Row: {
+          additional_images: string[] | null
+          badges: string[] | null
+          category: string | null
+          category_id: string | null
+          created_at: string | null
+          description: string | null
+          dimensions: Json | null
+          id: string | null
+          image_url: string | null
+          is_active: boolean | null
+          is_bestseller: boolean | null
+          is_featured: boolean | null
+          long_description: string | null
+          low_stock_threshold: number | null
+          name: string | null
+          nutritional_info: Json | null
+          original_price: number | null
+          price: number | null
+          rating: number | null
+          reserved_stock: number | null
+          reviews: number | null
+          short_description: string | null
+          sku: string | null
+          sort_order: number | null
+          stock_quantity: number | null
+          updated_at: string | null
+          weight: number | null
+        }
+        Insert: {
+          additional_images?: string[] | null
+          badges?: string[] | null
+          category?: string | null
+          category_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          dimensions?: Json | null
+          id?: string | null
+          image_url?: string | null
+          is_active?: boolean | null
+          is_bestseller?: boolean | null
+          is_featured?: boolean | null
+          long_description?: string | null
+          low_stock_threshold?: number | null
+          name?: string | null
+          nutritional_info?: Json | null
+          original_price?: number | null
+          price?: number | null
+          rating?: number | null
+          reserved_stock?: number | null
+          reviews?: number | null
+          short_description?: string | null
+          sku?: string | null
+          sort_order?: number | null
+          stock_quantity?: number | null
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Update: {
+          additional_images?: string[] | null
+          badges?: string[] | null
+          category?: string | null
+          category_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          dimensions?: Json | null
+          id?: string | null
+          image_url?: string | null
+          is_active?: boolean | null
+          is_bestseller?: boolean | null
+          is_featured?: boolean | null
+          long_description?: string | null
+          low_stock_threshold?: number | null
+          name?: string | null
+          nutritional_info?: Json | null
+          original_price?: number | null
+          price?: number | null
+          rating?: number | null
+          reserved_stock?: number | null
+          reviews?: number | null
+          short_description?: string | null
+          sku?: string | null
+          sort_order?: number | null
+          stock_quantity?: number | null
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       check_order_by_tracking: {
