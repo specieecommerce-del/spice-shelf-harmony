@@ -1,4 +1,4 @@
-import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon, BarChart3, Sparkles, Zap, Clock, History } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon, BarChart3, Sparkles, Zap, Clock, History, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -43,6 +43,7 @@ const menuGroups = [
     label: "Pagamentos",
     items: [
       { id: "gateway-status", title: "Gateway de Pagamento", icon: Zap },
+      { id: "bank-connection", title: "Conexão Bancária", icon: Building2 },
       { id: "auto-verification", title: "Confirmações Automáticas", icon: Clock },
       { id: "approved-payments", title: "Pagamentos Aprovados", icon: CreditCard },
       { id: "payment-logs", title: "Logs do Sistema", icon: History },
