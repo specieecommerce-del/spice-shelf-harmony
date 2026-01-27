@@ -38,10 +38,10 @@ interface Product {
   reviews: number | null;
   badges: string[] | null;
   category: string | null;
-  stock_quantity: number;
+  stock_quantity: number | null;
   nutritional_info: Record<string, string> | null;
-  is_bestseller: boolean;
-  is_featured: boolean;
+  is_bestseller: boolean | null;
+  is_featured: boolean | null;
   weight: number | null;
 }
 
@@ -72,11 +72,15 @@ const ProductDetail = () => {
       try {
         // Use products_public view to avoid exposing sensitive pricing data
         const [productRes, variationsRes] = await Promise.all([
-          supabase.from("products_public").select("*").eq("id", id).single(),
+          supabase.from("products_public").select("*").eq("id", id).maybeSingle(),
           supabase.from("product_variations").select("*").eq("product_id", id).eq("is_active", true),
         ]);
 
         if (productRes.error) throw productRes.error;
+        if (!productRes.data) {
+          setIsLoading(false);
+          return;
+        }
         
         const productData = productRes.data as Product;
         setProduct(productData);
@@ -351,7 +355,7 @@ const ProductDetail = () => {
                     </button>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {product.stock_quantity > 0 
+                    {(product.stock_quantity ?? 0) > 0 
                       ? `${product.stock_quantity} em estoque`
                       : "Sem estoque"}
                   </span>
@@ -365,7 +369,7 @@ const ProductDetail = () => {
                   size="xl" 
                   className="flex-1"
                   onClick={handleAddToCart}
-                  disabled={product.stock_quantity === 0}
+                  disabled={(product.stock_quantity ?? 0) === 0}
                 >
                   <ShoppingCart className="mr-2" />
                   Adicionar ao Carrinho
