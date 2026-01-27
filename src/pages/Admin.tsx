@@ -35,6 +35,7 @@ import AutoVerificationManager from "@/components/admin/AutoVerificationManager"
 import PaymentLogsManager from "@/components/admin/PaymentLogsManager";
 import ApprovedPaymentsManager from "@/components/admin/ApprovedPaymentsManager";
 import GatewayStatusManager from "@/components/admin/GatewayStatusManager";
+import BankConnectionManager from "@/components/admin/BankConnectionManager";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -127,6 +128,7 @@ const Admin = () => {
             {activeSection === "invoices" && <InvoiceManager />}
             {activeSection === "nfe" && <FocusNFeSettings />}
             {activeSection === "gateway-status" && <GatewayStatusManager />}
+            {activeSection === "bank-connection" && <BankConnectionManager />}
             {activeSection === "auto-verification" && <AutoVerificationManager />}
             {activeSection === "approved-payments" && <ApprovedPaymentsManager />}
             {activeSection === "payment-logs" && <PaymentLogsManager />}
