@@ -34,7 +34,6 @@ const menuGroups = [
     label: "Pedidos",
     items: [
       { id: "orders", title: "Todos os Pedidos", icon: Package },
-      { id: "auto-verification", title: "Verificação Automática", icon: Zap },
       { id: "shipping", title: "Histórico & Envios", icon: PackageOpen },
       { id: "invoices", title: "Comprovantes", icon: FileText },
       { id: "nfe", title: "Notas Fiscais (NF-e)", icon: Receipt },
@@ -43,8 +42,11 @@ const menuGroups = [
   {
     label: "Pagamentos",
     items: [
-      { id: "payments", title: "Configurações", icon: CreditCard },
-      { id: "payment-logs", title: "Logs Automáticos", icon: History },
+      { id: "gateway-status", title: "Gateway de Pagamento", icon: Zap },
+      { id: "auto-verification", title: "Confirmações Automáticas", icon: Clock },
+      { id: "approved-payments", title: "Pagamentos Aprovados", icon: CreditCard },
+      { id: "payment-logs", title: "Logs do Sistema", icon: History },
+      { id: "payments", title: "Configurações", icon: DollarSign },
     ],
   },
   {

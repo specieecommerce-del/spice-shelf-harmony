@@ -33,6 +33,8 @@ import AIProductCreator from "@/components/admin/AIProductCreator";
 import AIRecipeCreator from "@/components/admin/AIRecipeCreator";
 import AutoVerificationManager from "@/components/admin/AutoVerificationManager";
 import PaymentLogsManager from "@/components/admin/PaymentLogsManager";
+import ApprovedPaymentsManager from "@/components/admin/ApprovedPaymentsManager";
+import GatewayStatusManager from "@/components/admin/GatewayStatusManager";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -124,8 +126,11 @@ const Admin = () => {
             {activeSection === "shipping" && <ShippingManager />}
             {activeSection === "invoices" && <InvoiceManager />}
             {activeSection === "nfe" && <FocusNFeSettings />}
-            {activeSection === "payments" && <BoletoSettingsManager />}
+            {activeSection === "gateway-status" && <GatewayStatusManager />}
+            {activeSection === "auto-verification" && <AutoVerificationManager />}
+            {activeSection === "approved-payments" && <ApprovedPaymentsManager />}
             {activeSection === "payment-logs" && <PaymentLogsManager />}
+            {activeSection === "payments" && <BoletoSettingsManager />}
             {activeSection === "products" && <ProductsManager />}
             {activeSection === "ai-products" && <AIProductCreator />}
             {activeSection === "categories" && <CategoriesManager />}
