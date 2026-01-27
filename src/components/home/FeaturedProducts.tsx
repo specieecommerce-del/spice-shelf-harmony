@@ -192,8 +192,9 @@ const FeaturedProducts = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        // Use products_public view to avoid exposing sensitive pricing data
         const { data, error } = await supabase
-          .from("products")
+          .from("products_public")
           .select("*")
           .eq("is_active", true)
           .order("sort_order", { ascending: true });

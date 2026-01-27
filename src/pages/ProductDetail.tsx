@@ -70,8 +70,9 @@ const ProductDetail = () => {
 
       setIsLoading(true);
       try {
+        // Use products_public view to avoid exposing sensitive pricing data
         const [productRes, variationsRes] = await Promise.all([
-          supabase.from("products").select("*").eq("id", id).single(),
+          supabase.from("products_public").select("*").eq("id", id).single(),
           supabase.from("product_variations").select("*").eq("product_id", id).eq("is_active", true),
         ]);
 

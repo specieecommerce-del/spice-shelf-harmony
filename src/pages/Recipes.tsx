@@ -369,8 +369,9 @@ const Recipes = () => {
       // Fallback: search by spice names
       const searchTerms = spices.map(s => s.replace(" Species", "").toLowerCase());
       
+      // Use products_public view to avoid exposing sensitive pricing data
       const { data: products, error } = await supabase
-        .from("products")
+        .from("products_public")
         .select("id, name, price, image_url, description, stock_quantity")
         .eq("is_active", true);
 
