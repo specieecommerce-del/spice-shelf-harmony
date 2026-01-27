@@ -13,6 +13,8 @@ import FinancialDashboard from "@/components/admin/FinancialDashboard";
 import OrdersManager from "@/components/admin/OrdersManager";
 import ShippingManager from "@/components/admin/ShippingManager";
 import ProductsManager from "@/components/admin/ProductsManager";
+import ProductPhotosManager from "@/components/admin/ProductPhotosManager";
+import ProductVariationsManager from "@/components/admin/ProductVariationsManager";
 import CategoriesManager from "@/components/admin/CategoriesManager";
 import StockManager from "@/components/admin/StockManager";
 import PricingManager from "@/components/admin/PricingManager";
@@ -134,6 +136,8 @@ const Admin = () => {
             {activeSection === "payment-logs" && <PaymentLogsManager />}
             {activeSection === "payments" && <BoletoSettingsManager />}
             {activeSection === "products" && <ProductsManager />}
+            {activeSection === "product-photos" && <ProductPhotosManager />}
+            {activeSection === "product-variations" && <ProductVariationsManager />}
             {activeSection === "ai-products" && <AIProductCreator />}
             {activeSection === "categories" && <CategoriesManager />}
             {activeSection === "stock" && <StockManager />}
