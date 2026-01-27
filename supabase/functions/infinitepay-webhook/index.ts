@@ -176,6 +176,8 @@ serve(async (req) => {
         receipt_url: receipt_url || null,
         installments: installments,
         paid_amount: Math.round(paid_amount),
+        confirmation_mode: 'realtime',
+        confirmation_source: 'infinitepay_webhook',
       })
       .eq('order_nsu', order_nsu)
       .select('customer_name, customer_email, customer_phone, total_amount, items')
