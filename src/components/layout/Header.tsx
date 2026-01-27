@@ -70,10 +70,6 @@ const Header = () => {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-spice-warm-white/95 backdrop-blur-md border-b border-border">
-      {/* Top bar with promo */}
-      <div className="bg-spice-forest text-spice-warm-white text-center py-2 text-sm font-medium">
-        🎉 Use o cupom: <span className="font-bold">SPECIES10</span> e ganhe 10% de desconto!
-      </div>
 
       <div className="container-species">
         <div className="flex items-center justify-between h-16 lg:h-20 bg-white">
