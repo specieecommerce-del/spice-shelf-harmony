@@ -31,6 +31,8 @@ import ImageEditorManager from "@/components/admin/ImageEditorManager";
 import MonthlyReportsManager from "@/components/admin/MonthlyReportsManager";
 import AIProductCreator from "@/components/admin/AIProductCreator";
 import AIRecipeCreator from "@/components/admin/AIRecipeCreator";
+import AutoVerificationManager from "@/components/admin/AutoVerificationManager";
+import PaymentLogsManager from "@/components/admin/PaymentLogsManager";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -118,16 +120,18 @@ const Admin = () => {
             {activeSection === "financial" && <FinancialDashboard />}
             {activeSection === "reports" && <MonthlyReportsManager />}
             {activeSection === "orders" && <OrdersManager />}
+            {activeSection === "auto-verification" && <AutoVerificationManager />}
             {activeSection === "shipping" && <ShippingManager />}
             {activeSection === "invoices" && <InvoiceManager />}
             {activeSection === "nfe" && <FocusNFeSettings />}
+            {activeSection === "payments" && <BoletoSettingsManager />}
+            {activeSection === "payment-logs" && <PaymentLogsManager />}
             {activeSection === "products" && <ProductsManager />}
             {activeSection === "ai-products" && <AIProductCreator />}
             {activeSection === "categories" && <CategoriesManager />}
             {activeSection === "stock" && <StockManager />}
             {activeSection === "pricing" && <PricingManager />}
             {activeSection === "expenses" && <ExpensesManager />}
-            {activeSection === "payments" && <BoletoSettingsManager />}
             {activeSection === "promotions" && <PromotionsManager />}
             {activeSection === "banners" && <BannersManager />}
             {activeSection === "image-editor" && <ImageEditorManager />}

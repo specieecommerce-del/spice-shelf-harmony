@@ -1,4 +1,4 @@
-import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon, BarChart3, Sparkles } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon, BarChart3, Sparkles, Zap, Clock, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -20,30 +20,73 @@ interface AdminSidebarProps {
   onSectionChange: (section: string) => void;
 }
 
-const menuItems = [
-  { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
-  { id: "financial", title: "Dashboard Financeiro", icon: PieChart },
-  { id: "reports", title: "Relatórios Mensais", icon: BarChart3 },
-  { id: "orders", title: "Pedidos", icon: Package },
-  { id: "shipping", title: "Histórico & Envios", icon: PackageOpen },
-  { id: "invoices", title: "Comprovantes", icon: FileText },
-  { id: "nfe", title: "Notas Fiscais (NF-e)", icon: Receipt },
-  { id: "products", title: "Produtos", icon: ShoppingBag },
-  { id: "ai-products", title: "Criar com IA", icon: Sparkles },
-  { id: "categories", title: "Categorias", icon: FolderOpen },
-  { id: "stock", title: "Gestão de Estoque", icon: Boxes },
-  { id: "pricing", title: "Precificação", icon: Calculator },
-  { id: "expenses", title: "Custos e Gastos", icon: DollarSign },
-  { id: "payments", title: "Pagamentos", icon: CreditCard },
-  { id: "promotions", title: "Promoções", icon: DollarSign },
-  { id: "banners", title: "Banners", icon: Globe },
-  { id: "image-editor", title: "Editor de Imagens", icon: ImageIcon },
-  { id: "recipes", title: "Receitas", icon: ChefHat },
-  { id: "ai-recipes", title: "Receitas com IA", icon: Sparkles },
-  { id: "testimonials", title: "Depoimentos", icon: MessageSquareQuote },
-  { id: "site-content", title: "Conteúdo do Site", icon: Globe },
-  { id: "whatsapp", title: "Alertas WhatsApp", icon: MessageSquare },
-  { id: "admins", title: "Administradores", icon: Users },
+// Menu organizado por categorias
+const menuGroups = [
+  {
+    label: "Visão Geral",
+    items: [
+      { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
+      { id: "financial", title: "Dashboard Financeiro", icon: PieChart },
+      { id: "reports", title: "Relatórios Mensais", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Pedidos",
+    items: [
+      { id: "orders", title: "Todos os Pedidos", icon: Package },
+      { id: "auto-verification", title: "Verificação Automática", icon: Zap },
+      { id: "shipping", title: "Histórico & Envios", icon: PackageOpen },
+      { id: "invoices", title: "Comprovantes", icon: FileText },
+      { id: "nfe", title: "Notas Fiscais (NF-e)", icon: Receipt },
+    ],
+  },
+  {
+    label: "Pagamentos",
+    items: [
+      { id: "payments", title: "Configurações", icon: CreditCard },
+      { id: "payment-logs", title: "Logs Automáticos", icon: History },
+    ],
+  },
+  {
+    label: "Produtos",
+    items: [
+      { id: "products", title: "Catálogo", icon: ShoppingBag },
+      { id: "ai-products", title: "Criar com IA", icon: Sparkles },
+      { id: "categories", title: "Categorias", icon: FolderOpen },
+      { id: "stock", title: "Gestão de Estoque", icon: Boxes },
+      { id: "pricing", title: "Precificação", icon: Calculator },
+      { id: "expenses", title: "Custos e Gastos", icon: DollarSign },
+    ],
+  },
+  {
+    label: "Receitas",
+    items: [
+      { id: "recipes", title: "Todas as Receitas", icon: ChefHat },
+      { id: "ai-recipes", title: "Criar com IA", icon: Sparkles },
+    ],
+  },
+  {
+    label: "Marketing",
+    items: [
+      { id: "promotions", title: "Promoções", icon: DollarSign },
+      { id: "banners", title: "Banners", icon: Globe },
+      { id: "image-editor", title: "Editor de Imagens", icon: ImageIcon },
+    ],
+  },
+  {
+    label: "Conteúdo",
+    items: [
+      { id: "testimonials", title: "Depoimentos", icon: MessageSquareQuote },
+      { id: "site-content", title: "Conteúdo do Site", icon: Globe },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { id: "whatsapp", title: "Alertas WhatsApp", icon: MessageSquare },
+      { id: "admins", title: "Administradores", icon: Users },
+    ],
+  },
 ];
 
 const AdminSidebar = ({ activeSection, onSectionChange }: AdminSidebarProps) => {
@@ -59,28 +102,30 @@ const AdminSidebar = ({ activeSection, onSectionChange }: AdminSidebarProps) => 
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-            Administração
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    onClick={() => onSectionChange(item.id)}
-                    isActive={activeSection === item.id}
-                    tooltip={item.title}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      <SidebarContent className="overflow-y-auto">
+        {menuGroups.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
+              {group.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      onClick={() => onSectionChange(item.id)}
+                      isActive={activeSection === item.id}
+                      tooltip={item.title}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>
