@@ -56,14 +56,14 @@ serve(async (req) => {
       );
     }
 
-    // Detect file category
+    // Detectar categoria do arquivo
     const isImage = fileType.startsWith("image/");
     const isVideo = fileType.startsWith("video/");
     const isPdf = fileType === "application/pdf";
 
-    console.log(`Processing file: ${fileName}, type: ${fileType}, isImage: ${isImage}, isVideo: ${isVideo}, isPdf: ${isPdf}`);
+    console.log(`Processando arquivo: ${fileName}, tipo: ${fileType}, imagem: ${isImage}, video: ${isVideo}, pdf: ${isPdf}`);
 
-    // For images, analyze with AI to get recommendations
+    // Para imagens, analisar com IA para recomendações
     let aiAnalysis: any = null;
     
     if (isImage) {
@@ -81,32 +81,40 @@ serve(async (req) => {
               content: `Você é um especialista em design e marketing digital.
 Analise a imagem e forneça recomendações para adaptação em anúncios.
 
+IMPORTANTE: O objetivo é MANTER A QUALIDADE ORIGINAL da imagem.
+- NUNCA comprimir ou reduzir qualidade
+- Apenas ajustar tamanho mantendo proporção
+- Cortar apenas se necessário para o formato
+- Usar resolução original sempre que possível
+
 Retorne APENAS um JSON válido:
 {
-  "detected_content": "descrição do que está na imagem",
-  "main_subject_position": "centro", "esquerda", "direita", "topo" ou "base",
-  "has_text": boolean,
-  "text_content": "texto encontrado na imagem" ou null,
-  "background_type": "sólido", "gradiente", "foto", "transparente",
-  "dominant_colors": ["#hex1", "#hex2"],
-  "quality_score": 1-10,
-  "recommendations": {
+  "conteudo_detectado": "descrição do que está na imagem",
+  "posicao_assunto_principal": "centro", "esquerda", "direita", "topo" ou "base",
+  "possui_texto": boolean,
+  "conteudo_texto": "texto encontrado na imagem" ou null,
+  "tipo_fundo": "sólido", "gradiente", "foto", "transparente",
+  "cores_dominantes": ["#hex1", "#hex2"],
+  "pontuacao_qualidade": 1-10,
+  "recomendacoes": {
     "instagram_feed": ["dica 1", "dica 2"],
     "instagram_stories": ["dica 1", "dica 2"],
     "facebook_ads": ["dica 1", "dica 2"],
     "google_ads": ["dica 1", "dica 2"],
     "marketplace": ["dica 1", "dica 2"]
   },
-  "crop_suggestions": {
-    "safe_zone": { "x": %, "y": %, "width": %, "height": % },
-    "focus_point": { "x": %, "y": % }
-  }
+  "sugestoes_corte": {
+    "zona_segura": { "x": %, "y": %, "largura": %, "altura": % },
+    "ponto_foco": { "x": %, "y": % }
+  },
+  "preservar_qualidade": true,
+  "metodo_redimensionamento": "proporcional"
 }`
             },
             { 
               role: "user", 
               content: [
-                { type: "text", text: "Analise esta imagem para adaptação em anúncios:" },
+                { type: "text", text: "Analise esta imagem para adaptação em anúncios (mantendo qualidade original):" },
                 { type: "image_url", image_url: { url: `data:${fileType};base64,${fileBase64}` } }
               ]
             }
@@ -123,13 +131,13 @@ Retorne APENAS um JSON válido:
             const jsonStr = content.replace(/```json\n?|\n?```/g, "").trim();
             aiAnalysis = JSON.parse(jsonStr);
           } catch (e) {
-            console.error("Failed to parse AI analysis:", e);
+            console.error("Falha ao processar análise da IA:", e);
           }
         }
       }
     }
 
-    // Generate outputs for each platform
+    // Gerar saídas para cada plataforma
     const platforms = targetPlatforms?.length > 0 
       ? targetPlatforms 
       : Object.keys(PLATFORM_SPECS);
@@ -138,7 +146,8 @@ Retorne APENAS um JSON válido:
       .filter(p => PLATFORM_SPECS[p])
       .map(platform => {
         const spec = PLATFORM_SPECS[platform];
-        const platformRecs = aiAnalysis?.recommendations?.[platform.replace("_", " ")] || [];
+        const platformKey = platform.replace("_", " ");
+        const platformRecs = aiAnalysis?.recomendacoes?.[platformKey] || aiAnalysis?.recommendations?.[platformKey] || [];
         
         return {
           platform: spec.name,
@@ -146,33 +155,45 @@ Retorne APENAS um JSON válido:
           dimensions: { width: spec.width, height: spec.height },
           aspectRatio: spec.aspectRatio,
           recommendations: [
-            `Redimensionar para ${spec.width}x${spec.height}px`,
+            `Redimensionar para ${spec.width}x${spec.height}px (qualidade 100%)`,
+            "Manter proporção original - sem distorção",
+            "Preservar resolução máxima",
             ...platformRecs,
-            aiAnalysis?.has_text ? "Verificar legibilidade do texto após redimensionamento" : null,
-            aiAnalysis?.quality_score < 7 ? "Considere usar uma imagem de maior qualidade" : null,
+            aiAnalysis?.possui_texto || aiAnalysis?.has_text ? "Verificar legibilidade do texto após redimensionamento" : null,
+            (aiAnalysis?.pontuacao_qualidade || aiAnalysis?.quality_score) < 7 ? "Considere usar uma imagem de maior resolução" : null,
           ].filter(Boolean) as string[],
         };
       });
 
     const result = {
-      originalFile: {
-        name: fileName,
-        type: fileType,
-        category: isImage ? "image" : isVideo ? "video" : isPdf ? "pdf" : "other",
+      arquivoOriginal: {
+        nome: fileName,
+        tipo: fileType,
+        categoria: isImage ? "imagem" : isVideo ? "video" : isPdf ? "pdf" : "outro",
       },
-      analysis: aiAnalysis,
+      analise: aiAnalysis,
+      saidas: outputs,
+      // Manter outputs para compatibilidade
       outputs,
-      supportedFormats: {
-        image: ["JPG", "PNG", "WEBP"],
+      formatosSuportados: {
+        imagem: ["JPG", "PNG", "WEBP"],
         video: ["MP4", "MOV"],
-        document: ["PDF"],
+        documento: ["PDF"],
       },
-      processingTips: [
+      dicasProcessamento: [
+        "QUALIDADE PRESERVADA: Imagens serão redimensionadas sem perda de qualidade",
+        "Método: Redimensionamento proporcional com qualidade 100%",
         isVideo ? "Vídeos devem ter duração máxima de 60s para Stories/Reels" : null,
-        isPdf ? "PDFs serão convertidos em imagens para uso em anúncios" : null,
+        isPdf ? "PDFs serão convertidos em imagens de alta resolução" : null,
         "Use imagens com resolução mínima de 1080px no menor lado",
         "Evite texto ocupando mais de 20% da imagem para anúncios do Facebook",
       ].filter(Boolean),
+      configuracoesQualidade: {
+        compressao: "nenhuma",
+        qualidade: 100,
+        metodo: "proporcional",
+        preservarOriginal: true,
+      },
     };
 
     console.log(`File processed successfully: ${fileName}`);

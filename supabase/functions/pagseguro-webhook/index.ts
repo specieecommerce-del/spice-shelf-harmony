@@ -85,7 +85,7 @@ serve(async (req: Request) => {
 
     console.log(`Updating order ${orderNsu} to status: ${newStatus}`);
 
-    // Update order
+    // Atualizar pedido
     const updateData: Record<string, unknown> = {
       status: newStatus,
       updated_at: new Date().toISOString(),
@@ -96,20 +96,65 @@ serve(async (req: Request) => {
       updateData.paid_amount = charge.amount.value;
     }
 
-    const { error: updateError } = await supabaseAdmin
+    const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from("orders")
       .update(updateData)
-      .eq("order_nsu", orderNsu);
+      .eq("order_nsu", orderNsu)
+      .select("customer_name, customer_email, customer_phone, total_amount, items")
+      .single();
 
     if (updateError) {
-      console.error("Error updating order:", updateError);
+      console.error("Erro ao atualizar pedido:", updateError);
       return new Response(
-        JSON.stringify({ error: "Failed to update order" }),
+        JSON.stringify({ error: "Falha ao atualizar pedido" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Order ${orderNsu} updated successfully`);
+    console.log(`Pedido ${orderNsu} atualizado com sucesso`);
+
+    // Enviar notificações automáticas quando pago
+    if (newStatus === "paid" && updatedOrder) {
+      try {
+        // Enviar email de confirmação
+        if (updatedOrder.customer_email) {
+          const items = typeof updatedOrder.items === 'string' 
+            ? JSON.parse(updatedOrder.items) 
+            : updatedOrder.items;
+          
+          await supabaseAdmin.functions.invoke('send-order-emails', {
+            body: {
+              orderNsu: orderNsu,
+              customerName: updatedOrder.customer_name || 'Cliente',
+              customerEmail: updatedOrder.customer_email,
+              totalAmount: updatedOrder.total_amount / 100,
+              items: items.map((item: any) => ({
+                name: item.name || item.product_name,
+                price: (item.price || 0) / 100,
+                quantity: item.quantity || 1,
+              })),
+            },
+          });
+          console.log('Email de confirmação enviado para:', updatedOrder.customer_email);
+        }
+
+        // Enviar notificação WhatsApp
+        if (updatedOrder.customer_phone) {
+          await supabaseAdmin.functions.invoke('order-alert-whatsapp', {
+            body: {
+              orderNsu: orderNsu,
+              customerName: updatedOrder.customer_name || 'Cliente',
+              customerPhone: updatedOrder.customer_phone,
+              totalAmount: updatedOrder.total_amount,
+              status: 'paid',
+            },
+          });
+          console.log('WhatsApp enviado para:', updatedOrder.customer_phone);
+        }
+      } catch (notifyError) {
+        console.error('Erro ao enviar notificações:', notifyError);
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true }),

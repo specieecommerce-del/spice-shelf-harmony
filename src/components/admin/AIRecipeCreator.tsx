@@ -105,6 +105,10 @@ const categoryLabels: Record<string, string> = {
   breakfast: "Café da Manhã",
   lunch: "Almoço",
   dinner: "Jantar",
+  // Aliases em português
+  "cafe_da_manha": "Café da Manhã",
+  "almoco": "Almoço",
+  "janta": "Jantar",
 };
 
 const recipeCategoryLabels: Record<string, string> = {
