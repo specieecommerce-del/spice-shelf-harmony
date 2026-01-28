@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.newsletter-auto-coupon]
 verify_jwt = false
+
+[functions.ai-banner-generator]
+verify_jwt = false

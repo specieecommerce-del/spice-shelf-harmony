@@ -1,5 +1,6 @@
 import Header from "@/components/layout/Header";
 import HeroSection from "@/components/home/HeroSection";
+import BannerCarousel from "@/components/home/BannerCarousel";
 import BenefitsBar from "@/components/home/BenefitsBar";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
 import CategoriesSection from "@/components/home/CategoriesSection";
@@ -14,6 +15,12 @@ const Index = () => {
       <Header />
       <main>
         <HeroSection />
+        {/* Banner Carousel Section */}
+        <section className="py-6 bg-background">
+          <div className="container-species">
+            <BannerCarousel autoPlayInterval={5000} />
+          </div>
+        </section>
         <BenefitsBar />
         <FeaturedProducts />
         <CategoriesSection />
