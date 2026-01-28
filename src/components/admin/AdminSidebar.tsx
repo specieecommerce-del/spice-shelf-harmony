@@ -1,4 +1,4 @@
-import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon, BarChart3, Sparkles, Zap, Clock, History, Building2, Camera, Layers } from "lucide-react";
+import { Package, Home, LogOut, PackageOpen, ShoppingBag, MessageSquare, LayoutDashboard, Users, FileText, Receipt, Boxes, CreditCard, FolderOpen, ChefHat, MessageSquareQuote, DollarSign, Calculator, Globe, PieChart, ImageIcon, BarChart3, Sparkles, Zap, Clock, History, Building2, Camera, Layers, Star, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -82,7 +82,9 @@ const menuGroups = [
     label: "Conteúdo",
     items: [
       { id: "testimonials", title: "Depoimentos", icon: MessageSquareQuote },
+      { id: "reviews", title: "Avaliações", icon: Star },
       { id: "site-content", title: "Conteúdo do Site", icon: Globe },
+      { id: "newsletter", title: "Newsletter", icon: Mail },
     ],
   },
   {

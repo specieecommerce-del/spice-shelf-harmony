@@ -21,8 +21,10 @@ import {
   ChevronLeft,
   Loader2,
   Info,
-  ChefHat
+  ChefHat,
+  MessageSquare
 } from "lucide-react";
+import ProductReviews from "@/components/product/ProductReviews";
 
 interface Product {
   id: string;
@@ -408,6 +410,10 @@ const ProductDetail = () => {
                 <ChefHat className="h-4 w-4" />
                 Informações Nutricionais
               </TabsTrigger>
+              <TabsTrigger value="reviews" className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Avaliações ({product.reviews || 0})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="description" className="mt-6">
@@ -432,6 +438,10 @@ const ProductDetail = () => {
               ) : (
                 <p className="text-muted-foreground">Informações nutricionais não disponíveis.</p>
               )}
+            </TabsContent>
+
+            <TabsContent value="reviews" className="mt-6">
+              <ProductReviews productId={product.id} productName={product.name} />
             </TabsContent>
           </Tabs>
         </div>
