@@ -38,6 +38,8 @@ import PaymentLogsManager from "@/components/admin/PaymentLogsManager";
 import ApprovedPaymentsManager from "@/components/admin/ApprovedPaymentsManager";
 import GatewayStatusManager from "@/components/admin/GatewayStatusManager";
 import BankConnectionManager from "@/components/admin/BankConnectionManager";
+import ReviewsManager from "@/components/admin/ReviewsManager";
+import NewsletterManager from "@/components/admin/NewsletterManager";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -150,6 +152,8 @@ const Admin = () => {
             {activeSection === "ai-recipes" && <AIRecipeCreator />}
             {activeSection === "testimonials" && <TestimonialsManager />}
             {activeSection === "site-content" && <SiteContentManager />}
+            {activeSection === "reviews" && <ReviewsManager />}
+            {activeSection === "newsletter" && <NewsletterManager />}
             {activeSection === "whatsapp" && <WhatsAppAlertsManager />}
             {activeSection === "admins" && <AdminsManager />}
           </div>
