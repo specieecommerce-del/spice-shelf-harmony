@@ -74,6 +74,7 @@ const menuGroups = [
     items: [
       { id: "promotions", title: "Promoções", icon: DollarSign },
       { id: "banners", title: "Banners", icon: Globe },
+      { id: "ai-banners", title: "Criar Banner com IA", icon: Sparkles },
       { id: "image-editor", title: "Editor de Imagens", icon: ImageIcon },
     ],
   },

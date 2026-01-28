@@ -32,6 +32,7 @@ import ImageEditorManager from "@/components/admin/ImageEditorManager";
 import MonthlyReportsManager from "@/components/admin/MonthlyReportsManager";
 import AIProductCreator from "@/components/admin/AIProductCreator";
 import AIRecipeCreator from "@/components/admin/AIRecipeCreator";
+import AIBannerCreator from "@/components/admin/AIBannerCreator";
 import AutoVerificationManager from "@/components/admin/AutoVerificationManager";
 import PaymentLogsManager from "@/components/admin/PaymentLogsManager";
 import ApprovedPaymentsManager from "@/components/admin/ApprovedPaymentsManager";
@@ -145,6 +146,7 @@ const Admin = () => {
             {activeSection === "expenses" && <ExpensesManager />}
             {activeSection === "promotions" && <PromotionsManager />}
             {activeSection === "banners" && <BannersManager />}
+            {activeSection === "ai-banners" && <AIBannerCreator />}
             {activeSection === "image-editor" && <ImageEditorManager />}
             {activeSection === "recipes" && <RecipesManager />}
             {activeSection === "ai-recipes" && <AIRecipeCreator />}
