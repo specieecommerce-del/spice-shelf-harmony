@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Users, Loader2, Save, Image as ImageIcon } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Users, Loader2, Save, Image as ImageIcon, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ interface AboutUsData {
   team_description: string;
   hero_image_url: string;
   store_image_url: string;
+  logo_url: string;
   founder_name: string;
   founder_role: string;
   founder_image_url: string;
@@ -44,6 +45,7 @@ const defaultAboutUs: AboutUsData = {
   team_description: "Uma equipe apaixonada por gastronomia e sabores autênticos.",
   hero_image_url: "",
   store_image_url: "",
+  logo_url: "",
   founder_name: "",
   founder_role: "Fundador(a)",
   founder_image_url: "",
@@ -59,6 +61,9 @@ const AboutUsManager = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [valuesText, setValuesText] = useState("");
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadAboutUs();
@@ -82,6 +87,7 @@ const AboutUsManager = () => {
       } else {
         setValuesText(defaultAboutUs.values.join("\n"));
       }
+      setHasChanges(false);
     } catch (err) {
       console.error("Error loading about us:", err);
       toast({
@@ -129,6 +135,7 @@ const AboutUsManager = () => {
       }
 
       setAboutUs(dataToSave);
+      setHasChanges(false);
       toast({
         title: "Dados salvos!",
         description: "As informações 'Quem Somos' foram atualizadas.",
@@ -147,6 +154,53 @@ const AboutUsManager = () => {
 
   const updateField = (field: keyof AboutUsData, value: string) => {
     setAboutUs(prev => ({ ...prev, [field]: value }));
+    setHasChanges(true);
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Apenas imagens são permitidas", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "A imagem deve ter no máximo 5MB", variant: "destructive" });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+      const filePath = `logos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(filePath);
+
+      updateField("logo_url", urlData.publicUrl);
+      toast({ title: "Logo enviado com sucesso!" });
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      toast({ title: "Erro ao enviar logo", variant: "destructive" });
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  };
+
+  const removeLogo = () => {
+    updateField("logo_url", "");
+    toast({ title: "Logo removido" });
   };
 
   if (isLoading) {
@@ -161,6 +215,17 @@ const AboutUsManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* Unsaved Changes Warning */}
+      {hasChanges && (
+        <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm text-yellow-800 dark:text-yellow-200 flex items-center justify-between">
+          <span>⚠️ Você tem alterações não salvas</span>
+          <Button size="sm" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+            Salvar Agora
+          </Button>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -172,6 +237,76 @@ const AboutUsManager = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Logo da Empresa */}
+          <Card className="border-primary/30 bg-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Logo da Empresa
+              </CardTitle>
+              <CardDescription>
+                Este logo aparecerá no cabeçalho onde está escrito "Species"
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                {aboutUs.logo_url ? (
+                  <div className="relative">
+                    <img 
+                      src={aboutUs.logo_url} 
+                      alt="Logo da empresa" 
+                      className="h-20 w-auto max-w-[200px] object-contain rounded-lg border"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6"
+                      onClick={removeLogo}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="h-20 w-40 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
+                    <span className="text-muted-foreground text-sm">Sem logo</span>
+                  </div>
+                )}
+                
+                <div className="flex flex-col gap-2">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={isUploadingLogo}
+                  >
+                    {isUploadingLogo ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    {aboutUs.logo_url ? "Alterar Logo" : "Enviar Logo"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">PNG, JPG ou SVG. Máximo 5MB.</p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Ou cole a URL do logo</Label>
+                <Input
+                  value={aboutUs.logo_url}
+                  onChange={(e) => updateField("logo_url", e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Hero Section */}
           <Card className="border-blue-200 bg-blue-50/30">
             <CardHeader className="pb-3">
@@ -261,7 +396,7 @@ const AboutUsManager = () => {
                 <Label>Valores (um por linha)</Label>
                 <Textarea
                   value={valuesText}
-                  onChange={(e) => setValuesText(e.target.value)}
+                  onChange={(e) => { setValuesText(e.target.value); setHasChanges(true); }}
                   placeholder="Qualidade&#10;Sustentabilidade&#10;Transparência"
                   rows={4}
                 />
@@ -355,6 +490,7 @@ const AboutUsManager = () => {
             onClick={handleSave} 
             disabled={isSaving}
             className="w-full bg-blue-600 hover:bg-blue-700"
+            size="lg"
           >
             {isSaving ? (
               <>
@@ -364,7 +500,7 @@ const AboutUsManager = () => {
             ) : (
               <>
                 <Save className="mr-2 h-4 w-4" />
-                Salvar Informações
+                Salvar Todas as Alterações
               </>
             )}
           </Button>

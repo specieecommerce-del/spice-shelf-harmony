@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.ai-banner-generator]
 verify_jwt = false
+
+[functions.verify-pix-payment]
+verify_jwt = false
