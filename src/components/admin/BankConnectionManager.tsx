@@ -7,6 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Loader2,
   Building2,
@@ -23,6 +32,10 @@ import {
   Play,
   Clock,
   AlertCircle,
+  FileSpreadsheet,
+  Search,
+  Check,
+  X,
 } from "lucide-react";
 
 interface BankConfig {
@@ -42,11 +55,36 @@ interface BankConnection {
   status: "connected" | "disconnected" | "pending" | "error";
 }
 
+interface BankTransaction {
+  date: string;
+  amount: number;
+  description: string;
+  type: 'credit' | 'debit';
+  reference?: string;
+}
+
+interface ReconciliationResult {
+  order_nsu: string;
+  order_amount: number;
+  matched_transaction: BankTransaction | null;
+  status: 'matched' | 'not_found' | 'amount_mismatch';
+  confidence: number;
+}
+
 interface VerificationResult {
   success: boolean;
   verified: number;
   confirmed: number;
   results?: Array<{ order_nsu: string; status: string; message?: string }>;
+}
+
+interface ReconciliationResponse {
+  success: boolean;
+  transactions_processed: number;
+  orders_checked: number;
+  matched: number;
+  confirmed: number;
+  results: ReconciliationResult[];
 }
 
 const SUPPORTED_BANKS: BankConfig[] = [
@@ -72,6 +110,10 @@ const BankConnectionManager = () => {
   const [importing, setImporting] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastVerification, setLastVerification] = useState<VerificationResult | null>(null);
+  const [reconciliationResults, setReconciliationResults] = useState<ReconciliationResponse | null>(null);
+  const [parsedTransactions, setParsedTransactions] = useState<BankTransaction[]>([]);
+  const [autoConfirm, setAutoConfirm] = useState(true);
+  const [showTransactions, setShowTransactions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchConnections = async () => {
@@ -212,6 +254,128 @@ const BankConnectionManager = () => {
     }
   };
 
+  // Parse CSV file
+  const parseCSV = (content: string): BankTransaction[] => {
+    const lines = content.split('\n').filter(line => line.trim());
+    const transactions: BankTransaction[] = [];
+    
+    // Skip header line
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      // Try different CSV formats
+      const parts = line.split(/[,;]/).map(p => p.trim().replace(/"/g, ''));
+      
+      if (parts.length >= 3) {
+        // Common format: Date, Description, Amount or Date, Amount, Description
+        let date = '', description = '', amount = 0;
+        
+        // Try to find date (DD/MM/YYYY or YYYY-MM-DD)
+        const datePattern = /(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})/;
+        const amountPattern = /-?\d+[.,]?\d*/;
+        
+        for (const part of parts) {
+          if (datePattern.test(part) && !date) {
+            date = part;
+          } else if (amountPattern.test(part.replace(/[R$\s]/g, '')) && amount === 0) {
+            const cleanAmount = part.replace(/[R$\s]/g, '').replace(',', '.');
+            amount = parseFloat(cleanAmount) || 0;
+          } else if (part.length > 3 && !description) {
+            description = part;
+          }
+        }
+        
+        if (date && amount !== 0) {
+          transactions.push({
+            date: date.includes('/') ? 
+              date.split('/').reverse().join('-') : // DD/MM/YYYY -> YYYY-MM-DD
+              date,
+            amount: Math.abs(amount),
+            description: description || 'Transação bancária',
+            type: amount > 0 ? 'credit' : 'debit',
+          });
+        }
+      }
+    }
+    
+    return transactions;
+  };
+
+  // Parse OFX file
+  const parseOFX = (content: string): BankTransaction[] => {
+    const transactions: BankTransaction[] = [];
+    
+    // Simple OFX parser - extract STMTTRN blocks
+    const transactionRegex = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi;
+    let match;
+    
+    while ((match = transactionRegex.exec(content)) !== null) {
+      const block = match[1];
+      
+      // Extract fields
+      const dtPosted = block.match(/<DTPOSTED>(\d{8})/)?.[1];
+      const trnAmt = block.match(/<TRNAMT>(-?[\d.]+)/)?.[1];
+      const memo = block.match(/<MEMO>([^<]*)/)?.[1] || block.match(/<NAME>([^<]*)/)?.[1];
+      
+      if (dtPosted && trnAmt) {
+        const amount = parseFloat(trnAmt);
+        const year = dtPosted.substring(0, 4);
+        const month = dtPosted.substring(4, 6);
+        const day = dtPosted.substring(6, 8);
+        
+        transactions.push({
+          date: `${year}-${month}-${day}`,
+          amount: Math.abs(amount),
+          description: memo || 'Transação OFX',
+          type: amount > 0 ? 'credit' : 'debit',
+        });
+      }
+    }
+    
+    return transactions;
+  };
+
+  // Parse Excel-like format (tab or semicolon separated)
+  const parseExcel = (content: string): BankTransaction[] => {
+    // Similar to CSV but with tab separator
+    const lines = content.split('\n').filter(line => line.trim());
+    const transactions: BankTransaction[] = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split('\t').map(p => p.trim());
+      
+      if (parts.length >= 2) {
+        let date = '', description = '', amount = 0;
+        
+        for (const part of parts) {
+          const datePattern = /(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})/;
+          const amountPattern = /-?\d+[.,]?\d*/;
+          
+          if (datePattern.test(part) && !date) {
+            date = part;
+          } else if (amountPattern.test(part.replace(/[R$\s]/g, '')) && amount === 0) {
+            const cleanAmount = part.replace(/[R$\s]/g, '').replace(',', '.');
+            amount = parseFloat(cleanAmount) || 0;
+          } else if (part.length > 3 && !description) {
+            description = part;
+          }
+        }
+        
+        if (date && amount !== 0) {
+          transactions.push({
+            date: date.includes('/') ? 
+              date.split('/').reverse().join('-') : 
+              date,
+            amount: Math.abs(amount),
+            description: description || 'Transação',
+            type: amount > 0 ? 'credit' : 'debit',
+          });
+        }
+      }
+    }
+    
+    return transactions;
+  };
+
   const handleFileImport = async () => {
     if (!importFile) {
       toast.error("Selecione um arquivo para importar");
@@ -220,13 +384,84 @@ const BankConnectionManager = () => {
 
     setImporting(true);
     try {
-      toast.info("Processando extrato...");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      toast.success(`Extrato "${importFile.name}" processado!`);
-      setImportFile(null);
+      toast.info("Lendo extrato bancário...");
+      
+      const content = await importFile.text();
+      let transactions: BankTransaction[] = [];
+      
+      const fileName = importFile.name.toLowerCase();
+      
+      if (fileName.endsWith('.ofx')) {
+        transactions = parseOFX(content);
+      } else if (fileName.endsWith('.csv')) {
+        transactions = parseCSV(content);
+      } else if (fileName.endsWith('.xls') || fileName.endsWith('.xlsx')) {
+        // For Excel files, try parsing as tab-separated
+        transactions = parseExcel(content);
+      } else {
+        // Try CSV first, then OFX
+        transactions = parseCSV(content);
+        if (transactions.length === 0) {
+          transactions = parseOFX(content);
+        }
+      }
+
+      if (transactions.length === 0) {
+        toast.error("Não foi possível extrair transações do arquivo. Verifique o formato.");
+        setImporting(false);
+        return;
+      }
+
+      setParsedTransactions(transactions);
+      setShowTransactions(true);
+      toast.success(`${transactions.length} transações encontradas no extrato!`);
+      
     } catch (error) {
       console.error("Erro ao importar:", error);
       toast.error("Erro ao processar arquivo");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const processReconciliation = async () => {
+    if (parsedTransactions.length === 0) {
+      toast.error("Nenhuma transação para processar");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      toast.info("Reconciliando pagamentos com pedidos pendentes...");
+      
+      const { data, error } = await supabase.functions.invoke('process-bank-statement', {
+        body: {
+          transactions: parsedTransactions,
+          autoConfirm,
+        },
+      });
+
+      if (error) throw error;
+
+      setReconciliationResults(data);
+      
+      if (data.confirmed > 0) {
+        toast.success(`🎉 ${data.confirmed} pagamento(s) confirmado(s) automaticamente!`);
+      } else if (data.matched > 0) {
+        toast.info(`${data.matched} correspondência(s) encontrada(s). Revise e confirme manualmente.`);
+      } else {
+        toast.info("Nenhuma correspondência encontrada entre o extrato e os pedidos pendentes.");
+      }
+
+      // Update last sync
+      const connectedBank = getConnectedBank();
+      if (connectedBank) {
+        await saveConnection(connectedBank[0], { last_sync: new Date().toISOString() });
+      }
+
+    } catch (error) {
+      console.error("Erro na reconciliação:", error);
+      toast.error("Erro ao processar reconciliação");
     } finally {
       setImporting(false);
     }
@@ -268,7 +503,7 @@ const BankConnectionManager = () => {
             Conexão Bancária
           </h2>
           <p className="text-muted-foreground">
-            Conecte sua conta para validação automática de pagamentos PIX
+            Importe seu extrato bancário para confirmar pagamentos automaticamente
           </p>
         </div>
         <div className="flex gap-2">
@@ -276,16 +511,6 @@ const BankConnectionManager = () => {
             <RefreshCw className="h-4 w-4 mr-2" />
             Atualizar
           </Button>
-          {connectedBank && (
-            <Button onClick={runVerification} variant="default" size="sm" disabled={verifying}>
-              {verifying ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              Verificar Pagamentos
-            </Button>
-          )}
         </div>
       </div>
 
@@ -299,39 +524,28 @@ const BankConnectionManager = () => {
                 <div>
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    {connectedBankConfig.name} Conectado
+                    {connectedBankConfig.name} Configurado
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Validação automática de pagamentos ativa
+                    Importe o extrato para verificar pagamentos
                   </p>
                   {connectedBank[1].last_sync && (
                     <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      Última sincronização: {new Date(connectedBank[1].last_sync).toLocaleString('pt-BR')}
+                      Última verificação: {new Date(connectedBank[1].last_sync).toLocaleString('pt-BR')}
                     </p>
                   )}
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => saveConnection(connectedBank[0], { last_sync: new Date().toISOString() })}
-                  disabled={saving}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${saving ? 'animate-spin' : ''}`} />
-                  Sincronizar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => disconnectBank(connectedBank[0])}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Desconectar
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => disconnectBank(connectedBank[0])}
+                className="text-destructive hover:text-destructive"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Desconectar
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -340,10 +554,10 @@ const BankConnectionManager = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-primary" />
-              Conectar Banco em 1 Clique
+              Conectar Banco
             </CardTitle>
             <CardDescription>
-              Informe sua chave PIX e selecione seu banco para ativar a validação automática
+              Informe sua chave PIX e selecione seu banco
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -404,7 +618,7 @@ const BankConnectionManager = () => {
               <div>
                 <p className="text-sm font-medium">Conexão Segura</p>
                 <p className="text-xs text-muted-foreground">
-                  Seus dados são criptografados e usados apenas para validar pagamentos PIX recebidos.
+                  Seus dados são usados apenas para identificar pagamentos recebidos.
                 </p>
               </div>
             </div>
@@ -412,77 +626,272 @@ const BankConnectionManager = () => {
         </Card>
       )}
 
-      {/* Last Verification Result */}
-      {lastVerification && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-              Última Verificação
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold text-blue-600">{lastVerification.verified}</p>
-                <p className="text-xs text-muted-foreground">Verificados</p>
-              </div>
-              <div className="p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold text-green-600">{lastVerification.confirmed}</p>
-                <p className="text-xs text-muted-foreground">Confirmados</p>
-              </div>
-              <div className="p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold text-orange-600">{lastVerification.verified - lastVerification.confirmed}</p>
-                <p className="text-xs text-muted-foreground">Pendentes</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Alternative: Import Statement */}
-      <Card>
+      {/* Import Bank Statement - Main Feature */}
+      <Card className="border-primary/30">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5" />
-            Alternativa: Importar Extrato
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <FileSpreadsheet className="h-6 w-6 text-primary" />
+            Importar Extrato Bancário
           </CardTitle>
           <CardDescription>
-            Importe seu extrato bancário (OFX/CSV) para validar pagamentos manualmente
+            Faça o download do extrato no seu banco e importe aqui para confirmar pagamentos automaticamente
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
+        <CardContent className="space-y-6">
+          {/* File Upload */}
+          <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
             <input
               ref={fileInputRef}
               type="file"
-              accept=".ofx,.csv,.xls,.xlsx"
+              accept=".ofx,.csv,.xls,.xlsx,.txt"
               className="hidden"
-              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                setImportFile(e.target.files?.[0] || null);
+                setParsedTransactions([]);
+                setReconciliationResults(null);
+                setShowTransactions(false);
+              }}
             />
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {importFile ? importFile.name : "Selecionar Arquivo"}
-            </Button>
-            {importFile && (
-              <Button onClick={handleFileImport} disabled={importing}>
-                {importing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Processar Extrato
-                  </>
+            
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Upload className="h-8 w-8 text-primary" />
+                </div>
+              </div>
+              
+              <div>
+                <p className="text-lg font-medium">
+                  {importFile ? importFile.name : "Selecione o arquivo de extrato"}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Formatos suportados: OFX, CSV, XLS, XLSX
+                </p>
+              </div>
+              
+              <div className="flex justify-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  {importFile ? "Trocar Arquivo" : "Selecionar Arquivo"}
+                </Button>
+                
+                {importFile && !showTransactions && (
+                  <Button onClick={handleFileImport} disabled={importing}>
+                    {importing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="h-4 w-4 mr-2" />
+                        Ler Extrato
+                      </>
+                    )}
+                  </Button>
                 )}
-              </Button>
-            )}
+              </div>
+            </div>
+          </div>
+
+          {/* Parsed Transactions */}
+          {showTransactions && parsedTransactions.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  {parsedTransactions.length} Transações Encontradas
+                </h4>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="auto-confirm"
+                      checked={autoConfirm}
+                      onCheckedChange={(checked) => setAutoConfirm(checked === true)}
+                    />
+                    <Label htmlFor="auto-confirm" className="text-sm cursor-pointer">
+                      Confirmar automaticamente correspondências
+                    </Label>
+                  </div>
+                  <Button onClick={processReconciliation} disabled={importing}>
+                    {importing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Reconciliar Pagamentos
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead>Tipo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {parsedTransactions.slice(0, 20).map((t, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-mono text-sm">
+                          {new Date(t.date).toLocaleDateString('pt-BR')}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate text-sm">
+                          {t.description}
+                        </TableCell>
+                        <TableCell className={`text-right font-mono ${t.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                          R$ {t.amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={t.type === 'credit' ? 'default' : 'secondary'}>
+                            {t.type === 'credit' ? 'Entrada' : 'Saída'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {parsedTransactions.length > 20 && (
+                  <p className="text-xs text-muted-foreground p-2 text-center">
+                    Mostrando 20 de {parsedTransactions.length} transações
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Reconciliation Results */}
+          {reconciliationResults && (
+            <div className="space-y-4 border-t pt-4">
+              <h4 className="font-semibold flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                Resultado da Reconciliação
+              </h4>
+
+              <div className="grid grid-cols-4 gap-4 text-center">
+                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                  <p className="text-2xl font-bold text-blue-600">{reconciliationResults.transactions_processed}</p>
+                  <p className="text-xs text-muted-foreground">Transações</p>
+                </div>
+                <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
+                  <p className="text-2xl font-bold text-yellow-600">{reconciliationResults.orders_checked}</p>
+                  <p className="text-xs text-muted-foreground">Pedidos Pendentes</p>
+                </div>
+                <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-950/20">
+                  <p className="text-2xl font-bold text-purple-600">{reconciliationResults.matched}</p>
+                  <p className="text-xs text-muted-foreground">Correspondências</p>
+                </div>
+                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
+                  <p className="text-2xl font-bold text-green-600">{reconciliationResults.confirmed}</p>
+                  <p className="text-xs text-muted-foreground">Confirmados</p>
+                </div>
+              </div>
+
+              {reconciliationResults.results.length > 0 && (
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Pedido</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Confiança</TableHead>
+                        <TableHead>Transação Correspondente</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reconciliationResults.results.map((result, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-mono text-sm">{result.order_nsu}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            R$ {result.order_amount.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            {result.status === 'matched' ? (
+                              <Badge className="bg-green-600">
+                                <Check className="h-3 w-3 mr-1" />
+                                Encontrado
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">
+                                <X className="h-3 w-3 mr-1" />
+                                Não Encontrado
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {result.confidence > 0 && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full ${result.confidence >= 80 ? 'bg-green-500' : result.confidence >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                    style={{ width: `${result.confidence}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs">{result.confidence}%</span>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                            {result.matched_transaction ? (
+                              <>
+                                {new Date(result.matched_transaction.date).toLocaleDateString('pt-BR')} - 
+                                R$ {result.matched_transaction.amount.toFixed(2)}
+                              </>
+                            ) : (
+                              '-'
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Instructions */}
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <h5 className="font-medium flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-primary" />
+              Como exportar seu extrato
+            </h5>
+            <ul className="text-sm text-muted-foreground space-y-2">
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-primary">1.</span>
+                Acesse o app ou site do seu banco
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-primary">2.</span>
+                Vá em Extrato {">"} Exportar ou Baixar extrato
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-primary">3.</span>
+                Escolha o formato OFX ou CSV (preferencial)
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-primary">4.</span>
+                Selecione o período que contém os pagamentos pendentes
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-primary">5.</span>
+                Importe o arquivo aqui e clique em "Reconciliar Pagamentos"
+              </li>
+            </ul>
           </div>
         </CardContent>
       </Card>
@@ -490,69 +899,44 @@ const BankConnectionManager = () => {
       {/* How it Works */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Como Funciona a Verificação Automática</CardTitle>
+          <CardTitle className="text-lg">Como Funciona a Reconciliação</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                1
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center p-4">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Upload className="h-6 w-6 text-primary" />
               </div>
-              <div>
-                <p className="font-medium">Conecte seu banco</p>
-                <p className="text-sm text-muted-foreground">
-                  Informe sua chave PIX
-                </p>
-              </div>
+              <h4 className="font-medium text-sm">1. Importe</h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Exporte o extrato do seu banco e envie aqui
+              </p>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                2
+            <div className="text-center p-4">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Search className="h-6 w-6 text-primary" />
               </div>
-              <div>
-                <p className="font-medium">Cliente paga via PIX</p>
-                <p className="text-sm text-muted-foreground">
-                  Usando o QR Code do pedido
-                </p>
-              </div>
+              <h4 className="font-medium text-sm">2. Analise</h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                O sistema lê e identifica as transações
+              </p>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                3
+            <div className="text-center p-4">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Zap className="h-6 w-6 text-primary" />
               </div>
-              <div>
-                <p className="font-medium">Sistema verifica</p>
-                <p className="text-sm text-muted-foreground">
-                  Automaticamente a cada 5 minutos
-                </p>
-              </div>
+              <h4 className="font-medium text-sm">3. Reconcilie</h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Comparamos valores e datas com pedidos pendentes
+              </p>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500/10 text-green-600 font-bold">
-                ✓
+            <div className="text-center p-4">
+              <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
+                <CheckCircle2 className="h-6 w-6 text-green-500" />
               </div>
-              <div>
-                <p className="font-medium">Pedido confirmado</p>
-                <p className="text-sm text-muted-foreground">
-                  Cliente recebe notificação
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Important Notice */}
-      <Card className="border-orange-200 bg-orange-50/30">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
-            <div>
-              <p className="font-medium text-orange-800">Importante</p>
-              <p className="text-sm text-orange-700">
-                A verificação automática via Open Finance está em desenvolvimento. 
-                Por enquanto, você pode usar o botão "Verificar Pagamentos" manualmente ou importar extratos.
-                Em breve, teremos integração direta com APIs bancárias para verificação em tempo real.
+              <h4 className="font-medium text-sm">4. Confirme</h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Pagamentos são confirmados automaticamente
               </p>
             </div>
           </div>

@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.verify-pix-payment]
 verify_jwt = false
+
+[functions.process-bank-statement]
+verify_jwt = false
