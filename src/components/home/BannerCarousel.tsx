@@ -97,7 +97,7 @@ const BannerCarousel = ({
   }
 
   return (
-    <div className="relative w-full aspect-[3/1] md:aspect-[4/1] overflow-hidden rounded-lg group">
+    <div className="relative w-full aspect-[3/2] md:aspect-[3/1] overflow-hidden rounded-lg group bg-muted">
       {/* Slides */}
       <div
         className="flex h-full transition-transform duration-500 ease-out"
