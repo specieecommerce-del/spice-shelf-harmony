@@ -22,6 +22,7 @@ interface Banner {
   is_active: boolean;
   start_date: string | null;
   end_date: string | null;
+  image_position?: string | null;
 }
 
 const BannersManager = () => {
@@ -43,6 +44,7 @@ const BannersManager = () => {
     is_active: true,
     start_date: "",
     end_date: "",
+    image_position: "center center",
   });
 
   const fetchBanners = async () => {
@@ -78,6 +80,7 @@ const BannersManager = () => {
       is_active: true,
       start_date: "",
       end_date: "",
+      image_position: "center center",
     });
     setImageFile(null);
     setImagePreview(null);
@@ -96,6 +99,7 @@ const BannersManager = () => {
       is_active: banner.is_active,
       start_date: banner.start_date ? banner.start_date.split("T")[0] : "",
       end_date: banner.end_date ? banner.end_date.split("T")[0] : "",
+      image_position: banner.image_position || "center center",
     });
     setImageFile(null);
     setImagePreview(banner.image_url);
@@ -156,6 +160,7 @@ const BannersManager = () => {
         start_date: formData.start_date || null,
         end_date: formData.end_date || null,
         sort_order: editingBanner?.sort_order ?? banners.length,
+        image_position: formData.image_position || "center center",
       };
 
       if (editingBanner) {
@@ -487,6 +492,51 @@ const BannersManager = () => {
                 placeholder="Ex: Até 50% de desconto"
               />
             </div>
+
+            {/* Image Position Selector */}
+            {(imagePreview || formData.image_url) && (
+              <div>
+                <Label>Posição da Imagem <span className="text-muted-foreground text-xs">(foco do produto)</span></Label>
+                <div className="mt-2 relative">
+                  {/* 3x3 grid position picker */}
+                  <div className="grid grid-cols-3 gap-1 w-full aspect-[3/1] rounded-lg overflow-hidden border border-border">
+                    {[
+                      { label: "Cima Esq.", value: "top left" },
+                      { label: "Cima", value: "top center" },
+                      { label: "Cima Dir.", value: "top right" },
+                      { label: "Meio Esq.", value: "center left" },
+                      { label: "Centro", value: "center center" },
+                      { label: "Meio Dir.", value: "center right" },
+                      { label: "Baixo Esq.", value: "bottom left" },
+                      { label: "Baixo", value: "bottom center" },
+                      { label: "Baixo Dir.", value: "bottom right" },
+                    ].map((pos) => (
+                      <button
+                        key={pos.value}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, image_position: pos.value })}
+                        className={`relative flex items-center justify-center text-[9px] font-medium transition-all border-0 ${
+                          formData.image_position === pos.value
+                            ? "bg-primary/80 text-primary-foreground ring-2 ring-primary z-10"
+                            : "bg-black/30 text-white/70 hover:bg-black/50"
+                        }`}
+                        style={{
+                          backgroundImage: imagePreview || formData.image_url ? `url(${imagePreview || formData.image_url})` : undefined,
+                          backgroundSize: "300%",
+                          backgroundPosition: pos.value,
+                        }}
+                        title={pos.label}
+                      >
+                        <span className={`px-1 py-0.5 rounded text-[8px] ${formData.image_position === pos.value ? "bg-primary text-primary-foreground" : "bg-black/50"}`}>
+                          {pos.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Clique na área da imagem onde o produto principal está localizado</p>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
