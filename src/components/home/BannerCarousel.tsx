@@ -112,7 +112,7 @@ const BannerCarousel = ({
               <img
                 src={banner.image_url}
                 alt={banner.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 loading="lazy"
               />
             ) : (
