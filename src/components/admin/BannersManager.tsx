@@ -471,7 +471,7 @@ const BannersManager = () => {
             </div>
 
             <div>
-              <Label>Título *</Label>
+              <Label>Título <span className="text-muted-foreground text-xs">(opcional)</span></Label>
               <Input
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
