@@ -1,0 +1,1 @@
+ALTER TABLE public.promotional_banners ADD COLUMN IF NOT EXISTS image_position text DEFAULT 'center center';

@@ -14,6 +14,7 @@ interface Banner {
   button_text: string | null;
   sort_order: number;
   is_active: boolean;
+  image_position?: string | null;
 }
 
 interface BannerCarouselProps {
@@ -113,6 +114,7 @@ const BannerCarousel = ({
                 src={banner.image_url}
                 alt={banner.title}
                 className="w-full h-full object-cover"
+                style={{ objectPosition: banner.image_position || "center center" }}
                 loading="lazy"
               />
             ) : (
