@@ -97,7 +97,7 @@ const BannerCarousel = ({
   }
 
   return (
-    <div className="relative w-full aspect-[3/2] md:aspect-[3/1] overflow-hidden rounded-lg group bg-muted">
+    <div className="relative w-full aspect-[3/2] md:aspect-[16/5] overflow-hidden rounded-lg group bg-black">
       {/* Slides */}
       <div
         className="flex h-full transition-transform duration-500 ease-out"
@@ -112,7 +112,7 @@ const BannerCarousel = ({
               <img
                 src={banner.image_url}
                 alt={banner.title}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
                 loading="lazy"
               />
             ) : (

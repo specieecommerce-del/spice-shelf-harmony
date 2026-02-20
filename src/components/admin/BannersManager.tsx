@@ -138,11 +138,6 @@ const BannersManager = () => {
   };
 
   const handleSave = async () => {
-    if (!formData.title) {
-      toast.error("Título é obrigatório");
-      return;
-    }
-
     setIsSaving(true);
     try {
       let imageUrl = formData.image_url;
@@ -152,7 +147,7 @@ const BannersManager = () => {
       }
 
       const data = {
-        title: formData.title,
+        title: formData.title || "",
         subtitle: formData.subtitle || null,
         image_url: imageUrl || null,
         link_url: formData.link_url || null,
