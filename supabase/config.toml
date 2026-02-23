@@ -19,7 +19,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.admin-orders]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pix-settings]
 verify_jwt = false
@@ -43,7 +43,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.boleto-settings]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-boleto-order]
 verify_jwt = false
