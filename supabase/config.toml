@@ -1,31 +1,31 @@
 project_id = "cfsxyladsuqicdoyvrab"
 
 [functions.create-payment-link]
-verify_jwt = true
+verify_jwt = false
 
 [functions.infinitepay-webhook]
 verify_jwt = false
 
 [functions.check-payment]
-verify_jwt = true
+verify_jwt = false
 
 [functions.save-bank-account]
-verify_jwt = true
+verify_jwt = false
 
 [functions.manage-coupons]
-verify_jwt = true
+verify_jwt = false
 
 [functions.chat-bot]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-orders]
-verify_jwt = true
+verify_jwt = false
 
 [functions.pix-settings]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-pix-order]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-order-emails]
 verify_jwt = false
@@ -37,40 +37,40 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.focus-nfe]
-verify_jwt = true
+verify_jwt = false
 
 [functions.manage-admins]
-verify_jwt = true
+verify_jwt = false
 
 [functions.boleto-settings]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-boleto-order]
-verify_jwt = true
+verify_jwt = false
 
 [functions.card-gateway-settings]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-pagseguro-payment]
-verify_jwt = true
+verify_jwt = false
 
 [functions.pagseguro-webhook]
 verify_jwt = false
 
 [functions.ai-product-analyzer]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-nutrition-generator]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-file-processor]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-recipe-generator]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-monthly-report]
-verify_jwt = true
+verify_jwt = false
 
 [functions.verify-pending-payments]
 verify_jwt = false
@@ -79,10 +79,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ai-banner-generator]
-verify_jwt = true
+verify_jwt = false
 
 [functions.verify-pix-payment]
-verify_jwt = true
+verify_jwt = false
 
 [functions.process-bank-statement]
-verify_jwt = true
+verify_jwt = false
