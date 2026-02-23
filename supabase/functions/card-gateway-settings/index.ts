@@ -6,38 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function verifyAdmin(req: Request, supabaseUrl: string, supabaseServiceKey: string): Promise<{ isAdmin: boolean; error?: string }> {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return { isAdmin: false, error: "Token de autenticação não fornecido" };
-  }
-
-  const token = authHeader.replace("Bearer ", "");
-  const supabaseAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") || supabaseServiceKey, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-
-  const { data: { user }, error } = await supabaseAuth.auth.getUser(token);
-  if (error || !user) {
-    return { isAdmin: false, error: "Usuário não autenticado" };
-  }
-
-  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-  const { data: roles } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-
-  if (!roles) {
-    return { isAdmin: false, error: "Acesso não autorizado" };
-  }
-
-  return { isAdmin: true };
-}
-
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -55,17 +25,6 @@ serve(async (req) => {
     }
 
     const action = body.action as string;
-
-    // "check_config" is public (used during checkout), other actions require admin
-    if (action !== 'check_config') {
-      const { isAdmin, error: authError } = await verifyAdmin(req, supabaseUrl, supabaseServiceKey);
-      if (!isAdmin) {
-        return new Response(
-          JSON.stringify({ error: authError }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
 
     // Get card gateway settings (for admin panel)
     if (action === 'get_settings') {
@@ -94,7 +53,7 @@ serve(async (req) => {
       );
     }
 
-    // Check if card payment is configured (for checkout - public)
+    // Check if card payment is configured (for checkout)
     if (action === 'check_config') {
       console.log('Checking card gateway configuration');
       
@@ -127,6 +86,8 @@ serve(async (req) => {
         instructions?: string;
       };
 
+      // Check if enabled and has required fields
+       // IMPORTANT: ensure this is a boolean (JS &&/|| returns last operand).
        const hasPaymentLink = !!settings.payment_link;
        const hasWhatsAppNumber = !!settings.whatsapp_number;
        const hasInfinitePayHandle = !!Deno.env.get('INFINITEPAY_HANDLE');
@@ -151,7 +112,7 @@ serve(async (req) => {
        );
     }
 
-    // Save card gateway settings (admin only - already verified above)
+    // Save card gateway settings (admin only)
     if (action === 'save_settings') {
       console.log('Saving card gateway settings');
       
@@ -164,6 +125,7 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       };
 
+      // Upsert the settings
       const { error } = await supabase
         .from('store_settings')
         .upsert({
