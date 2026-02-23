@@ -23,8 +23,38 @@ interface CouponRequest {
   orderTotal?: number;
 }
 
+async function verifyAdmin(req: Request, supabaseUrl: string, supabaseServiceKey: string): Promise<{ isAdmin: boolean; error?: string }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return { isAdmin: false, error: "Token de autenticação não fornecido" };
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabaseAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") || supabaseServiceKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const { data: { user }, error } = await supabaseAuth.auth.getUser(token);
+  if (error || !user) {
+    return { isAdmin: false, error: "Usuário não autenticado" };
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+  const { data: roles } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .maybeSingle();
+
+  if (!roles) {
+    return { isAdmin: false, error: "Acesso não autorizado" };
+  }
+
+  return { isAdmin: true };
+}
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -39,6 +69,17 @@ Deno.serve(async (req) => {
 
     console.log(`[manage-coupons] Action: ${action}`);
 
+    // "validate" is public (used during checkout), all other actions require admin
+    if (action !== "validate") {
+      const { isAdmin, error: authError } = await verifyAdmin(req, supabaseUrl, supabaseServiceKey);
+      if (!isAdmin) {
+        return new Response(
+          JSON.stringify({ error: authError }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     switch (action) {
       case "create": {
         if (!body.coupon?.code || !body.coupon?.discount_value) {
@@ -48,7 +89,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Validate code format (uppercase, alphanumeric, max 20 chars)
         const code = body.coupon.code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
         if (code.length < 3) {
           return new Response(
@@ -194,7 +234,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Check validity period
         const now = new Date();
         if (coupon.valid_from && new Date(coupon.valid_from) > now) {
           return new Response(
@@ -209,7 +248,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Check usage limit
         if (coupon.max_uses && coupon.current_uses >= coupon.max_uses) {
           return new Response(
             JSON.stringify({ valid: false, error: "Cupom atingiu o limite de usos" }),
@@ -217,7 +255,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Check minimum order value
         if (coupon.min_order_value && orderTotal < coupon.min_order_value) {
           return new Response(
             JSON.stringify({ 
@@ -228,7 +265,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Calculate discount
         let discountAmount = 0;
         if (coupon.discount_type === "percentage") {
           discountAmount = (orderTotal * coupon.discount_value) / 100;

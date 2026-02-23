@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,6 +39,16 @@ Instruções:
 - Mantenha respostas curtas e diretas (máximo 3 frases)
 - Para dúvidas sobre pedidos específicos, peça o número do pedido`;
 
+// Input validation schema
+const MessageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().min(1).max(2000),
+});
+
+const RequestSchema = z.object({
+  messages: z.array(MessageSchema).min(1).max(20),
+});
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -45,13 +56,31 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
-
-    if (!messages || !Array.isArray(messages)) {
-      throw new Error('Messages array is required');
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid request format' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log('Received messages:', JSON.stringify(messages));
+    const validationResult = RequestSchema.safeParse(rawBody);
+    if (!validationResult.success) {
+      return new Response(JSON.stringify({ error: 'Invalid message format' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Filter out any 'system' role attempts and sanitize
+    const sanitizedMessages = validationResult.data.messages.map(m => ({
+      role: m.role,
+      content: m.content.substring(0, 2000),
+    }));
+
+    console.log('Received messages count:', sanitizedMessages.length);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -63,7 +92,7 @@ serve(async (req) => {
         model: 'google/gemini-3-flash-preview',
         messages: [
           { role: 'system', content: systemPrompt },
-          ...messages
+          ...sanitizedMessages
         ],
         max_tokens: 500,
         temperature: 0.7,
@@ -77,7 +106,6 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('AI response:', JSON.stringify(data));
 
     const assistantMessage = data.choices[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.';
 
