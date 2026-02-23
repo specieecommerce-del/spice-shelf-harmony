@@ -4,7 +4,7 @@ project_id = "cfsxyladsuqicdoyvrab"
 verify_jwt = true
 
 [functions.infinitepay-webhook]
-verify_jwt = true
+verify_jwt = false
 
 [functions.check-payment]
 verify_jwt = true
@@ -28,13 +28,13 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.send-order-emails]
-verify_jwt = true
+verify_jwt = false
 
 [functions.stock-alert-whatsapp]
-verify_jwt = true
+verify_jwt = false
 
 [functions.order-alert-whatsapp]
-verify_jwt = true
+verify_jwt = false
 
 [functions.focus-nfe]
 verify_jwt = true
@@ -55,7 +55,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.pagseguro-webhook]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-product-analyzer]
 verify_jwt = true
@@ -73,10 +73,10 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.verify-pending-payments]
-verify_jwt = true
+verify_jwt = false
 
 [functions.newsletter-auto-coupon]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-banner-generator]
 verify_jwt = true
