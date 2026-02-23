@@ -1,88 +1,88 @@
 project_id = "cfsxyladsuqicdoyvrab"
 
 [functions.create-payment-link]
-verify_jwt = false
+verify_jwt = true
 
 [functions.infinitepay-webhook]
-verify_jwt = false
+verify_jwt = true
 
 [functions.check-payment]
-verify_jwt = false
+verify_jwt = true
 
 [functions.save-bank-account]
-verify_jwt = false
+verify_jwt = true
 
 [functions.manage-coupons]
-verify_jwt = false
+verify_jwt = true
 
 [functions.chat-bot]
-verify_jwt = false
+verify_jwt = true
 
 [functions.admin-orders]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pix-settings]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-pix-order]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-order-emails]
-verify_jwt = false
+verify_jwt = true
 
 [functions.stock-alert-whatsapp]
-verify_jwt = false
+verify_jwt = true
 
 [functions.order-alert-whatsapp]
-verify_jwt = false
+verify_jwt = true
 
 [functions.focus-nfe]
-verify_jwt = false
+verify_jwt = true
 
 [functions.manage-admins]
-verify_jwt = false
+verify_jwt = true
 
 [functions.boleto-settings]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-boleto-order]
-verify_jwt = false
+verify_jwt = true
 
 [functions.card-gateway-settings]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-pagseguro-payment]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pagseguro-webhook]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-product-analyzer]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-nutrition-generator]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-file-processor]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-recipe-generator]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-monthly-report]
-verify_jwt = false
+verify_jwt = true
 
 [functions.verify-pending-payments]
-verify_jwt = false
+verify_jwt = true
 
 [functions.newsletter-auto-coupon]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-banner-generator]
-verify_jwt = false
+verify_jwt = true
 
 [functions.verify-pix-payment]
-verify_jwt = false
+verify_jwt = true
 
 [functions.process-bank-statement]
-verify_jwt = false
+verify_jwt = true
