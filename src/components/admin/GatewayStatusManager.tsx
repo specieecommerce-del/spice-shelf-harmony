@@ -244,8 +244,14 @@ const GatewayStatusManager = () => {
                     variant="outline" 
                     size="sm"
                     onClick={() => {
-                      // Navigate to settings - this would trigger section change
-                      const event = new CustomEvent('admin-section-change', { detail: 'payments' });
+                      const gatewayKey = gateway.name === "PIX Manual" ? "pix-manual"
+                        : gateway.name === "Boleto" ? "boleto"
+                        : gateway.name === "InfinitePay" ? "infinitepay"
+                        : gateway.name === "PagSeguro" ? "pagseguro"
+                        : "";
+                      const event = new CustomEvent('admin-section-change', { 
+                        detail: { section: 'payments', gateway: gatewayKey } 
+                      });
                       window.dispatchEvent(event);
                     }}
                   >
