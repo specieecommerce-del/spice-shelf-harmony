@@ -45,6 +45,9 @@ verify_jwt = false
 [functions.boleto-settings]
 verify_jwt = false
 
+[functions.admin-boleto-registered-settings]
+verify_jwt = true
+
 [functions.create-boleto-order]
 verify_jwt = false
 
@@ -52,6 +55,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.create-pagseguro-payment]
+verify_jwt = false
+
+[functions.boleto-webhook]
 verify_jwt = false
 
 [functions.pagseguro-webhook]
