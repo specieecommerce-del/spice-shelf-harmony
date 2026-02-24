@@ -93,23 +93,40 @@ const BoletoSettingsManager = () => {
 
     setIsSaving(true);
     try {
+      const payload = {
+        action: "save_boleto",
+        bank_code: settings.bank_code,
+        bank_name: settings.bank_name || COMMON_BANKS[settings.bank_code] || settings.bank_code,
+        agency: settings.agency,
+        account: settings.account,
+        account_type: settings.account_type || "corrente",
+        beneficiary_name: settings.beneficiary_name,
+        beneficiary_document: settings.beneficiary_document,
+        instructions: settings.instructions || "",
+        days_to_expire: settings.days_to_expire || 3,
+      };
+
       const { data, error } = await supabase.functions.invoke("boleto-settings", {
-        body: {
-          action: "save_boleto",
-          ...settings,
-        },
+        body: payload,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Edge function error:", error);
+        const msg = typeof error === "object" && error.message ? error.message : "Erro de conexão com o servidor";
+        toast.error(msg);
+        return;
+      }
 
       if (data?.success) {
         toast.success("Configurações de boleto salvas!");
       } else {
-        throw new Error(data?.error || "Erro ao salvar");
+        const errMsg = data?.error || "Erro desconhecido ao salvar";
+        console.error("Save boleto response error:", data);
+        toast.error(errMsg);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving boleto settings:", error);
-      toast.error("Erro ao salvar configurações");
+      toast.error(error?.message || "Erro ao salvar configurações");
     } finally {
       setIsSaving(false);
     }

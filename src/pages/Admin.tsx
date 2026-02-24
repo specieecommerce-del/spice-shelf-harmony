@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -40,14 +40,55 @@ import GatewayStatusManager from "@/components/admin/GatewayStatusManager";
 import BankConnectionManager from "@/components/admin/BankConnectionManager";
 import ReviewsManager from "@/components/admin/ReviewsManager";
 import NewsletterManager from "@/components/admin/NewsletterManager";
+import PaymentsHub from "@/components/admin/PaymentsHub";
+import CardGatewaySettings from "@/components/settings/CardGatewaySettings";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Admin = () => {
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [activeSection, setActiveSection] = useState("dashboard");
+  const [activeSection, setActiveSection] = useState(searchParams.get("section") || "dashboard");
+  const [activeGateway, setActiveGateway] = useState(searchParams.get("gateway") || "");
+
+  // Sync section/gateway from URL on mount and when URL changes
+  useEffect(() => {
+    const section = searchParams.get("section");
+    const gateway = searchParams.get("gateway");
+    if (section) setActiveSection(section);
+    if (gateway) setActiveGateway(gateway);
+    else setActiveGateway("");
+  }, [searchParams]);
+
+  // Listen for custom events from GatewayStatusManager
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      const detail = e.detail;
+      if (typeof detail === "string") {
+        handleSectionChange(detail);
+      } else if (detail?.section) {
+        handleSectionChange(detail.section, detail.gateway);
+      }
+    };
+    window.addEventListener("admin-section-change", handler as EventListener);
+    return () => window.removeEventListener("admin-section-change", handler as EventListener);
+  }, []);
+
+  const handleSectionChange = (section: string, gateway?: string) => {
+    setActiveSection(section);
+    setActiveGateway(gateway || "");
+    const params: Record<string, string> = { section };
+    if (gateway) params.gateway = gateway;
+    setSearchParams(params);
+  };
+
+  const handleSelectGateway = (gateway: string) => {
+    setActiveGateway(gateway);
+    setSearchParams({ section: "payments", gateway });
+  };
+
   useEffect(() => {
     const checkAdminRole = async () => {
       if (!user) {
@@ -111,10 +152,48 @@ const Admin = () => {
     );
   }
 
+  const renderPaymentsSection = () => {
+    switch (activeGateway) {
+      case "pix-manual":
+        // PIX settings are in the Settings page, redirect there or render inline
+        // For now render a message pointing to settings
+        return (
+          <div className="space-y-4">
+            <Button variant="outline" onClick={() => handleSelectGateway("")}>← Voltar</Button>
+            <p className="text-muted-foreground">Configurações de PIX estão disponíveis em Configurações do Sistema.</p>
+            <Button onClick={() => navigate("/configuracoes")}>Ir para Configurações</Button>
+          </div>
+        );
+      case "boleto":
+        return (
+          <div className="space-y-4">
+            <Button variant="outline" onClick={() => handleSelectGateway("")}>← Voltar</Button>
+            <BoletoSettingsManager />
+          </div>
+        );
+      case "infinitepay":
+        return (
+          <div className="space-y-4">
+            <Button variant="outline" onClick={() => handleSelectGateway("")}>← Voltar</Button>
+            <CardGatewaySettings />
+          </div>
+        );
+      case "pagseguro":
+        return (
+          <div className="space-y-4">
+            <Button variant="outline" onClick={() => handleSelectGateway("")}>← Voltar</Button>
+            <CardGatewaySettings />
+          </div>
+        );
+      default:
+        return <PaymentsHub onSelectGateway={handleSelectGateway} />;
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <AdminSidebar activeSection={activeSection} onSectionChange={setActiveSection} />
+        <AdminSidebar activeSection={activeSection} onSectionChange={(section) => handleSectionChange(section)} />
         
         <main className="flex-1 flex flex-col">
           <header className="h-14 border-b flex items-center px-4 gap-4 bg-card">
@@ -133,10 +212,9 @@ const Admin = () => {
             {activeSection === "nfe" && <FocusNFeSettings />}
             {activeSection === "gateway-status" && <GatewayStatusManager />}
             {activeSection === "bank-connection" && <BankConnectionManager />}
-            {activeSection === "auto-verification" && <AutoVerificationManager />}
             {activeSection === "approved-payments" && <ApprovedPaymentsManager />}
             {activeSection === "payment-logs" && <PaymentLogsManager />}
-            {activeSection === "payments" && <BoletoSettingsManager />}
+            {activeSection === "payments" && renderPaymentsSection()}
             {activeSection === "products" && <ProductsManager />}
             {activeSection === "catalog-order" && <CatalogOrderManager />}
             {activeSection === "ai-products" && <AIProductCreator />}
