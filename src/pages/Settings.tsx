@@ -80,6 +80,12 @@ const Settings = () => {
   const [isSavingPix, setIsSavingPix] = useState(false);
   const [pixSaved, setPixSaved] = useState(false);
   
+  // Store settings
+  const [storeName, setStoreName] = useState("Species - Temperos Naturais");
+  const [storeEmail, setStoreEmail] = useState("");
+  const [storePhone, setStorePhone] = useState("");
+  const [isSavingStore, setIsSavingStore] = useState(false);
+
   // Bank account settings
   const [bankName, setBankName] = useState("");
   const [bankCode, setBankCode] = useState("");
@@ -142,6 +148,20 @@ try {
               setAccountHolder(bankSettings.holder_name || "");
               setCpfCnpj(formatCPFCNPJ(bankSettings.holder_document || ""));
               setBankSaved(true);
+            }
+
+            // Load store settings
+            const { data: storeData } = await supabase
+              .from("store_settings")
+              .select("value")
+              .eq("key", "store_info")
+              .maybeSingle();
+
+            if (storeData?.value) {
+              const si = storeData.value as { store_name?: string; store_email?: string; store_phone?: string };
+              setStoreName(si.store_name || "Species - Temperos Naturais");
+              setStoreEmail(si.store_email || "");
+              setStorePhone(si.store_phone || "");
             }
 
             // Load PIX settings
@@ -990,7 +1010,8 @@ try {
                     <Input
                       id="store-name"
                       placeholder="Species - Temperos Naturais"
-                      defaultValue="Species - Temperos Naturais"
+                      value={storeName}
+                      onChange={(e) => setStoreName(e.target.value)}
                     />
                   </div>
 
@@ -1000,6 +1021,8 @@ try {
                       id="store-email"
                       type="email"
                       placeholder="contato@species.com.br"
+                      value={storeEmail}
+                      onChange={(e) => setStoreEmail(e.target.value)}
                     />
                   </div>
 
@@ -1009,11 +1032,53 @@ try {
                       id="store-phone"
                       type="tel"
                       placeholder="(11) 99999-9999"
+                      value={storePhone}
+                      onChange={(e) => setStorePhone(e.target.value)}
                     />
                   </div>
 
-                  <Button className="w-full bg-spice-forest hover:bg-spice-forest/90">
-                    Salvar configurações da loja
+                  <Button 
+                    className="w-full bg-spice-forest hover:bg-spice-forest/90"
+                    disabled={isSavingStore}
+                    onClick={async () => {
+                      setIsSavingStore(true);
+                      try {
+                        const payload = { store_name: storeName, store_email: storeEmail, store_phone: storePhone };
+                        const { data: existing } = await supabase
+                          .from("store_settings")
+                          .select("id")
+                          .eq("key", "store_info")
+                          .maybeSingle();
+
+                        if (existing) {
+                          const { error } = await supabase
+                            .from("store_settings")
+                            .update({ value: payload as any, updated_at: new Date().toISOString() })
+                            .eq("key", "store_info");
+                          if (error) throw error;
+                        } else {
+                          const { error } = await supabase
+                            .from("store_settings")
+                            .insert({ key: "store_info", value: payload as any });
+                          if (error) throw error;
+                        }
+
+                        toast({ title: "Configurações salvas!", description: "Dados da loja atualizados com sucesso." });
+                      } catch (err) {
+                        toast({ title: "Erro ao salvar", description: err instanceof Error ? err.message : "Tente novamente.", variant: "destructive" });
+                      } finally {
+                        setIsSavingStore(false);
+                      }
+                    }}
+                  >
+                    {isSavingStore ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      "Salvar configurações da loja"
+                    )}
                   </Button>
                 </CardContent>
               </Card>
