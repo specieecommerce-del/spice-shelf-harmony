@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -26,14 +26,33 @@ serve(async (req) => {
 
     const action = body.action as string;
 
-    // Get card gateway settings (for admin panel)
+    // Per-gateway storage keys
+    const allowedGateways = new Set(["infinitepay", "pagseguro"]);
+    function keyForGateway(gateway: unknown) {
+      const g = String(gateway || "");
+      if (!allowedGateways.has(g)) {
+        throw new Error("Gateway inválido");
+      }
+      return `card_gateway_${g}`;
+    }
+
+    // Get settings for a specific gateway
     if (action === 'get_settings') {
-      console.log('Getting card gateway settings');
+      const gateway = body.gateway;
+      let key: string;
+      try {
+        key = keyForGateway(gateway);
+      } catch (e) {
+        return new Response(
+          JSON.stringify({ error: (e as Error).message }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       
       const { data, error } = await supabase
         .from('store_settings')
         .select('value')
-        .eq('key', 'card_gateway')
+        .eq('key', key)
         .maybeSingle();
 
       if (error) {
@@ -46,21 +65,29 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ 
-          settings: data?.value || null,
-          configured: !!data?.value 
+          settings: data?.value ?? { enabled: false, payment_link: "", whatsapp_number: "", instructions: "" }
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if card payment is configured (for checkout)
+    // Check if a specific gateway is configured
     if (action === 'check_config') {
-      console.log('Checking card gateway configuration');
+      const gateway = body.gateway;
+      let key: string;
+      try {
+        key = keyForGateway(gateway);
+      } catch (e) {
+        return new Response(
+          JSON.stringify({ configured: false, error: (e as Error).message }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       
       const { data, error } = await supabase
         .from('store_settings')
         .select('value')
-        .eq('key', 'card_gateway')
+        .eq('key', key)
         .maybeSingle();
 
       if (error) {
@@ -73,55 +100,40 @@ serve(async (req) => {
 
       if (!data?.value) {
         return new Response(
-          JSON.stringify({ configured: false, reason: 'Not configured' }),
+          JSON.stringify({ configured: false }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-       const settings = data.value as {
-        enabled?: boolean;
-        gateway_type?: string;
-        payment_link?: string;
-        whatsapp_number?: string;
-        instructions?: string;
-      };
+      const settings = data.value as { enabled?: boolean } | null;
+      const isConfigured = settings?.enabled === true;
 
-      // Check if enabled and has required fields
-       // IMPORTANT: ensure this is a boolean (JS &&/|| returns last operand).
-       const hasPaymentLink = !!settings.payment_link;
-       const hasWhatsAppNumber = !!settings.whatsapp_number;
-       const hasInfinitePayHandle = !!Deno.env.get('INFINITEPAY_HANDLE');
-       const hasPagSeguroCredentials = !!(Deno.env.get('PAGSEGURO_EMAIL') && Deno.env.get('PAGSEGURO_TOKEN'));
-       const isConfigured = settings.enabled === true && (
-         (settings.gateway_type === 'external_link' && hasPaymentLink) ||
-         (settings.gateway_type === 'whatsapp' && hasWhatsAppNumber) ||
-         (settings.gateway_type === 'infinitepay' && hasInfinitePayHandle) ||
-         (settings.gateway_type === 'pagseguro' && hasPagSeguroCredentials) ||
-         (settings.gateway_type === 'manual')
-       );
-
-       return new Response(
-         JSON.stringify({
-           configured: !!isConfigured,
-           gateway_type: settings.gateway_type,
-           payment_link: settings.payment_link,
-           whatsapp_number: settings.whatsapp_number,
-           instructions: settings.instructions,
-         }),
-         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-       );
+      return new Response(
+        JSON.stringify({
+          configured: !!isConfigured,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Save card gateway settings (admin only)
+    // Save settings for a specific gateway
     if (action === 'save_settings') {
-      console.log('Saving card gateway settings');
-      
+      const gateway = body.gateway;
+      let key: string;
+      try {
+        key = keyForGateway(gateway);
+      } catch (e) {
+        return new Response(
+          JSON.stringify({ error: (e as Error).message }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       const settingsToSave = {
         enabled: body.enabled === true,
-        gateway_type: body.gateway_type || 'manual',
-        payment_link: body.payment_link || '',
-        whatsapp_number: body.whatsapp_number || '',
-        instructions: body.instructions || '',
+        payment_link: String(body.payment_link || ''),
+        whatsapp_number: String(body.whatsapp_number || ''),
+        instructions: String(body.instructions || ''),
         updated_at: new Date().toISOString(),
       };
 
@@ -129,7 +141,7 @@ serve(async (req) => {
       const { error } = await supabase
         .from('store_settings')
         .upsert({
-          key: 'card_gateway',
+          key,
           value: settingsToSave,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'key' });
