@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 type GatewayType = 'external_link' | 'whatsapp' | 'manual' | 'infinitepay' | 'pagseguro';
@@ -21,6 +22,8 @@ interface CardGatewaySettingsData {
 
 const CardGatewaySettings = () => {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const gatewayKey = (searchParams.get("gateway") || "pagseguro") as GatewayType;
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -36,7 +39,7 @@ const CardGatewaySettings = () => {
     const loadSettings = async () => {
       try {
         const { data, error } = await supabase.functions.invoke("card-gateway-settings", {
-          body: { action: "get_settings" },
+          body: { action: "get_settings", gateway: gatewayKey },
         });
 
         if (error) {
@@ -67,6 +70,7 @@ const CardGatewaySettings = () => {
       const { data, error } = await supabase.functions.invoke("card-gateway-settings", {
         body: {
           action: "save_settings",
+          gateway: gatewayKey,
           ...settings,
         },
       });
@@ -104,7 +108,7 @@ const CardGatewaySettings = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="h-5 w-5 text-spice-forest" />
-          Pagamento com Cartão
+          {gatewayKey === "infinitepay" ? "InfinitePay" : gatewayKey === "pagseguro" ? "PagSeguro" : "Pagamento com Cartão"}
         </CardTitle>
         <CardDescription>
           Configure como seus clientes podem pagar com cartão de crédito ou débito.
