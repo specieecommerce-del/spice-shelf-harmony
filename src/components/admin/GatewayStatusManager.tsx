@@ -44,11 +44,17 @@ const GatewayStatusManager = () => {
         .select("value")
         .eq("key", "boleto_settings")
         .maybeSingle();
+      const { data: boletoLegacyRow } = await supabase
+        .from("store_settings")
+        .select("value")
+        .eq("key", "boleto_registered_settings")
+        .maybeSingle();
 
       const infinitePay = (infinitePayRow?.value ?? null) as { enabled?: boolean } | null;
       const pagSeguro = (pagSeguroRow?.value ?? null) as { enabled?: boolean; gateway_type?: string } | null;
       const pix = (pixRow?.value ?? null) as { pix_key?: string } | null;
       const boletoVal = (boletoRow?.value ?? null) as Record<string, unknown> | null;
+      const boletoLegacy = (boletoLegacyRow?.value ?? null) as Record<string, unknown> | null;
 
       const boletoEnabled = (() => {
         if (!boletoVal) return false;
@@ -62,6 +68,14 @@ const GatewayStatusManager = () => {
         const registered = (boletoVal["registered"] ?? {}) as Record<string, unknown>;
         const bank = (registered["bank"] ?? {}) as Record<string, unknown>;
         return Boolean((bank["code"] ?? "").toString().trim());
+      })();
+      const boletoLegacyEnabled = (() => {
+        if (!boletoLegacy) return false;
+        const enabled = Boolean(boletoLegacy["enabled"] ?? true);
+        const mode = String(boletoLegacy["mode"] || "");
+        if (mode !== "registered") return false;
+        const bank = (boletoLegacy["bank"] ?? {}) as Record<string, unknown>;
+        return enabled && Boolean(String(bank["code"] || "").trim());
       })();
 
       const gatewayList: GatewayStatus[] = [
@@ -86,13 +100,13 @@ const GatewayStatusManager = () => {
           description: "PIX com QR Code gerado pelo sistema",
           webhookUrl: undefined,
         },
-        {
-          name: "Boleto",
-          icon: <Receipt className="h-5 w-5" />,
-          status: boletoEnabled ? "active" : "inactive",
-          description: "Boleto bancário (configurar gateway)",
-          webhookUrl: undefined,
-        },
+          {
+            name: "Boleto",
+            icon: <Receipt className="h-5 w-5" />,
+            status: boletoEnabled || boletoLegacyEnabled ? "active" : "inactive",
+            description: "Boleto bancário (configurar gateway)",
+            webhookUrl: undefined,
+          },
         {
           name: "Nubank PJ",
           icon: <Building2 className="h-5 w-5" />,
