@@ -25,92 +25,55 @@ const GatewayStatusManager = () => {
     const url = import.meta.env.VITE_SUPABASE_URL || "";
     setProjectUrl(url);
     try {
-      const { data: infinitePayRow } = await supabase
-        .from("store_settings")
-        .select("value")
-        .eq("key", "card_gateway_infinitepay")
-        .maybeSingle();
-      const { data: pagSeguroRow } = await supabase
-        .from("store_settings")
-        .select("value")
-        .eq("key", "card_gateway_pagseguro")
-        .maybeSingle();
-      const { data: pixRow } = await supabase
-        .from("store_settings")
-        .select("value")
-        .eq("key", "pix_settings")
-        .maybeSingle();
+      const { data: infData } = await supabase.functions.invoke("card-gateway-settings", {
+        body: { action: "get_settings", gateway: "infinitepay" },
+      });
+      const { data: pagData } = await supabase.functions.invoke("card-gateway-settings", {
+        body: { action: "get_settings", gateway: "pagseguro" },
+      });
+      const { data: pixData } = await supabase.functions.invoke("pix-settings", {
+        body: { action: "get_pix_for_payment" },
+      });
+      const { data: boletoData } = await supabase.functions.invoke("boleto-settings", {
+        body: { action: "get_boleto_for_payment" },
+      });
       const { data: pixOverrideRow } = await supabase
         .from("store_settings")
         .select("value")
         .eq("key", "pix_settings_override")
         .maybeSingle();
-      const { data: boletoRow } = await supabase
-        .from("store_settings")
-        .select("value")
-        .eq("key", "boleto_settings")
-        .maybeSingle();
-      const { data: boletoLegacyRow } = await supabase
-        .from("store_settings")
-        .select("value")
-        .eq("key", "boleto_registered_settings")
-        .maybeSingle();
-
-      const infinitePay = (infinitePayRow?.value ?? null) as { enabled?: boolean } | null;
-      const pagSeguro = (pagSeguroRow?.value ?? null) as { enabled?: boolean; gateway_type?: string } | null;
-      const pix = (pixRow?.value ?? null) as { pix_key?: string } | null;
       const pixOverride = (pixOverrideRow?.value ?? null) as { enabled?: boolean } | null;
-      const boletoVal = (boletoRow?.value ?? null) as Record<string, unknown> | null;
-      const boletoLegacy = (boletoLegacyRow?.value ?? null) as Record<string, unknown> | null;
-
-      const boletoEnabled = (() => {
-        if (!boletoVal) return false;
-        const enabled = Boolean(boletoVal["enabled"]);
-        const mode = String(boletoVal["mode"] || "manual");
-        if (!enabled) return false;
-        if (mode === "manual") {
-          const manual = (boletoVal["manual"] ?? {}) as Record<string, unknown>;
-          return Boolean(manual["bank_code"] && manual["beneficiary_name"] && manual["beneficiary_document"]);
-        }
-        const registered = (boletoVal["registered"] ?? {}) as Record<string, unknown>;
-        const bank = (registered["bank"] ?? {}) as Record<string, unknown>;
-        return Boolean((bank["code"] ?? "").toString().trim());
-      })();
-      const boletoLegacyEnabled = (() => {
-        if (!boletoLegacy) return false;
-        const enabled = Boolean(boletoLegacy["enabled"] ?? true);
-        const mode = String(boletoLegacy["mode"] || "");
-        if (mode !== "registered") return false;
-        const bank = (boletoLegacy["bank"] ?? {}) as Record<string, unknown>;
-        return enabled && Boolean(String(bank["code"] || "").trim());
-      })();
+      const infinitePayEnabled = Boolean(infData?.settings?.enabled);
+      const pagSeguroEnabled = Boolean(pagData?.settings?.enabled) || pagData?.settings?.gateway_type === "pagseguro";
+      const pixActive = typeof pixOverride?.enabled === "boolean" ? pixOverride.enabled : Boolean(pixData?.configured);
+      const boletoEnabled = Boolean(boletoData?.configured);
 
       const gatewayList: GatewayStatus[] = [
         {
           name: "InfinitePay",
           icon: <CreditCard className="h-5 w-5" />,
-          status: infinitePay?.enabled ? "active" : "inactive",
+          status: infinitePayEnabled ? "active" : "inactive",
           description: "Cartão de crédito/débito e PIX via InfinitePay",
           webhookUrl: `${url}/functions/v1/infinitepay-webhook`,
         },
         {
           name: "PagSeguro",
           icon: <CreditCard className="h-5 w-5" />,
-          status: pagSeguro?.enabled || pagSeguro?.gateway_type === "pagseguro" ? "active" : "inactive",
+          status: pagSeguroEnabled ? "active" : "inactive",
           description: "Cartão de crédito/débito via PagSeguro",
           webhookUrl: `${url}/functions/v1/pagseguro-webhook`,
         },
           {
             name: "PIX Manual",
             icon: <Wallet className="h-5 w-5" />,
-            status: pix?.pix_key || (pixOverride && pixOverride.enabled !== false) ? "active" : "inactive",
+            status: pixActive ? "active" : "inactive",
             description: "PIX com QR Code gerado pelo sistema",
             webhookUrl: undefined,
           },
           {
             name: "Boleto",
             icon: <Receipt className="h-5 w-5" />,
-            status: boletoEnabled || boletoLegacyEnabled ? "active" : "inactive",
+            status: boletoEnabled ? "active" : "inactive",
             description: "Boleto bancário (configurar gateway)",
             webhookUrl: undefined,
           },
