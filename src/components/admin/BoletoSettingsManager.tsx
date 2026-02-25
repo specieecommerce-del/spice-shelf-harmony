@@ -21,6 +21,37 @@ interface BoletoSettings {
   days_to_expire: number;
 }
 
+type Mode = "manual" | "registered";
+interface RegisteredSettings {
+  enabled: boolean;
+  provider: string;
+  bank: {
+    code: string;
+    name: string;
+    wallet: string;
+    agreement: string;
+    agency: string;
+    account: string;
+    account_dv: string;
+    beneficiary_name: string;
+    beneficiary_document: string;
+  };
+  api: {
+    type: "cnab" | "api";
+    environment: "homolog" | "production";
+    endpoint: string;
+    client_id: string;
+    client_secret: string;
+    certificate_ref: string;
+  };
+  billing: {
+    days_to_expire: number;
+    fine_percent: number;
+    interest_percent_month: number;
+    instructions: string;
+  };
+}
+
 const COMMON_BANKS: Record<string, string> = {
   "001": "Banco do Brasil",
   "033": "Santander",
@@ -43,6 +74,7 @@ const COMMON_BANKS: Record<string, string> = {
 const BoletoSettingsManager = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [mode, setMode] = useState<Mode>("manual");
   const [settings, setSettings] = useState<BoletoSettings>({
     bank_code: "",
     bank_name: "",
@@ -53,6 +85,35 @@ const BoletoSettingsManager = () => {
     beneficiary_document: "",
     instructions: "Após efetuar o pagamento, envie o comprovante por WhatsApp ou email.",
     days_to_expire: 3,
+  });
+  const [regSettings, setRegSettings] = useState<RegisteredSettings>({
+    enabled: true,
+    provider: "",
+    bank: {
+      code: "",
+      name: "",
+      wallet: "",
+      agreement: "",
+      agency: "",
+      account: "",
+      account_dv: "",
+      beneficiary_name: "",
+      beneficiary_document: "",
+    },
+    api: {
+      type: "cnab",
+      environment: "homolog",
+      endpoint: "",
+      client_id: "",
+      client_secret: "",
+      certificate_ref: "",
+    },
+    billing: {
+      days_to_expire: 3,
+      fine_percent: 0,
+      interest_percent_month: 0,
+      instructions: "",
+    },
   });
 
   useEffect(() => {
@@ -69,6 +130,43 @@ const BoletoSettingsManager = () => {
 
       if (data?.settings) {
         setSettings(data.settings);
+        setMode("manual");
+      }
+      const regRes = await supabase.functions.invoke("admin-boleto-registered-settings", {
+        body: { action: "get_settings" },
+      });
+      if (regRes.data?.settings) {
+        const s = regRes.data.settings as RegisteredSettings;
+        setRegSettings({
+          enabled: s.enabled ?? true,
+          provider: s.provider ?? "",
+          bank: {
+            code: s.bank?.code ?? "",
+            name: s.bank?.name ?? "",
+            wallet: s.bank?.wallet ?? "",
+            agreement: s.bank?.agreement ?? "",
+            agency: s.bank?.agency ?? "",
+            account: s.bank?.account ?? "",
+            account_dv: s.bank?.account_dv ?? "",
+            beneficiary_name: s.bank?.beneficiary_name ?? "",
+            beneficiary_document: s.bank?.beneficiary_document ?? "",
+          },
+          api: {
+            type: s.api?.type ?? "cnab",
+            environment: s.api?.environment ?? "homolog",
+            endpoint: s.api?.endpoint ?? "",
+            client_id: s.api?.client_id ?? "",
+            client_secret: "",
+            certificate_ref: s.api?.certificate_ref ?? "",
+          },
+          billing: {
+            days_to_expire: s.billing?.days_to_expire ?? 3,
+            fine_percent: s.billing?.fine_percent ?? 0,
+            interest_percent_month: s.billing?.interest_percent_month ?? 0,
+            instructions: s.billing?.instructions ?? "",
+          },
+        });
+        setMode("registered");
       }
     } catch (error) {
       try {
@@ -90,6 +188,7 @@ const BoletoSettingsManager = () => {
             instructions: String(v["manual"]?.["instructions"] || "Após efetuar o pagamento, envie o comprovante por WhatsApp ou email."),
             days_to_expire: Number(v["manual"]?.["days_to_expire"] || 3),
           });
+          setMode(String(v["mode"] || "manual") as Mode);
         }
       } catch (e) {
         console.error("Error fetching boleto settings:", e);
@@ -108,44 +207,50 @@ const BoletoSettingsManager = () => {
   };
 
   const handleSave = async () => {
-    if (!settings.bank_code || !settings.agency || !settings.account || !settings.beneficiary_name || !settings.beneficiary_document) {
-      toast.error("Preencha todos os campos obrigatórios");
-      return;
-    }
-
     setIsSaving(true);
     try {
-      const payload = {
-        action: "save_boleto",
-        bank_code: settings.bank_code,
-        bank_name: settings.bank_name || COMMON_BANKS[settings.bank_code] || settings.bank_code,
-        agency: settings.agency,
-        account: settings.account,
-        account_type: settings.account_type || "corrente",
-        beneficiary_name: settings.beneficiary_name,
-        beneficiary_document: settings.beneficiary_document,
-        instructions: settings.instructions || "",
-        days_to_expire: settings.days_to_expire || 3,
-      };
-
-      const { data, error } = await supabase.functions.invoke("boleto-settings", {
-        body: payload,
-      });
-
-      if (error) {
-        console.error("Edge function error:", error);
-        const msg = typeof error === "object" && error.message ? error.message : "Erro de conexão com o servidor";
-        toast.error(msg);
-        return;
-      }
-
-      if (data?.success) {
-        toast.success("Configurações de boleto salvas!");
+      if (mode === "registered") {
+        const value: RegisteredSettings = {
+          enabled: regSettings.enabled,
+          provider: regSettings.provider,
+          bank: regSettings.bank,
+          api: regSettings.api,
+          billing: regSettings.billing,
+        };
+        const { data, error } = await supabase.functions.invoke("admin-boleto-registered-settings", {
+          body: { action: "save_settings", value: { ...value, mode: "registered" } },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
       } else {
-        const errMsg = data?.error || "Erro desconhecido ao salvar";
-        console.error("Save boleto response error:", data);
-        toast.error(errMsg);
+        if (!settings.bank_code || !settings.agency || !settings.account || !settings.beneficiary_name || !settings.beneficiary_document) {
+          toast.error("Preencha todos os campos obrigatórios");
+          return;
+        }
+        const payload = {
+          action: "save_boleto",
+          bank_code: settings.bank_code,
+          bank_name: settings.bank_name || COMMON_BANKS[settings.bank_code] || settings.bank_code,
+          agency: settings.agency,
+          account: settings.account,
+          account_type: settings.account_type || "corrente",
+          beneficiary_name: settings.beneficiary_name,
+          beneficiary_document: settings.beneficiary_document,
+          instructions: settings.instructions || "",
+          days_to_expire: settings.days_to_expire || 3,
+        };
+        const { data, error } = await supabase.functions.invoke("boleto-settings", {
+          body: payload,
+        });
+        if (error) {
+          const msg = typeof error === "object" && (error as any).message ? (error as any).message : "Erro de conexão com o servidor";
+          toast.error(msg);
+          return;
+        }
+        if (data?.error) throw new Error(data.error);
       }
+
+      toast.success("Configurações salvas!");
     } catch (error: any) {
       console.error("Error saving boleto settings:", error);
       toast.error(error?.message || "Erro ao salvar configurações");
@@ -175,13 +280,31 @@ const BoletoSettingsManager = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Modo</Label>
+            <Select value={mode} onValueChange={(m) => setMode(m as Mode)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">Manual</SelectItem>
+                <SelectItem value="registered">Registrado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {/* Bank Selection */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="bank_code">Código do Banco *</Label>
               <Select
-                value={settings.bank_code}
-                onValueChange={handleBankCodeChange}
+                value={mode === "registered" ? regSettings.bank.code : settings.bank_code}
+                onValueChange={(code) => {
+                  if (mode === "registered") {
+                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, code, name: COMMON_BANKS[code] || prev.bank.name } }));
+                  } else {
+                    handleBankCodeChange(code);
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o banco" />
@@ -200,8 +323,14 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="bank_name">Nome do Banco</Label>
               <Input
                 id="bank_name"
-                value={settings.bank_name}
-                onChange={(e) => setSettings({ ...settings, bank_name: e.target.value })}
+                value={mode === "registered" ? regSettings.bank.name : settings.bank_name}
+                onChange={(e) => {
+                  if (mode === "registered") {
+                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, name: e.target.value } }));
+                  } else {
+                    setSettings({ ...settings, bank_name: e.target.value });
+                  }
+                }}
                 placeholder="Nome do banco"
               />
             </div>
@@ -213,8 +342,14 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="agency">Agência *</Label>
               <Input
                 id="agency"
-                value={settings.agency}
-                onChange={(e) => setSettings({ ...settings, agency: e.target.value })}
+                value={mode === "registered" ? regSettings.bank.agency : settings.agency}
+                onChange={(e) => {
+                  if (mode === "registered") {
+                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, agency: e.target.value } }));
+                  } else {
+                    setSettings({ ...settings, agency: e.target.value });
+                  }
+                }}
                 placeholder="0001"
               />
             </div>
@@ -223,8 +358,14 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="account">Conta *</Label>
               <Input
                 id="account"
-                value={settings.account}
-                onChange={(e) => setSettings({ ...settings, account: e.target.value })}
+                value={mode === "registered" ? regSettings.bank.account : settings.account}
+                onChange={(e) => {
+                  if (mode === "registered") {
+                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, account: e.target.value } }));
+                  } else {
+                    setSettings({ ...settings, account: e.target.value });
+                  }
+                }}
                 placeholder="12345-6"
               />
             </div>
@@ -232,8 +373,14 @@ const BoletoSettingsManager = () => {
             <div className="space-y-2">
               <Label htmlFor="account_type">Tipo de Conta</Label>
               <Select
-                value={settings.account_type}
-                onValueChange={(value) => setSettings({ ...settings, account_type: value })}
+                value={mode === "registered" ? "corrente" : settings.account_type}
+                onValueChange={(value) => {
+                  if (mode === "registered") {
+                    // keep corrente for registered
+                  } else {
+                    setSettings({ ...settings, account_type: value });
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -253,8 +400,14 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="beneficiary_name">Nome do Favorecido *</Label>
               <Input
                 id="beneficiary_name"
-                value={settings.beneficiary_name}
-                onChange={(e) => setSettings({ ...settings, beneficiary_name: e.target.value })}
+                value={mode === "registered" ? regSettings.bank.beneficiary_name : settings.beneficiary_name}
+                onChange={(e) => {
+                  if (mode === "registered") {
+                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, beneficiary_name: e.target.value } }));
+                  } else {
+                    setSettings({ ...settings, beneficiary_name: e.target.value });
+                  }
+                }}
                 placeholder="Nome completo ou razão social"
               />
             </div>
@@ -263,8 +416,14 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="beneficiary_document">CPF/CNPJ *</Label>
               <Input
                 id="beneficiary_document"
-                value={settings.beneficiary_document}
-                onChange={(e) => setSettings({ ...settings, beneficiary_document: e.target.value })}
+                value={mode === "registered" ? regSettings.bank.beneficiary_document : settings.beneficiary_document}
+                onChange={(e) => {
+                  if (mode === "registered") {
+                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, beneficiary_document: e.target.value } }));
+                  } else {
+                    setSettings({ ...settings, beneficiary_document: e.target.value });
+                  }
+                }}
                 placeholder="000.000.000-00 ou 00.000.000/0001-00"
               />
             </div>
@@ -275,8 +434,14 @@ const BoletoSettingsManager = () => {
             <Label htmlFor="instructions">Instruções para o cliente</Label>
             <Textarea
               id="instructions"
-              value={settings.instructions}
-              onChange={(e) => setSettings({ ...settings, instructions: e.target.value })}
+              value={mode === "registered" ? regSettings.billing.instructions : settings.instructions}
+              onChange={(e) => {
+                if (mode === "registered") {
+                  setRegSettings((prev) => ({ ...prev, billing: { ...prev.billing, instructions: e.target.value } }));
+                } else {
+                  setSettings({ ...settings, instructions: e.target.value });
+                }
+              }}
               placeholder="Instruções que aparecerão para o cliente..."
               rows={3}
             />
@@ -290,8 +455,15 @@ const BoletoSettingsManager = () => {
               type="number"
               min="1"
               max="30"
-              value={settings.days_to_expire}
-              onChange={(e) => setSettings({ ...settings, days_to_expire: parseInt(e.target.value) || 3 })}
+              value={mode === "registered" ? regSettings.billing.days_to_expire : settings.days_to_expire}
+              onChange={(e) => {
+                const v = parseInt(e.target.value) || 3;
+                if (mode === "registered") {
+                  setRegSettings((prev) => ({ ...prev, billing: { ...prev.billing, days_to_expire: v } }));
+                } else {
+                  setSettings({ ...settings, days_to_expire: v });
+                }
+              }}
               className="w-32"
             />
             <p className="text-xs text-muted-foreground">
@@ -300,7 +472,7 @@ const BoletoSettingsManager = () => {
           </div>
 
           {/* Preview */}
-          {settings.bank_code && settings.beneficiary_name && (
+          {mode === "manual" && settings.bank_code && settings.beneficiary_name && (
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Building2 className="h-4 w-4" />
