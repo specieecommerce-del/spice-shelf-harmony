@@ -1,3 +1,4 @@
+/// <reference path="../deno-shims.d.ts" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
@@ -181,12 +182,51 @@ serve(async (req: Request) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      const unifiedValue = {
+        enabled: Boolean(valueToSave.enabled ?? true),
+        mode: "registered",
+        provider,
+        environment: env === "homolog" ? "sandbox" : "production",
+        days_to_expire: Number(valueToSave.billing?.days_to_expire ?? 3),
+        instructions: String(valueToSave.billing?.instructions ?? ""),
+        registered: {
+          bank: {
+            code: String(valueToSave.bank?.code ?? "").trim(),
+            name: String(valueToSave.bank?.name ?? "").trim(),
+          },
+          agency: String(valueToSave.bank?.agency ?? "").trim(),
+          account: String(valueToSave.bank?.account ?? "").trim(),
+          account_digit: String(valueToSave.bank?.account_dv ?? "").trim(),
+          wallet: String(valueToSave.bank?.wallet ?? "").trim(),
+          convenio: String(valueToSave.bank?.agreement ?? "").trim(),
+          beneficiary_name: String(valueToSave.bank?.beneficiary_name ?? "").trim(),
+          beneficiary_document: String(valueToSave.bank?.beneficiary_document ?? "").trim(),
+          interest_percent: Number(valueToSave.billing?.interest_percent_month ?? 0),
+          fine_percent: Number(valueToSave.billing?.fine_percent ?? 0),
+          webhook_secret: "",
+          credentials: {
+            api_endpoint: String(valueToSave.api?.endpoint ?? "").trim(),
+            client_id: String(valueToSave.api?.client_id ?? "").trim(),
+            client_secret: String(valueToSave.api?.client_secret ?? "").trim(),
+            certificate_ref: String(valueToSave.api?.certificate_ref ?? "").trim(),
+          },
+        },
+        manual: {
+          bank_code: "",
+          bank_name: "",
+          agency: "",
+          account: "",
+          account_type: "corrente",
+          beneficiary_name: "",
+          beneficiary_document: "",
+        },
+      };
       await supabase
         .from("store_settings")
         .upsert(
           {
-            key: "boleto_registered_settings",
-            value: valueToSave,
+            key: "boleto_settings",
+            value: unifiedValue,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "key" }

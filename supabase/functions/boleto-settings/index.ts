@@ -1,3 +1,4 @@
+/// <reference path="../deno-shims.d.ts" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -6,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, accept, prefer',
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -96,21 +97,52 @@ serve(async (req) => {
       }
 
       if (!boletoSettings?.value) {
+        // Fallback: check legacy/admin stored registered settings
+        const { data: regSettings } = await supabase
+          .from('store_settings')
+          .select('value')
+          .eq('key', 'boleto_registered_settings')
+          .maybeSingle();
+        const rv = regSettings?.value as Record<string, unknown> | undefined;
+        if (rv && String(rv['mode'] || '') === 'registered') {
+          const enabled = Boolean(rv['enabled'] ?? true);
+          const bank = (rv['bank'] ?? {}) as Record<string, unknown>;
+          const configured = enabled && Boolean(String(bank['code'] || '').trim());
+          const days_to_expire = Number(((rv['billing'] as Record<string, unknown> | undefined)?.['days_to_expire'] ?? 3));
+          const instructions = String(((rv['billing'] as Record<string, unknown> | undefined)?.['instructions'] ?? ''));
+          const environment = String(((rv['api'] as Record<string, unknown> | undefined)?.['environment'] ?? 'homolog')) === 'homolog'
+            ? 'sandbox' : 'production';
+          if (configured) {
+            return new Response(
+              JSON.stringify({
+                configured: true,
+                mode: 'registered',
+                provider: String(rv['provider'] || ''),
+                environment,
+                instructions,
+                days_to_expire,
+                bank_code: String(bank['code'] || ''),
+                bank_name: String(bank['name'] || ''),
+              }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
         return new Response(
           JSON.stringify({ error: 'Boleto não configurado', configured: false }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const v = boletoSettings.value as Record<string, unknown>;
+      const v2 = boletoSettings.value as Record<string, unknown>;
       // Backward compatibility: support flat schema and new schema
-      const isNewSchema = typeof v?.['mode'] === 'string' || v?.['manual'] || v?.['enabled'] !== undefined;
+      const isNewSchema = typeof v2?.['mode'] === 'string' || v2?.['manual'] || v2?.['enabled'] !== undefined;
       if (isNewSchema) {
-        const enabled = Boolean(v['enabled']);
-        const mode = String(v['mode'] || 'manual') as 'manual' | 'registered';
-        const days_to_expire = Number(v['days_to_expire'] ?? 3);
-        const instructions = String(v['instructions'] ?? '');
-        const manual = (v['manual'] ?? {}) as Record<string, unknown>;
+        const enabled = Boolean(v2['enabled']);
+        const mode = String(v2['mode'] || 'manual') as 'manual' | 'registered';
+        const days_to_expire = Number(v2['days_to_expire'] ?? 3);
+        const instructions = String(v2['instructions'] ?? '');
+        const manual = (v2['manual'] ?? {}) as Record<string, unknown>;
         const configured =
           enabled &&
           (mode === 'manual'
@@ -143,13 +175,13 @@ serve(async (req) => {
           );
         } else {
           // Registered mode: for now expose configured flag and basics; provider integration will use this
-          const registered = (v['registered'] ?? {}) as Record<string, unknown>;
+          const registered = (v2['registered'] ?? {}) as Record<string, unknown>;
           return new Response(
             JSON.stringify({
               configured: true,
               mode,
-              provider: String(registered['provider'] || v['provider'] || ''),
-              environment: String(v['environment'] ?? 'sandbox'),
+              provider: String(registered['provider'] || v2['provider'] || ''),
+              environment: String(v2['environment'] ?? 'sandbox'),
               instructions,
               days_to_expire,
             }),
