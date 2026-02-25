@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, FileText, Save, Building2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface BoletoSettings {
   bank_code: string;
@@ -293,6 +294,92 @@ const BoletoSettingsManager = () => {
             </Select>
           </div>
           {/* Bank Selection */}
+          {mode === "registered" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                <div className="space-y-1">
+                  <p className={`font-medium ${regSettings.enabled ? "text-green-700" : "text-amber-700"}`}>
+                    {regSettings.enabled ? "Boleto Registrado ativado" : "Boleto Registrado desativado"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Ative para receber pagamentos com emissão registrada
+                  </p>
+                </div>
+                <Switch checked={regSettings.enabled} onCheckedChange={(checked) => setRegSettings((prev) => ({ ...prev, enabled: checked }))} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Provedor</Label>
+                  <Input
+                    value={regSettings.provider}
+                    onChange={(e) => setRegSettings((prev) => ({ ...prev, provider: e.target.value }))}
+                    placeholder="Ex.: bank_bradesco, api_pagseguro"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo de Integração</Label>
+                  <Select
+                    value={regSettings.api.type}
+                    onValueChange={(val) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, type: val as RegisteredSettings['api']['type'] } }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cnab">CNAB</SelectItem>
+                      <SelectItem value="api">API</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Ambiente</Label>
+                  <Select
+                    value={regSettings.api.environment}
+                    onValueChange={(val) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, environment: val as RegisteredSettings['api']['environment'] } }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="homolog">Homologação</SelectItem>
+                      <SelectItem value="production">Produção</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Endpoint da API</Label>
+                  <Input
+                    value={regSettings.api.endpoint}
+                    onChange={(e) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, endpoint: e.target.value } }))}
+                    placeholder="https://api.exemplo.com/boletos"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Client ID</Label>
+                  <Input
+                    value={regSettings.api.client_id}
+                    onChange={(e) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, client_id: e.target.value } }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Client Secret</Label>
+                  <Input
+                    type="password"
+                    value={regSettings.api.client_secret}
+                    onChange={(e) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, client_secret: e.target.value } }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Certificate Ref</Label>
+                  <Input
+                    value={regSettings.api.certificate_ref}
+                    onChange={(e) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, certificate_ref: e.target.value } }))}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="bank_code">Código do Banco *</Label>
@@ -393,6 +480,37 @@ const BoletoSettingsManager = () => {
               </Select>
             </div>
           </div>
+          {mode === "registered" && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="account_dv">Dígito da Conta</Label>
+                <Input
+                  id="account_dv"
+                  value={regSettings.bank.account_dv}
+                  onChange={(e) => setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, account_dv: e.target.value } }))}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="wallet">Carteira</Label>
+                <Input
+                  id="wallet"
+                  value={regSettings.bank.wallet}
+                  onChange={(e) => setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, wallet: e.target.value } }))}
+                  placeholder="Ex.: 17"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="agreement">Convênio</Label>
+                <Input
+                  id="agreement"
+                  value={regSettings.bank.agreement}
+                  onChange={(e) => setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, agreement: e.target.value } }))}
+                  placeholder="Ex.: 123456"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Beneficiary Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -470,6 +588,46 @@ const BoletoSettingsManager = () => {
               Prazo para o cliente efetuar o pagamento
             </p>
           </div>
+          {mode === "registered" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fine_percent">Multa (%)</Label>
+                <Input
+                  id="fine_percent"
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={regSettings.billing.fine_percent}
+                  onChange={(e) =>
+                    setRegSettings((prev) => ({
+                      ...prev,
+                      billing: { ...prev.billing, fine_percent: parseFloat(e.target.value) || 0 },
+                    }))
+                  }
+                  className="w-32"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="interest_month">Juros ao mês (%)</Label>
+                <Input
+                  id="interest_month"
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={regSettings.billing.interest_percent_month}
+                  onChange={(e) =>
+                    setRegSettings((prev) => ({
+                      ...prev,
+                      billing: { ...prev.billing, interest_percent_month: parseFloat(e.target.value) || 0 },
+                    }))
+                  }
+                  className="w-32"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Preview */}
           {mode === "manual" && settings.bank_code && settings.beneficiary_name && (
