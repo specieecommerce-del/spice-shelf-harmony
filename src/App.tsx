@@ -28,6 +28,7 @@ import Promotions from "./pages/Promotions";
 import ProductDetail from "./pages/ProductDetail";
 import CategoryProducts from "./pages/CategoryProducts";
 import ChatBot from "@/components/chat/ChatBot";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
               </Routes>
               <ChatBot />
             </BrowserRouter>
+            <SpeedInsights />
           </CartProvider>
         </FavoritesProvider>
       </AuthProvider>
