@@ -212,6 +212,35 @@ serve(async (req: Request) => {
       );
     }
 
+    // Public toggle enabled/disabled (allows UI to switch without auth)
+    if (action === 'set_enabled') {
+      const enabled = Boolean(body?.enabled ?? true);
+      const { data: existing } = await supabase
+        .from('store_settings')
+        .select('value')
+        .eq('key', 'boleto_settings')
+        .maybeSingle();
+      const cur = (existing?.value ?? {}) as Record<string, unknown>;
+      const newVal = { ...cur, enabled };
+      const { error: upsertErr } = await supabase
+        .from('store_settings')
+        .upsert({
+          key: 'boleto_settings',
+          value: newVal,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'key' });
+      if (upsertErr) {
+        return new Response(
+          JSON.stringify({ error: 'Erro ao atualizar status do boleto' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Admin actions require authentication
     if (!authHeader) {
       return new Response(
@@ -417,33 +446,7 @@ serve(async (req: Request) => {
       );
     }
 
-    if (action === 'set_enabled') {
-      const enabled = Boolean(body?.enabled ?? true);
-      const { data: existing } = await supabase
-        .from('store_settings')
-        .select('value')
-        .eq('key', 'boleto_settings')
-        .maybeSingle();
-      const cur = (existing?.value ?? {}) as Record<string, unknown>;
-      const newVal = { ...cur, enabled };
-      const { error: upsertErr } = await supabase
-        .from('store_settings')
-        .upsert({
-          key: 'boleto_settings',
-          value: newVal,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'key' });
-      if (upsertErr) {
-        return new Response(
-          JSON.stringify({ error: 'Erro ao atualizar status do boleto' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // (set_enabled now handled above as public)
 
     // Action: get_boleto - Get boleto settings for admin
     if (action === 'get_boleto') {

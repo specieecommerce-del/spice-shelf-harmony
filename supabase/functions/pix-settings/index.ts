@@ -81,6 +81,30 @@ serve(async (req: Request) => {
       );
     }
 
+    // Public toggle for PIX override enabled/disabled
+    if (action === 'set_enabled') {
+      const enabled = Boolean(body?.enabled ?? true);
+      const { error: upsertError } = await supabase
+        .from('store_settings')
+        .upsert({
+          key: 'pix_settings_override',
+          value: { enabled },
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'key',
+        });
+      if (upsertError) {
+        return new Response(
+          JSON.stringify({ error: 'Erro ao atualizar status do PIX' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Admin actions require authentication
     if (!authHeader) {
       return new Response(
@@ -115,26 +139,7 @@ serve(async (req: Request) => {
       );
     }
 
-    if (action === 'set_enabled') {
-      const enabled = Boolean(body?.enabled ?? true);
-      const { error: upsertError } = await supabase
-        .from('store_settings')
-        .upsert({
-          key: 'pix_settings_override',
-          value: { enabled },
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'key' });
-      if (upsertError) {
-        return new Response(
-          JSON.stringify({ error: 'Erro ao atualizar status do PIX' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // (set_enabled now handled above as public)
 
     // Action: save_pix - Save PIX settings
     if (action === 'save_pix') {
