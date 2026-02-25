@@ -19,85 +19,98 @@ const GatewayStatusManager = () => {
   const [gateways, setGateways] = useState<GatewayStatus[]>([]);
   const [projectUrl, setProjectUrl] = useState("");
 
+  const checkGatewayStatus = async () => {
+    setLoading(true);
+    const url = import.meta.env.VITE_SUPABASE_URL || "";
+    setProjectUrl(url);
+    try {
+      const { data: infinitePayRow } = await supabase
+        .from("store_settings")
+        .select("value")
+        .eq("key", "card_gateway_infinitepay")
+        .maybeSingle();
+      const { data: pagSeguroRow } = await supabase
+        .from("store_settings")
+        .select("value")
+        .eq("key", "card_gateway_pagseguro")
+        .maybeSingle();
+      const { data: pixRow } = await supabase
+        .from("store_settings")
+        .select("value")
+        .eq("key", "pix_settings")
+        .maybeSingle();
+      const { data: boletoRow } = await supabase
+        .from("store_settings")
+        .select("value")
+        .eq("key", "boleto_settings")
+        .maybeSingle();
+
+      const infinitePay = (infinitePayRow?.value ?? null) as { enabled?: boolean } | null;
+      const pagSeguro = (pagSeguroRow?.value ?? null) as { enabled?: boolean; gateway_type?: string } | null;
+      const pix = (pixRow?.value ?? null) as { pix_key?: string } | null;
+      const boletoVal = (boletoRow?.value ?? null) as Record<string, unknown> | null;
+
+      const boletoEnabled = (() => {
+        if (!boletoVal) return false;
+        const enabled = Boolean(boletoVal["enabled"]);
+        const mode = String(boletoVal["mode"] || "manual");
+        if (!enabled) return false;
+        if (mode === "manual") {
+          const manual = (boletoVal["manual"] ?? {}) as Record<string, unknown>;
+          return Boolean(manual["bank_code"] && manual["beneficiary_name"] && manual["beneficiary_document"]);
+        }
+        const registered = (boletoVal["registered"] ?? {}) as Record<string, unknown>;
+        const bank = (registered["bank"] ?? {}) as Record<string, unknown>;
+        return Boolean((bank["code"] ?? "").toString().trim());
+      })();
+
+      const gatewayList: GatewayStatus[] = [
+        {
+          name: "InfinitePay",
+          icon: <CreditCard className="h-5 w-5" />,
+          status: infinitePay?.enabled ? "active" : "inactive",
+          description: "Cartão de crédito/débito e PIX via InfinitePay",
+          webhookUrl: `${url}/functions/v1/infinitepay-webhook`,
+        },
+        {
+          name: "PagSeguro",
+          icon: <CreditCard className="h-5 w-5" />,
+          status: pagSeguro?.enabled || pagSeguro?.gateway_type === "pagseguro" ? "active" : "inactive",
+          description: "Cartão de crédito/débito via PagSeguro",
+          webhookUrl: `${url}/functions/v1/pagseguro-webhook`,
+        },
+        {
+          name: "PIX Manual",
+          icon: <Wallet className="h-5 w-5" />,
+          status: pix?.pix_key ? "active" : "inactive",
+          description: "PIX com QR Code gerado pelo sistema",
+          webhookUrl: undefined,
+        },
+        {
+          name: "Boleto",
+          icon: <Receipt className="h-5 w-5" />,
+          status: boletoEnabled ? "active" : "inactive",
+          description: "Boleto bancário (configurar gateway)",
+          webhookUrl: undefined,
+        },
+        {
+          name: "Nubank PJ",
+          icon: <Building2 className="h-5 w-5" />,
+          status: "coming_soon",
+          description: "Integração direta com Nubank - Em breve quando API oficial estiver disponível",
+          webhookUrl: undefined,
+        },
+      ];
+
+      setGateways(gatewayList);
+    } catch (error) {
+      console.error("Erro ao verificar gateways:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const checkGatewayStatus = async () => {
-      setLoading(true);
-      
-      // Get project URL for webhooks
-      const url = import.meta.env.VITE_SUPABASE_URL || "";
-      setProjectUrl(url);
-
-      try {
-        // Check InfinitePay config
-        const { data: infinitePayData } = await supabase
-          .from("store_settings")
-          .select("value")
-          .eq("key", "infinitepay_config")
-          .maybeSingle();
-
-        // Check PagSeguro config
-        const { data: pagSeguroData } = await supabase
-          .from("store_settings")
-          .select("value")
-          .eq("key", "card_gateway_config")
-          .maybeSingle();
-
-        // Check PIX config
-        const { data: pixData } = await supabase
-          .from("store_settings")
-          .select("value")
-          .eq("key", "pix_config")
-          .maybeSingle();
-
-        const pagSeguroValue = pagSeguroData?.value as Record<string, unknown> | null;
-        const pixValue = pixData?.value as Record<string, unknown> | null;
-
-        const gatewayList: GatewayStatus[] = [
-          {
-            name: "InfinitePay",
-            icon: <CreditCard className="h-5 w-5" />,
-            status: infinitePayData?.value ? "active" : "inactive",
-            description: "Cartão de crédito/débito e PIX via InfinitePay",
-            webhookUrl: `${url}/functions/v1/infinitepay-webhook`,
-          },
-          {
-            name: "PagSeguro",
-            icon: <CreditCard className="h-5 w-5" />,
-            status: pagSeguroValue?.gateway_type === "pagseguro" ? "active" : "inactive",
-            description: "Cartão de crédito/débito via PagSeguro",
-            webhookUrl: `${url}/functions/v1/pagseguro-webhook`,
-          },
-          {
-            name: "PIX Manual",
-            icon: <Wallet className="h-5 w-5" />,
-            status: pixValue?.pixKey ? "active" : "inactive",
-            description: "PIX com QR Code gerado pelo sistema",
-            webhookUrl: undefined,
-          },
-          {
-            name: "Boleto",
-            icon: <Receipt className="h-5 w-5" />,
-            status: "inactive",
-            description: "Boleto bancário (configurar gateway)",
-            webhookUrl: undefined,
-          },
-          {
-            name: "Nubank PJ",
-            icon: <Building2 className="h-5 w-5" />,
-            status: "coming_soon",
-            description: "Integração direta com Nubank - Em breve quando API oficial estiver disponível",
-            webhookUrl: undefined,
-          },
-        ];
-
-        setGateways(gatewayList);
-      } catch (error) {
-        console.error("Erro ao verificar gateways:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     checkGatewayStatus();
   }, []);
 
@@ -124,6 +137,56 @@ const GatewayStatusManager = () => {
             Em Breve
           </Badge>
         );
+    }
+  };
+
+  const [toggling, setToggling] = useState<string | null>(null);
+  const toggleGateway = async (name: string, toActive: boolean) => {
+    try {
+      setToggling(name);
+      if (name === "InfinitePay") {
+        const { data } = await supabase.functions.invoke("card-gateway-settings", {
+          body: { action: "get_settings", gateway: "infinitepay" },
+        });
+        const s = (data?.settings ?? {}) as Record<string, unknown>;
+        await supabase.functions.invoke("card-gateway-settings", {
+          body: {
+            action: "save_settings",
+            gateway: "infinitepay",
+            enabled: toActive,
+            payment_link: String(s["payment_link"] || ""),
+            whatsapp_number: String(s["whatsapp_number"] || ""),
+            instructions: String(s["instructions"] || ""),
+          },
+        });
+      } else if (name === "PagSeguro") {
+        const { data } = await supabase.functions.invoke("card-gateway-settings", {
+          body: { action: "get_settings", gateway: "pagseguro" },
+        });
+        const s = (data?.settings ?? {}) as Record<string, unknown>;
+        await supabase.functions.invoke("card-gateway-settings", {
+          body: {
+            action: "save_settings",
+            gateway: "pagseguro",
+            enabled: toActive,
+            payment_link: String(s["payment_link"] || ""),
+            whatsapp_number: String(s["whatsapp_number"] || ""),
+            instructions: String(s["instructions"] || ""),
+          },
+        });
+      } else if (name === "PIX Manual") {
+        await supabase.functions.invoke("pix-settings", {
+          body: { action: "set_enabled", enabled: toActive },
+        });
+      } else if (name === "Boleto") {
+        await supabase.functions.invoke("boleto-settings", {
+          body: { action: "set_enabled", enabled: toActive },
+        });
+      }
+      await checkGatewayStatus();
+      setToggling(null);
+    } catch {
+      setToggling(null);
     }
   };
 
@@ -239,25 +302,43 @@ const GatewayStatusManager = () => {
                     )}
                   </div>
                 </div>
-                {gateway.status !== "coming_soon" && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      const gatewayKey = gateway.name === "PIX Manual" ? "pix-manual"
-                        : gateway.name === "Boleto" ? "boleto"
-                        : gateway.name === "InfinitePay" ? "infinitepay"
-                        : gateway.name === "PagSeguro" ? "pagseguro"
-                        : "";
-                      const event = new CustomEvent('admin-section-change', { 
-                        detail: { section: 'payments', gateway: gatewayKey } 
-                      });
-                      window.dispatchEvent(event);
-                    }}
-                  >
-                    Configurar
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {gateway.status !== "coming_soon" && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        const gatewayKey = gateway.name === "PIX Manual" ? "pix-manual"
+                          : gateway.name === "Boleto" ? "boleto"
+                          : gateway.name === "InfinitePay" ? "infinitepay"
+                          : gateway.name === "PagSeguro" ? "pagseguro"
+                          : "";
+                        const event = new CustomEvent('admin-section-change', { 
+                          detail: { section: 'payments', gateway: gatewayKey } 
+                        });
+                        window.dispatchEvent(event);
+                      }}
+                    >
+                      Configurar
+                    </Button>
+                  )}
+                  {gateway.status !== "coming_soon" && (
+                    <Button
+                      variant={gateway.status === "active" ? "destructive" : "default"}
+                      size="sm"
+                      disabled={toggling === gateway.name}
+                      onClick={() => toggleGateway(gateway.name, gateway.status !== "active")}
+                    >
+                      {toggling === gateway.name ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : gateway.status === "active" ? (
+                        "Desativar"
+                      ) : (
+                        "Ativar"
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

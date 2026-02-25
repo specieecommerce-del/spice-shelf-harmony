@@ -1,3 +1,4 @@
+/// <reference path="../deno-shims.d.ts" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -6,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -38,6 +39,19 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ error: 'Erro ao buscar configurações PIX' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: overrideRow } = await supabase
+        .from('store_settings')
+        .select('value')
+        .eq('key', 'pix_settings_override')
+        .maybeSingle();
+      const overrideEnabled = (overrideRow?.value as Record<string, unknown> | null)?.['enabled'];
+      if (overrideEnabled === false) {
+        return new Response(
+          JSON.stringify({ configured: false }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -98,6 +112,27 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Acesso negado - apenas administradores' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'set_enabled') {
+      const enabled = Boolean(body?.enabled ?? true);
+      const { error: upsertError } = await supabase
+        .from('store_settings')
+        .upsert({
+          key: 'pix_settings_override',
+          value: { enabled },
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'key' });
+      if (upsertError) {
+        return new Response(
+          JSON.stringify({ error: 'Erro ao atualizar status do PIX' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

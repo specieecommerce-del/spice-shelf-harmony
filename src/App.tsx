@@ -28,6 +28,7 @@ import Promotions from "./pages/Promotions";
 import ProductDetail from "./pages/ProductDetail";
 import CategoryProducts from "./pages/CategoryProducts";
 import ChatBot from "@/components/chat/ChatBot";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,11 @@ const App = () => (
               </Routes>
               <ChatBot />
             </BrowserRouter>
+            {(
+              import.meta.env.VITE_ENABLE_SPEED_INSIGHTS === "true" ||
+              (!window.location.hostname.startsWith("localhost") &&
+               !/^192\.168\./.test(window.location.hostname))
+            ) && <SpeedInsights />}
           </CartProvider>
         </FavoritesProvider>
       </AuthProvider>

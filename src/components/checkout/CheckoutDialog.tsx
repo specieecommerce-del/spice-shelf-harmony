@@ -87,6 +87,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [pixConfigured, setPixConfigured] = useState<boolean | null>(null);
+  const [pixOffline, setPixOffline] = useState<boolean>(false);
 
   // Boleto state
   const [showBoletoPayment, setShowBoletoPayment] = useState(false);
@@ -113,48 +114,152 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   // Check payment methods configuration
   useEffect(() => {
     const checkPaymentConfigs = async () => {
+      // Check PIX
       try {
-        // Check PIX
         const { data: pixData } = await supabase.functions.invoke("pix-settings", {
           body: { action: "get_pix_for_payment" },
         });
         setPixConfigured(pixData?.configured || false);
+        setPixOffline(false);
+        if (!pixData?.configured) {
+          const { data: overrideRow } = await supabase
+            .from("store_settings")
+            .select("value")
+            .eq("key", "pix_settings_override")
+            .maybeSingle();
+          const override = (overrideRow?.value ?? null) as Record<string, unknown> | null;
+          const disabled = override && override["enabled"] === false;
+          if (!disabled) {
+            const { data: pixRow } = await supabase
+              .from("store_settings")
+              .select("value")
+              .eq("key", "pix_settings")
+              .maybeSingle();
+            const v = (pixRow?.value ?? null) as Record<string, unknown> | null;
+            if (v && typeof v["pix_key"] === "string" && String(v["pix_key"]).trim() !== "") {
+              setPixConfigured(true);
+              setPixOffline(true);
+            }
+          }
+        }
+      } catch {
+        try {
+          const { data: overrideRow } = await supabase
+            .from("store_settings")
+            .select("value")
+            .eq("key", "pix_settings_override")
+            .maybeSingle();
+          const override = (overrideRow?.value ?? null) as Record<string, unknown> | null;
+          const disabled = override && override["enabled"] === false;
+          if (disabled) {
+            setPixConfigured(false);
+            setPixOffline(false);
+          } else {
+            const { data: pixRow } = await supabase
+              .from("store_settings")
+              .select("value")
+              .eq("key", "pix_settings")
+              .maybeSingle();
+            const v = (pixRow?.value ?? null) as Record<string, unknown> | null;
+            if (v && typeof v["pix_key"] === "string" && String(v["pix_key"]).trim() !== "") {
+              setPixConfigured(true);
+              setPixOffline(true);
+            } else {
+              setPixConfigured(false);
+              setPixOffline(false);
+            }
+          }
+        } catch {
+          setPixConfigured(false);
+          setPixOffline(false);
+        }
+      }
 
-        // Check Boleto
+      // Check Boleto with direct DB fallback
+      try {
         const { data: boletoData } = await supabase.functions.invoke("boleto-settings", {
           body: { action: "get_boleto_for_payment" },
         });
         setBoletoConfigured(boletoData?.configured || false);
-
-        // Check Card gateway settings
-         try {
-           const { data: cardData, error: cardError } = await supabase.functions.invoke("card-gateway-settings", {
-             body: { action: "check_config" },
-           });
-           if (cardError) {
-             console.error("Card config check error:", cardError);
-             setCardConfigured(false);
-           } else {
-             // Be defensive: older responses could return non-boolean truthy values.
-             const configured = Boolean(cardData?.configured);
-             setCardConfigured(configured);
-             if (configured) {
-               setCardGatewayConfig({
-                 gateway_type: cardData.gateway_type,
-                 payment_link: cardData.payment_link,
-                 whatsapp_number: cardData.whatsapp_number,
-                 instructions: cardData.instructions,
-               });
-             }
-           }
-         } catch (cardErr) {
-          console.error("Card config check failed:", cardErr);
-          setCardConfigured(false);
+        if (!boletoData?.configured) {
+          const { data: row } = await supabase
+            .from("store_settings")
+            .select("value")
+            .eq("key", "boleto_settings")
+            .maybeSingle();
+          const v = (row?.value ?? null) as Record<string, unknown> | null;
+          if (v) {
+            const enabled = Boolean(v["enabled"]);
+            const mode = String(v["mode"] || "manual");
+            const manual = (v["manual"] ?? {}) as Record<string, unknown>;
+            const registered = (v["registered"] ?? {}) as Record<string, unknown>;
+            const configured =
+              enabled &&
+              (mode === "manual"
+                ? Boolean(manual["bank_code"] && manual["beneficiary_name"] && manual["beneficiary_document"])
+                : Boolean(((registered["bank"] ?? {}) as Record<string, unknown>)["code"]));
+            setBoletoConfigured(configured);
+          }
         }
       } catch {
-        setPixConfigured(false);
-        setBoletoConfigured(false);
-        setCardConfigured(false);
+        try {
+          const { data: row } = await supabase
+            .from("store_settings")
+            .select("value")
+            .eq("key", "boleto_settings")
+            .maybeSingle();
+          const v = (row?.value ?? null) as Record<string, unknown> | null;
+          if (v) {
+            const enabled = Boolean(v["enabled"]);
+            const mode = String(v["mode"] || "manual");
+            const manual = (v["manual"] ?? {}) as Record<string, unknown>;
+            const registered = (v["registered"] ?? {}) as Record<string, unknown>;
+            const configured =
+              enabled &&
+              (mode === "manual"
+                ? Boolean(manual["bank_code"] && manual["beneficiary_name"] && manual["beneficiary_document"])
+                : Boolean(((registered["bank"] ?? {}) as Record<string, unknown>)["code"]));
+            setBoletoConfigured(configured);
+          } else {
+            setBoletoConfigured(false);
+          }
+        } catch {
+          setBoletoConfigured(false);
+        }
+      }
+
+      // Check Card gateway settings (manual fallback if none configured)
+      try {
+        const gateways = ["infinitepay", "pagseguro"];
+        let configured = false;
+        let selectedConfig: { gateway_type?: string; payment_link?: string; whatsapp_number?: string; instructions?: string } | null = null;
+        for (const g of gateways) {
+          const { data } = await supabase.functions.invoke("card-gateway-settings", {
+            body: { action: "get_settings", gateway: g },
+          });
+          const s = (data?.settings ?? null) as { enabled?: boolean; payment_link?: string; whatsapp_number?: string; instructions?: string } | null;
+          if (s?.enabled) {
+            configured = true;
+            const hasLink = !!s.payment_link && s.payment_link.trim() !== "";
+            const hasWhats = !!s.whatsapp_number && s.whatsapp_number.trim() !== "";
+            selectedConfig = {
+              gateway_type: hasWhats ? "whatsapp" : (hasLink ? "external_link" : "manual"),
+              payment_link: s.payment_link,
+              whatsapp_number: s.whatsapp_number,
+              instructions: s.instructions,
+            };
+            break;
+          }
+        }
+        if (!configured) {
+          selectedConfig = { gateway_type: "manual", instructions: "Entre em contato" };
+        }
+        setCardConfigured(true);
+        setCardGatewayConfig(selectedConfig);
+      } catch (cardErr) {
+        console.error("Card config check failed:", cardErr);
+        setCardConfigured(true);
+        setCardGatewayConfig({ gateway_type: "manual", instructions: "Entre em contato" });
       }
     };
     if (open) {
@@ -1234,7 +1339,9 @@ Pedido: ${boletoOrderData.orderNsu}`;
                       </div>
                       <div className="flex-1 text-left">
                         <p className="font-medium">PIX</p>
-                        <p className="text-xs text-muted-foreground">Aprovação imediata</p>
+                <p className="text-xs text-muted-foreground">
+                  {pixOffline ? "Modo offline" : "Aprovação imediata"}
+                </p>
                       </div>
                       {isLoading && selectedPaymentMethod === "pix" && (
                         <Loader2 className="w-4 h-4 animate-spin" />
