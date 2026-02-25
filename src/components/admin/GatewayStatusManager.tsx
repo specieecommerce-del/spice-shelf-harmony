@@ -40,6 +40,11 @@ const GatewayStatusManager = () => {
         .select("value")
         .eq("key", "pix_settings")
         .maybeSingle();
+      const { data: pixOverrideRow } = await supabase
+        .from("store_settings")
+        .select("value")
+        .eq("key", "pix_settings_override")
+        .maybeSingle();
       const { data: boletoRow } = await supabase
         .from("store_settings")
         .select("value")
@@ -54,6 +59,7 @@ const GatewayStatusManager = () => {
       const infinitePay = (infinitePayRow?.value ?? null) as { enabled?: boolean } | null;
       const pagSeguro = (pagSeguroRow?.value ?? null) as { enabled?: boolean; gateway_type?: string } | null;
       const pix = (pixRow?.value ?? null) as { pix_key?: string } | null;
+      const pixOverride = (pixOverrideRow?.value ?? null) as { enabled?: boolean } | null;
       const boletoVal = (boletoRow?.value ?? null) as Record<string, unknown> | null;
       const boletoLegacy = (boletoLegacyRow?.value ?? null) as Record<string, unknown> | null;
 
@@ -94,13 +100,13 @@ const GatewayStatusManager = () => {
           description: "Cartão de crédito/débito via PagSeguro",
           webhookUrl: `${url}/functions/v1/pagseguro-webhook`,
         },
-        {
-          name: "PIX Manual",
-          icon: <Wallet className="h-5 w-5" />,
-          status: pix?.pix_key ? "active" : "inactive",
-          description: "PIX com QR Code gerado pelo sistema",
-          webhookUrl: undefined,
-        },
+          {
+            name: "PIX Manual",
+            icon: <Wallet className="h-5 w-5" />,
+            status: pix?.pix_key || (pixOverride && pixOverride.enabled !== false) ? "active" : "inactive",
+            description: "PIX com QR Code gerado pelo sistema",
+            webhookUrl: undefined,
+          },
           {
             name: "Boleto",
             icon: <Receipt className="h-5 w-5" />,
