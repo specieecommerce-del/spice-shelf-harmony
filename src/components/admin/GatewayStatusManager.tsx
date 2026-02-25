@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, CheckCircle2, XCircle, Zap, CreditCard, Wallet, Receipt, Building2, Clock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface GatewayStatus {
   name: string;
@@ -159,11 +160,16 @@ const GatewayStatusManager = () => {
     try {
       setToggling(name);
       if (name === "InfinitePay") {
-        const { data } = await supabase.functions.invoke("card-gateway-settings", {
+        const { data, error } = await supabase.functions.invoke("card-gateway-settings", {
           body: { action: "get_settings", gateway: "infinitepay" },
         });
+        if (error) {
+          toast.error("Erro ao carregar InfinitePay");
+          setToggling(null);
+          return;
+        }
         const s = (data?.settings ?? {}) as Record<string, unknown>;
-        await supabase.functions.invoke("card-gateway-settings", {
+        const { error: saveErr } = await supabase.functions.invoke("card-gateway-settings", {
           body: {
             action: "save_settings",
             gateway: "infinitepay",
@@ -173,12 +179,37 @@ const GatewayStatusManager = () => {
             instructions: String(s["instructions"] || ""),
           },
         });
+        if (saveErr) {
+          const { error: upErr } = await supabase
+            .from("store_settings")
+            .upsert({
+              key: "card_gateway_infinitepay",
+              value: {
+                enabled: toActive,
+                payment_link: String(s["payment_link"] || ""),
+                whatsapp_number: String(s["whatsapp_number"] || ""),
+                instructions: String(s["instructions"] || ""),
+              },
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "key" });
+          if (upErr) {
+            toast.error("Erro ao salvar InfinitePay");
+            setToggling(null);
+            return;
+          }
+        }
+        toast.success(toActive ? "InfinitePay ativado" : "InfinitePay desativado");
       } else if (name === "PagSeguro") {
-        const { data } = await supabase.functions.invoke("card-gateway-settings", {
+        const { data, error } = await supabase.functions.invoke("card-gateway-settings", {
           body: { action: "get_settings", gateway: "pagseguro" },
         });
+        if (error) {
+          toast.error("Erro ao carregar PagSeguro");
+          setToggling(null);
+          return;
+        }
         const s = (data?.settings ?? {}) as Record<string, unknown>;
-        await supabase.functions.invoke("card-gateway-settings", {
+        const { error: saveErr } = await supabase.functions.invoke("card-gateway-settings", {
           body: {
             action: "save_settings",
             gateway: "pagseguro",
@@ -188,18 +219,75 @@ const GatewayStatusManager = () => {
             instructions: String(s["instructions"] || ""),
           },
         });
+        if (saveErr) {
+          const { error: upErr } = await supabase
+            .from("store_settings")
+            .upsert({
+              key: "card_gateway_pagseguro",
+              value: {
+                enabled: toActive,
+                payment_link: String(s["payment_link"] || ""),
+                whatsapp_number: String(s["whatsapp_number"] || ""),
+                instructions: String(s["instructions"] || ""),
+              },
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "key" });
+          if (upErr) {
+            toast.error("Erro ao salvar PagSeguro");
+            setToggling(null);
+            return;
+          }
+        }
+        toast.success(toActive ? "PagSeguro ativado" : "PagSeguro desativado");
       } else if (name === "PIX Manual") {
-        await supabase.functions.invoke("pix-settings", {
+        const { error } = await supabase.functions.invoke("pix-settings", {
           body: { action: "set_enabled", enabled: toActive },
         });
+        if (error) {
+          const { error: upErr } = await supabase
+            .from("store_settings")
+            .upsert({
+              key: "pix_settings_override",
+              value: { enabled: toActive },
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "key" });
+          if (upErr) {
+            toast.error("Erro ao atualizar PIX");
+            setToggling(null);
+            return;
+          }
+        }
+        toast.success(toActive ? "PIX ativado" : "PIX desativado");
       } else if (name === "Boleto") {
-        await supabase.functions.invoke("boleto-settings", {
+        const { error } = await supabase.functions.invoke("boleto-settings", {
           body: { action: "set_enabled", enabled: toActive },
         });
+        if (error) {
+          const { data: existing } = await supabase
+            .from("store_settings")
+            .select("value")
+            .eq("key", "boleto_settings")
+            .maybeSingle();
+          const cur = (existing?.value ?? {}) as Record<string, unknown>;
+          const { error: upErr } = await supabase
+            .from("store_settings")
+            .upsert({
+              key: "boleto_settings",
+              value: { ...cur, enabled: toActive },
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "key" });
+          if (upErr) {
+            toast.error("Erro ao atualizar Boleto");
+            setToggling(null);
+            return;
+          }
+        }
+        toast.success(toActive ? "Boleto ativado" : "Boleto desativado");
       }
       await checkGatewayStatus();
       setToggling(null);
     } catch {
+      toast.error("Falha ao atualizar gateway");
       setToggling(null);
     }
   };

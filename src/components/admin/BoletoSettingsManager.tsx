@@ -71,7 +71,29 @@ const BoletoSettingsManager = () => {
         setSettings(data.settings);
       }
     } catch (error) {
-      console.error("Error fetching boleto settings:", error);
+      try {
+        const { data: row } = await supabase
+          .from("store_settings")
+          .select("value")
+          .eq("key", "boleto_settings")
+          .maybeSingle();
+        const v = (row?.value ?? null) as Record<string, unknown> | null;
+        if (v) {
+          setSettings({
+            bank_code: String(v["manual"]?.["bank_code"] || ""),
+            bank_name: String(v["manual"]?.["bank_name"] || ""),
+            agency: String(v["manual"]?.["agency"] || ""),
+            account: String(v["manual"]?.["account"] || ""),
+            account_type: String(v["manual"]?.["account_type"] || "corrente"),
+            beneficiary_name: String(v["manual"]?.["beneficiary_name"] || ""),
+            beneficiary_document: String(v["manual"]?.["beneficiary_document"] || ""),
+            instructions: String(v["manual"]?.["instructions"] || "Após efetuar o pagamento, envie o comprovante por WhatsApp ou email."),
+            days_to_expire: Number(v["manual"]?.["days_to_expire"] || 3),
+          });
+        }
+      } catch (e) {
+        console.error("Error fetching boleto settings:", e);
+      }
     } finally {
       setIsLoading(false);
     }
