@@ -19,6 +19,8 @@ interface BoletoSettings {
   account_type: string;
   beneficiary_name: string;
   beneficiary_document: string;
+  wallet?: string;
+  agreement?: string;
   instructions: string;
   days_to_expire: number;
 }
@@ -85,6 +87,8 @@ const BoletoSettingsManager = () => {
     account_type: "corrente",
     beneficiary_name: "",
     beneficiary_document: "",
+    wallet: "",
+    agreement: "",
     instructions: "Após efetuar o pagamento, envie o comprovante por WhatsApp ou email.",
     days_to_expire: 3,
   });
@@ -201,6 +205,8 @@ const BoletoSettingsManager = () => {
             account_type: String(v["manual"]?.["account_type"] || "corrente"),
             beneficiary_name: String(v["manual"]?.["beneficiary_name"] || ""),
             beneficiary_document: String(v["manual"]?.["beneficiary_document"] || ""),
+            wallet: String(v["manual"]?.["wallet"] || ""),
+            agreement: String(v["manual"]?.["convenio"] || ""),
             instructions: String(v["manual"]?.["instructions"] || "Após efetuar o pagamento, envie o comprovante por WhatsApp ou email."),
             days_to_expire: Number(v["manual"]?.["days_to_expire"] || 3),
           });
@@ -259,6 +265,8 @@ const BoletoSettingsManager = () => {
           account_type: settings.account_type || "corrente",
           beneficiary_name: settings.beneficiary_name.trim(),
           beneficiary_document: settings.beneficiary_document.trim(),
+          wallet: (settings.wallet || "").trim(),
+          convenio: (settings.agreement || "").trim(),
           instructions: settings.instructions || "",
           days_to_expire: settings.days_to_expire || 3,
         };
@@ -357,7 +365,14 @@ const BoletoSettingsManager = () => {
                         sonnerToast.error("Sessão expirada. Faça login como administrador.");
                         return;
                       }
-                      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                      const supabaseUrl =
+                        (import.meta as any).env?.NEXT_PUBLIC_SUPABASE_URL ??
+                        (import.meta as any).env?.VITE_SUPABASE_URL ??
+                        "";
+                      if (!supabaseUrl) {
+                        sonnerToast.error("SUPABASE_URL não configurado no ambiente");
+                        return;
+                      }
                       const { data, error } = await supabase.functions.invoke("asaas-webhook-register", {
                         body: {
                           url: `${supabaseUrl}/functions/v1/asaas-webhook`,
@@ -366,8 +381,12 @@ const BoletoSettingsManager = () => {
                           name: "BOLETO SPECIES ALIMENTOS",
                         },
                       });
-                      if (error || data?.error) {
-                        sonnerToast.error(data?.error || "Falha ao registrar webhook");
+                      if (error || data?.error || data?.success === false) {
+                        const msg =
+                          (data?.error as string) ||
+                          (Array.isArray((data as any)?.data?.errors) ? (data as any).data.errors[0]?.description : "") ||
+                          "Falha ao registrar webhook";
+                        sonnerToast.error(msg);
                         setWebhookInfo(null);
                         return;
                       }
@@ -521,8 +540,8 @@ const BoletoSettingsManager = () => {
                 <Label htmlFor="wallet">Carteira</Label>
                 <Input
                   id="wallet"
-                  value=""
-                  onChange={() => {}}
+                  value={settings.wallet || ""}
+                  onChange={(e) => setSettings({ ...settings, wallet: e.target.value })}
                   placeholder="Ex.: 17"
                 />
               </div>
@@ -530,8 +549,8 @@ const BoletoSettingsManager = () => {
                 <Label htmlFor="agreement">Convênio</Label>
                 <Input
                   id="agreement"
-                  value=""
-                  onChange={() => {}}
+                  value={settings.agreement || ""}
+                  onChange={(e) => setSettings({ ...settings, agreement: e.target.value })}
                   placeholder="Ex.: 123456"
                 />
               </div>
