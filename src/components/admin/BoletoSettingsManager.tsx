@@ -176,7 +176,7 @@ const BoletoSettingsManager = () => {
               instructions: s.billing?.instructions ?? "",
             },
           });
-          setMode("registered");
+          setMode("asaas");
         }
       } else {
         toast.error("Sessão não encontrada. Faça login para editar Boleto Registrado.");
@@ -333,6 +333,7 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="bank_code">Código do Banco *</Label>
               <Select
                 value={mode === "asaas" ? "" : settings.bank_code}
+                disabled={mode === "asaas"}
                 onValueChange={(code) => {
                   if (mode !== "asaas") {
                     handleBankCodeChange(code);
@@ -350,6 +351,11 @@ const BoletoSettingsManager = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {mode === "asaas" && (
+                <p className="text-xs text-muted-foreground">
+                  Asaas não requer código de banco
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -357,6 +363,7 @@ const BoletoSettingsManager = () => {
               <Input
                 id="bank_name"
                 value={mode === "asaas" ? "" : settings.bank_name}
+                disabled={mode === "asaas"}
                 onChange={(e) => {
                   if (mode !== "asaas") {
                     setSettings({ ...settings, bank_name: e.target.value });
@@ -374,6 +381,7 @@ const BoletoSettingsManager = () => {
               <Input
                 id="agency"
                 value={mode === "asaas" ? "" : settings.agency}
+                disabled={mode === "asaas"}
                 onChange={(e) => {
                   if (mode !== "asaas") {
                     setSettings({ ...settings, agency: e.target.value });
@@ -388,6 +396,7 @@ const BoletoSettingsManager = () => {
               <Input
                 id="account"
                 value={mode === "asaas" ? "" : settings.account}
+                disabled={mode === "asaas"}
                 onChange={(e) => {
                   if (mode !== "asaas") {
                     setSettings({ ...settings, account: e.target.value });
@@ -401,6 +410,7 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="account_type">Tipo de Conta</Label>
               <Select
                 value={mode === "asaas" ? "corrente" : settings.account_type}
+                disabled={mode === "asaas"}
                 onValueChange={(value) => {
                   if (mode !== "asaas") {
                     setSettings({ ...settings, account_type: value });
