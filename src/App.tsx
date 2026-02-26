@@ -29,6 +29,7 @@ import ProductDetail from "./pages/ProductDetail";
 import CategoryProducts from "./pages/CategoryProducts";
 import ChatBot from "@/components/chat/ChatBot";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,7 @@ const App = () => (
               </Routes>
               <ChatBot />
             </BrowserRouter>
+            <Analytics />
             {import.meta.env.VITE_ENABLE_SPEED_INSIGHTS === "true" && <SpeedInsights />}
           </CartProvider>
         </FavoritesProvider>
