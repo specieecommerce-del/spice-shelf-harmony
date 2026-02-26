@@ -384,7 +384,8 @@ const BoletoSettingsManager = () => {
                           name: "BOLETO SPECIES ALIMENTOS",
                         },
                       });
-                      if (error || data?.error || data?.success === false) {
+                      const isOk = !error && (data?.success === true || Boolean((data as any)?.data?.id));
+                      if (!isOk) {
                         const msg =
                           (data?.error as string) ||
                           (Array.isArray((data as any)?.data?.errors) ? (data as any).data.errors[0]?.description : "") ||
@@ -394,7 +395,7 @@ const BoletoSettingsManager = () => {
                         return;
                       }
                       sonnerToast.success("Webhook Asaas registrado!");
-                      setWebhookInfo(data?.data ?? null);
+                      setWebhookInfo((data as any)?.data ?? null);
                     } catch (err) {
                       sonnerToast.error("Erro ao registrar webhook");
                     }

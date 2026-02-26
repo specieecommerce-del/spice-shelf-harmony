@@ -93,14 +93,12 @@ serve(async (req: Request) => {
     dueDate.setDate(dueDate.getDate() + daysToExpire);
     const dueDateStr = dueDate.toISOString().slice(0, 10);
 
-    const registered = (v["registered"] ?? {}) as Record<string, unknown>;
-    const credentials = (registered["credentials"] ?? {}) as Record<string, unknown>;
-    const apiKey = String(credentials["client_secret"] || credentials["api_key"] || "").trim();
-    const env = String(v["environment"] || "sandbox");
+    const env = String(v["environment"] || Deno.env.get("ASAAS_ENV") || "sandbox");
     const baseUrl = env === "production" ? "https://api.asaas.com/api/v3" : "https://sandbox.asaas.com/api/v3";
+    const apiKey = (Deno.env.get("ASAAS_ACCESS_TOKEN") || "").trim();
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Asaas API key missing" }), {
-        status: 400,
+      return new Response(JSON.stringify({ error: "ASAAS_ACCESS_TOKEN not configured" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -140,7 +138,12 @@ serve(async (req: Request) => {
         asaasCustomerId = String(createJson.id);
       }
     } catch (e) {
-      return new Response(JSON.stringify({ error: "Asaas customer error" }), {
+      let detail = "";
+      try {
+        const j = await (e as any)?.json?.();
+        detail = JSON.stringify(j);
+      } catch {}
+      return new Response(JSON.stringify({ error: "Asaas customer error", detail }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -173,7 +176,12 @@ serve(async (req: Request) => {
         });
       }
     } catch (e) {
-      return new Response(JSON.stringify({ error: "Asaas payment error" }), {
+      let detail = "";
+      try {
+        const j = await (e as any)?.json?.();
+        detail = JSON.stringify(j);
+      } catch {}
+      return new Response(JSON.stringify({ error: "Asaas payment error", detail }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
