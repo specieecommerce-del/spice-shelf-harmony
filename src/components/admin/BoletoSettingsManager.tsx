@@ -118,6 +118,7 @@ const BoletoSettingsManager = () => {
     },
   });
   const [webhookEmail, setWebhookEmail] = useState<string>("specieecommerce@gmail.com");
+  const [webhookInfo, setWebhookInfo] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -366,9 +367,11 @@ const BoletoSettingsManager = () => {
                       });
                       if (error || data?.error) {
                         sonnerToast.error(data?.error || "Falha ao registrar webhook");
+                        setWebhookInfo(null);
                         return;
                       }
                       sonnerToast.success("Webhook Asaas registrado!");
+                      setWebhookInfo(data?.data ?? null);
                     } catch (err) {
                       sonnerToast.error("Erro ao registrar webhook");
                     }
@@ -377,6 +380,28 @@ const BoletoSettingsManager = () => {
                   Registrar webhook Asaas
                 </Button>
               </div>
+              {webhookInfo && (
+                <div className="mt-4">
+                  <Card>
+                    <CardContent className="p-4 space-y-2 text-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-muted-foreground text-xs">Nome</p>
+                          <p className="font-medium">{String(webhookInfo["name"] ?? "")}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground text-xs">Envio</p>
+                          <p className="font-medium">{String(webhookInfo["sendType"] ?? "")}</p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <p className="text-muted-foreground text-xs">URL</p>
+                          <p className="font-medium break-all">{String(webhookInfo["url"] ?? "")}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </div>
           )}
 
