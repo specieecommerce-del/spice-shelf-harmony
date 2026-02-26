@@ -126,6 +126,23 @@ const BoletoSettingsManager = () => {
   const [testOrderNsu, setTestOrderNsu] = useState<string>("");
   const [testProviderPaymentId, setTestProviderPaymentId] = useState<string>("");
   const [testEvent, setTestEvent] = useState<string>("PAYMENT_CONFIRMED");
+  const [recentOrders, setRecentOrders] = useState<Array<{ order_nsu: string; provider_payment_id: string; status: string; inserted_at: string }>>([]);
+  const loadRecentOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("order_nsu, provider_payment_id, status, inserted_at")
+        .order("inserted_at", { ascending: false })
+        .limit(20);
+      if (error) {
+        sonnerToast.error("Falha ao carregar pedidos");
+        return;
+      }
+      setRecentOrders(data || []);
+    } catch {
+      sonnerToast.error("Erro ao carregar pedidos");
+    }
+  };
 
   useEffect(() => {
     fetchSettings();
@@ -141,7 +158,8 @@ const BoletoSettingsManager = () => {
 
       if (data?.settings) {
         setSettings(data.settings);
-        setMode("manual");
+        const m = String((data.settings as any)?.mode || "manual").toLowerCase();
+        setMode(m === "asaas" ? "asaas" : "manual");
       }
       const { data: sessionData } = await supabase.auth.getSession();
       const isLogged = Boolean(sessionData?.session);
@@ -316,7 +334,38 @@ const BoletoSettingsManager = () => {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label>Modo</Label>
-            <Select value={mode} onValueChange={(m) => setMode(m as Mode)}>
+            <Select
+              value={mode}
+              onValueChange={async (m) => {
+                const newMode = m as Mode;
+                setMode(newMode);
+                if (newMode === "asaas") {
+                  try {
+                    const { data: sessionData } = await supabase.auth.getSession();
+                    if (!sessionData?.session) {
+                      sonnerToast.error("Sessão expirada. Faça login como administrador.");
+                      return;
+                    }
+                    const { data, error } = await supabase.functions.invoke("boleto-settings", {
+                      body: {
+                        action: "save_boleto",
+                        mode: "asaas",
+                        enabled: true,
+                        days_to_expire: regSettings.billing.days_to_expire,
+                        instructions: regSettings.billing.instructions,
+                      },
+                    });
+                    if (error || data?.error) {
+                      sonnerToast.error(data?.error || "Falha ao salvar modo Asaas");
+                      return;
+                    }
+                    sonnerToast.success("Modo Asaas ativado e salvo");
+                  } catch {
+                    sonnerToast.error("Erro ao salvar modo Asaas");
+                  }
+                }
+              }}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -338,7 +387,26 @@ const BoletoSettingsManager = () => {
                     Ative para receber pagamentos com emissão registrada
                   </p>
                 </div>
-                <Switch checked={regSettings.enabled} onCheckedChange={(checked) => setRegSettings((prev) => ({ ...prev, enabled: checked }))} />
+                <Switch
+                  checked={regSettings.enabled}
+                  onCheckedChange={async (checked) => {
+                    setRegSettings((prev) => ({ ...prev, enabled: checked }));
+                    try {
+                      const { data, error } = await supabase.functions.invoke("boleto-settings", {
+                        body: { action: "set_enabled", enabled: checked },
+                      });
+                      if (error || data?.error) {
+                        sonnerToast.error("Falha ao atualizar status do boleto");
+                        setRegSettings((prev) => ({ ...prev, enabled: !checked }));
+                        return;
+                      }
+                      sonnerToast.success(checked ? "Boleto (Asaas) ativado" : "Boleto (Asaas) desativado");
+                    } catch {
+                      sonnerToast.error("Erro ao atualizar status do boleto");
+                      setRegSettings((prev) => ({ ...prev, enabled: !checked }));
+                    }
+                  }}
+                />
               </div>
               {/* Asaas não precisa de credenciais na UI; parâmetros de boleto abaixo */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -419,6 +487,32 @@ const BoletoSettingsManager = () => {
                 <div className="space-y-2">
                   <Label htmlFor="testProviderPaymentId">Provider Payment ID</Label>
                   <Input id="testProviderPaymentId" value={testProviderPaymentId} onChange={(e) => setTestProviderPaymentId(e.target.value)} placeholder="pay_..." />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Selecionar pedido</Label>
+                  <Select
+                    onValueChange={(v) => {
+                      const [nsu, pid] = v.split("|");
+                      setTestOrderNsu(nsu);
+                      setTestProviderPaymentId(pid);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Carregue e selecione um pedido" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {recentOrders.map((o) => (
+                        <SelectItem key={`${o.order_nsu}|${o.provider_payment_id}`} value={`${o.order_nsu}|${o.provider_payment_id || ""}`}>
+                          {o.order_nsu} · {o.status} · {new Date(o.inserted_at).toLocaleString()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Button variant="outline" onClick={loadRecentOrders}>Carregar pedidos</Button>
                 </div>
               </div>
               <div>
