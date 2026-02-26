@@ -19,7 +19,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.admin-orders]
-verify_jwt = true
+verify_jwt = false
 
 [functions.pix-settings]
 verify_jwt = false
