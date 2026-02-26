@@ -22,7 +22,7 @@ interface BoletoSettings {
   days_to_expire: number;
 }
 
-type Mode = "manual" | "registered";
+type Mode = "manual" | "asaas";
 interface RegisteredSettings {
   enabled: boolean;
   provider: string;
@@ -222,22 +222,21 @@ const BoletoSettingsManager = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (mode === "registered") {
+      if (mode === "asaas") {
         const { data: sessionData } = await supabase.auth.getSession();
         if (!sessionData?.session) {
           toast.error("Sessão expirada. Faça login como administrador.");
           setIsSaving(false);
           return;
         }
-        const value: RegisteredSettings = {
-          enabled: regSettings.enabled,
-          provider: regSettings.provider,
-          bank: regSettings.bank,
-          api: regSettings.api,
-          billing: regSettings.billing,
-        };
-        const { data, error } = await supabase.functions.invoke("admin-boleto-registered-settings", {
-          body: { action: "save_settings", value: { ...value, mode: "registered" } },
+        const { data, error } = await supabase.functions.invoke("boleto-settings", {
+          body: {
+            action: "save_boleto",
+            mode: "asaas",
+            enabled: regSettings.enabled,
+            days_to_expire: regSettings.billing.days_to_expire,
+            instructions: regSettings.billing.instructions,
+          },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
@@ -307,17 +306,17 @@ const BoletoSettingsManager = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="manual">Manual</SelectItem>
-                <SelectItem value="registered">Registrado</SelectItem>
+                <SelectItem value="asaas">Registrado (Asaas)</SelectItem>
               </SelectContent>
             </Select>
           </div>
           {/* Bank Selection */}
-          {mode === "registered" && (
+          {mode === "asaas" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
                 <div className="space-y-1">
                   <p className={`font-medium ${regSettings.enabled ? "text-green-700" : "text-amber-700"}`}>
-                    {regSettings.enabled ? "Boleto Registrado ativado" : "Boleto Registrado desativado"}
+                    {regSettings.enabled ? "Boleto (Asaas) ativado" : "Boleto (Asaas) desativado"}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Ative para receber pagamentos com emissão registrada
@@ -325,76 +324,7 @@ const BoletoSettingsManager = () => {
                 </div>
                 <Switch checked={regSettings.enabled} onCheckedChange={(checked) => setRegSettings((prev) => ({ ...prev, enabled: checked }))} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Provedor</Label>
-                  <Input
-                    value={regSettings.provider}
-                    onChange={(e) => setRegSettings((prev) => ({ ...prev, provider: e.target.value }))}
-                    placeholder="Ex.: bank_bradesco, api_pagseguro"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Tipo de Integração</Label>
-                  <Select
-                    value={regSettings.api.type}
-                    onValueChange={(val) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, type: val as RegisteredSettings['api']['type'] } }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cnab">CNAB</SelectItem>
-                      <SelectItem value="api">API</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Ambiente</Label>
-                  <Select
-                    value={regSettings.api.environment}
-                    onValueChange={(val) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, environment: val as RegisteredSettings['api']['environment'] } }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="homolog">Homologação</SelectItem>
-                      <SelectItem value="production">Produção</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Endpoint da API</Label>
-                  <Input
-                    value={regSettings.api.endpoint}
-                    onChange={(e) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, endpoint: e.target.value } }))}
-                    placeholder="https://api.exemplo.com/boletos"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Client ID</Label>
-                  <Input
-                    value={regSettings.api.client_id}
-                    onChange={(e) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, client_id: e.target.value } }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Client Secret</Label>
-                  <Input
-                    type="password"
-                    value={regSettings.api.client_secret}
-                    onChange={(e) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, client_secret: e.target.value } }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Certificate Ref</Label>
-                  <Input
-                    value={regSettings.api.certificate_ref}
-                    onChange={(e) => setRegSettings((prev) => ({ ...prev, api: { ...prev.api, certificate_ref: e.target.value } }))}
-                  />
-                </div>
-              </div>
+              {/* Asaas não precisa de credenciais na UI; parâmetros de boleto abaixo */}
             </div>
           )}
 
@@ -402,11 +332,9 @@ const BoletoSettingsManager = () => {
             <div className="space-y-2">
               <Label htmlFor="bank_code">Código do Banco *</Label>
               <Select
-                value={mode === "registered" ? regSettings.bank.code : settings.bank_code}
+                value={mode === "asaas" ? "" : settings.bank_code}
                 onValueChange={(code) => {
-                  if (mode === "registered") {
-                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, code, name: COMMON_BANKS[code] || prev.bank.name } }));
-                  } else {
+                  if (mode !== "asaas") {
                     handleBankCodeChange(code);
                   }
                 }}
@@ -428,11 +356,9 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="bank_name">Nome do Banco</Label>
               <Input
                 id="bank_name"
-                value={mode === "registered" ? regSettings.bank.name : settings.bank_name}
+                value={mode === "asaas" ? "" : settings.bank_name}
                 onChange={(e) => {
-                  if (mode === "registered") {
-                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, name: e.target.value } }));
-                  } else {
+                  if (mode !== "asaas") {
                     setSettings({ ...settings, bank_name: e.target.value });
                   }
                 }}
@@ -447,11 +373,9 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="agency">Agência *</Label>
               <Input
                 id="agency"
-                value={mode === "registered" ? regSettings.bank.agency : settings.agency}
+                value={mode === "asaas" ? "" : settings.agency}
                 onChange={(e) => {
-                  if (mode === "registered") {
-                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, agency: e.target.value } }));
-                  } else {
+                  if (mode !== "asaas") {
                     setSettings({ ...settings, agency: e.target.value });
                   }
                 }}
@@ -463,11 +387,9 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="account">Conta *</Label>
               <Input
                 id="account"
-                value={mode === "registered" ? regSettings.bank.account : settings.account}
+                value={mode === "asaas" ? "" : settings.account}
                 onChange={(e) => {
-                  if (mode === "registered") {
-                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, account: e.target.value } }));
-                  } else {
+                  if (mode !== "asaas") {
                     setSettings({ ...settings, account: e.target.value });
                   }
                 }}
@@ -478,11 +400,9 @@ const BoletoSettingsManager = () => {
             <div className="space-y-2">
               <Label htmlFor="account_type">Tipo de Conta</Label>
               <Select
-                value={mode === "registered" ? "corrente" : settings.account_type}
+                value={mode === "asaas" ? "corrente" : settings.account_type}
                 onValueChange={(value) => {
-                  if (mode === "registered") {
-                    // keep corrente for registered
-                  } else {
+                  if (mode !== "asaas") {
                     setSettings({ ...settings, account_type: value });
                   }
                 }}
@@ -498,14 +418,14 @@ const BoletoSettingsManager = () => {
               </Select>
             </div>
           </div>
-          {mode === "registered" && (
+          {mode !== "asaas" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="account_dv">Dígito da Conta</Label>
                 <Input
                   id="account_dv"
-                  value={regSettings.bank.account_dv}
-                  onChange={(e) => setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, account_dv: e.target.value } }))}
+                  value={settings.account}
+                  onChange={(e) => setSettings({ ...settings, account: e.target.value })}
                   placeholder="0"
                 />
               </div>
@@ -513,8 +433,8 @@ const BoletoSettingsManager = () => {
                 <Label htmlFor="wallet">Carteira</Label>
                 <Input
                   id="wallet"
-                  value={regSettings.bank.wallet}
-                  onChange={(e) => setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, wallet: e.target.value } }))}
+                  value=""
+                  onChange={() => {}}
                   placeholder="Ex.: 17"
                 />
               </div>
@@ -522,8 +442,8 @@ const BoletoSettingsManager = () => {
                 <Label htmlFor="agreement">Convênio</Label>
                 <Input
                   id="agreement"
-                  value={regSettings.bank.agreement}
-                  onChange={(e) => setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, agreement: e.target.value } }))}
+                  value=""
+                  onChange={() => {}}
                   placeholder="Ex.: 123456"
                 />
               </div>
@@ -536,11 +456,9 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="beneficiary_name">Nome do Favorecido *</Label>
               <Input
                 id="beneficiary_name"
-                value={mode === "registered" ? regSettings.bank.beneficiary_name : settings.beneficiary_name}
+                value={mode === "asaas" ? "" : settings.beneficiary_name}
                 onChange={(e) => {
-                  if (mode === "registered") {
-                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, beneficiary_name: e.target.value } }));
-                  } else {
+                  if (mode !== "asaas") {
                     setSettings({ ...settings, beneficiary_name: e.target.value });
                   }
                 }}
@@ -552,11 +470,9 @@ const BoletoSettingsManager = () => {
               <Label htmlFor="beneficiary_document">CPF/CNPJ *</Label>
               <Input
                 id="beneficiary_document"
-                value={mode === "registered" ? regSettings.bank.beneficiary_document : settings.beneficiary_document}
+                value={mode === "asaas" ? "" : settings.beneficiary_document}
                 onChange={(e) => {
-                  if (mode === "registered") {
-                    setRegSettings((prev) => ({ ...prev, bank: { ...prev.bank, beneficiary_document: e.target.value } }));
-                  } else {
+                  if (mode !== "asaas") {
                     setSettings({ ...settings, beneficiary_document: e.target.value });
                   }
                 }}
@@ -570,9 +486,9 @@ const BoletoSettingsManager = () => {
             <Label htmlFor="instructions">Instruções para o cliente</Label>
             <Textarea
               id="instructions"
-              value={mode === "registered" ? regSettings.billing.instructions : settings.instructions}
+              value={mode === "asaas" ? regSettings.billing.instructions : settings.instructions}
               onChange={(e) => {
-                if (mode === "registered") {
+                if (mode === "asaas") {
                   setRegSettings((prev) => ({ ...prev, billing: { ...prev.billing, instructions: e.target.value } }));
                 } else {
                   setSettings({ ...settings, instructions: e.target.value });
@@ -591,10 +507,10 @@ const BoletoSettingsManager = () => {
               type="number"
               min="1"
               max="30"
-              value={mode === "registered" ? regSettings.billing.days_to_expire : settings.days_to_expire}
+              value={mode === "asaas" ? regSettings.billing.days_to_expire : settings.days_to_expire}
               onChange={(e) => {
                 const v = parseInt(e.target.value) || 3;
-                if (mode === "registered") {
+                if (mode === "asaas") {
                   setRegSettings((prev) => ({ ...prev, billing: { ...prev.billing, days_to_expire: v } }));
                 } else {
                   setSettings({ ...settings, days_to_expire: v });
@@ -606,7 +522,7 @@ const BoletoSettingsManager = () => {
               Prazo para o cliente efetuar o pagamento
             </p>
           </div>
-          {mode === "registered" && (
+          {mode !== "asaas" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fine_percent">Multa (%)</Label>

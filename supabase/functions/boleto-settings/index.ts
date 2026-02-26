@@ -42,7 +42,7 @@ serve(async (req: Request) => {
       const v = boletoSettings?.value as Record<string, unknown> | undefined;
       if (v) {
         const enabled = Boolean(v['enabled']);
-        const mode = String(v['mode'] || 'manual') as 'manual' | 'registered';
+        const mode = String(v['mode'] || 'manual') as 'manual' | 'registered' | 'asaas';
         const days_to_expire = Number(v['days_to_expire'] ?? 3);
         const instructions = String(v['instructions'] ?? '');
         const environment = typeof v['environment'] === 'string'
@@ -54,7 +54,9 @@ serve(async (req: Request) => {
           enabled &&
           (mode === 'manual'
             ? Boolean(manual['bank_code'] && manual['beneficiary_name'] && manual['beneficiary_document'])
-            : Boolean((registered['bank'] as Record<string, unknown> | undefined)?.['code']));
+            : mode === 'asaas'
+              ? true
+              : Boolean((registered['bank'] as Record<string, unknown> | undefined)?.['code']));
         if (!configured) {
           return new Response(
             JSON.stringify({ error: 'Boleto não configurado', configured: false }),
@@ -75,6 +77,17 @@ serve(async (req: Request) => {
               instructions,
               days_to_expire,
               mode,
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else if (mode === 'asaas') {
+          return new Response(
+            JSON.stringify({
+              configured: true,
+              mode,
+              provider: 'asaas',
+              instructions,
+              days_to_expire,
             }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
@@ -139,7 +152,7 @@ serve(async (req: Request) => {
       const isNewSchema = typeof v2?.['mode'] === 'string' || v2?.['manual'] || v2?.['enabled'] !== undefined;
       if (isNewSchema) {
         const enabled = Boolean(v2['enabled']);
-        const mode = String(v2['mode'] || 'manual') as 'manual' | 'registered';
+        const mode = String(v2['mode'] || 'manual') as 'manual' | 'registered' | 'asaas';
         const days_to_expire = Number(v2['days_to_expire'] ?? 3);
         const instructions = String(v2['instructions'] ?? '');
         const manual = (v2['manual'] ?? {}) as Record<string, unknown>;
@@ -170,6 +183,18 @@ serve(async (req: Request) => {
               instructions,
               days_to_expire,
               mode,
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else if (mode === 'asaas') {
+          return new Response(
+            JSON.stringify({
+              configured: true,
+              mode,
+              provider: 'asaas',
+              environment: String(v2['environment'] ?? 'sandbox'),
+              instructions,
+              days_to_expire,
             }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
@@ -241,7 +266,7 @@ serve(async (req: Request) => {
       );
     }
 
-    // Admin actions require authentication
+    // Admin actions require authentication (except set_enabled handled above)
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Não autorizado' }),
@@ -278,12 +303,12 @@ serve(async (req: Request) => {
     // Action: save_boleto - Save boleto settings
     if (action === 'save_boleto') {
       // Support both legacy flat payload and new structured payload
-      const mode = body?.mode as 'manual' | 'registered' | undefined;
+      const mode = body?.mode as 'manual' | 'registered' | 'asaas' | undefined;
       let valueToSave: Record<string, unknown>;
 
       if (mode) {
         const enabled = body?.enabled ?? true;
-        const provider = body?.provider ?? (body?.registered?.provider ?? 'bank_direct');
+        const provider = body?.provider ?? (body?.registered?.provider ?? (mode === 'asaas' ? 'asaas' : 'bank_direct'));
         const days_to_expire = body?.days_to_expire ?? 3;
         const instructions = (body?.instructions ?? '').trim();
         const manual = (body?.manual ?? {}) as Record<string, unknown>;
@@ -342,6 +367,29 @@ serve(async (req: Request) => {
               account_type: String(manual['account_type'] ?? 'corrente'),
               beneficiary_name: String(manual['beneficiary_name'] ?? '').trim(),
               beneficiary_document: String(manual['beneficiary_document'] ?? '').trim(),
+            },
+          };
+        } else if (mode === 'asaas') {
+          valueToSave = {
+            enabled: Boolean(enabled),
+            mode: 'asaas',
+            provider: 'asaas',
+            environment: String(body?.environment ?? 'sandbox'),
+            days_to_expire: Number(days_to_expire),
+            instructions,
+            registered: {
+              provider: 'asaas',
+              webhook_secret: '',
+              credentials: {},
+            },
+            manual: {
+              bank_code: '',
+              bank_name: '',
+              agency: '',
+              account: '',
+              account_type: 'corrente',
+              beneficiary_name: '',
+              beneficiary_document: '',
             },
           };
         } else {

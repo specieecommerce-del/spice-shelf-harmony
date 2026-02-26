@@ -93,7 +93,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const [showBoletoPayment, setShowBoletoPayment] = useState(false);
   const [boletoOrderData, setBoletoOrderData] = useState<BoletoOrderData | null>(null);
   const [boletoConfigured, setBoletoConfigured] = useState<boolean | null>(null);
-  const [boletoProvider, setBoletoProvider] = useState<string | null>(null);
+  const [boletoMode, setBoletoMode] = useState<string | null>(null);
 
   // Card state
   const [cardConfigured, setCardConfigured] = useState<boolean | null>(null);
@@ -182,11 +182,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
           body: { action: "get_boleto_for_payment" },
         });
         setBoletoConfigured(boletoData?.configured || false);
-        if (boletoData?.mode === "registered" && typeof boletoData?.provider === "string") {
-          setBoletoProvider(String(boletoData.provider).toLowerCase());
-        } else {
-          setBoletoProvider(null);
-        }
+        setBoletoMode(typeof boletoData?.mode === "string" ? String(boletoData.mode).toLowerCase() : null);
         if (!boletoData?.configured) {
           const { data: row } = await supabase
             .from("store_settings")
@@ -205,7 +201,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
                 ? Boolean(manual["bank_code"] && manual["beneficiary_name"] && manual["beneficiary_document"])
                 : Boolean(((registered["bank"] ?? {}) as Record<string, unknown>)["code"]));
             setBoletoConfigured(configured);
-            setBoletoProvider(mode === "registered" ? String(v["provider"] || (registered as any)["provider"] || "").toLowerCase() : null);
+            setBoletoMode(mode.toLowerCase());
           }
         }
       } catch {
@@ -230,11 +226,11 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
             setBoletoProvider(mode === "registered" ? String(v["provider"] || (registered as any)["provider"] || "").toLowerCase() : null);
           } else {
             setBoletoConfigured(false);
-            setBoletoProvider(null);
+            setBoletoMode(null);
           }
         } catch {
           setBoletoConfigured(false);
-          setBoletoProvider(null);
+          setBoletoMode(null);
         }
       }
 
@@ -788,7 +784,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         } : null,
       };
 
-      const useAsaas = boletoProvider === "asaas" || boletoProvider === "api_asaas" || boletoProvider === "asaas_api";
+      const useAsaas = boletoMode === "asaas";
       const { data, error } = await supabase.functions.invoke(useAsaas ? "create-asaas-boleto" : "create-boleto-order", {
         body: payload,
       });
