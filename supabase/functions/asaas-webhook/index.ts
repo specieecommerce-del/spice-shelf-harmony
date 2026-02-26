@@ -17,8 +17,9 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Token verification using header and env
-    const token = req.headers.get("x-webhook-token") || "";
+    // Token verification using header or querystring and env
+    const url = new URL(req.url);
+    const token = req.headers.get("x-webhook-token") || url.searchParams.get("token") || "";
     const expected = Deno.env.get("ASAAS_WEBHOOK_TOKEN") || "";
     if (!expected || token !== expected) {
       return new Response(JSON.stringify({ error: "Unauthorized webhook" }), {

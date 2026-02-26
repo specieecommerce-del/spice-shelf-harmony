@@ -223,7 +223,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
                 ? Boolean(manual["bank_code"] && manual["beneficiary_name"] && manual["beneficiary_document"])
                 : Boolean(((registered["bank"] ?? {}) as Record<string, unknown>)["code"]));
             setBoletoConfigured(configured);
-            setBoletoProvider(mode === "registered" ? String(v["provider"] || (registered as any)["provider"] || "").toLowerCase() : null);
+            setBoletoMode(mode.toLowerCase());
           } else {
             setBoletoConfigured(false);
             setBoletoMode(null);
