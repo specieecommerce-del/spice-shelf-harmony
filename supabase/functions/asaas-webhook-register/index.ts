@@ -98,6 +98,7 @@ serve(async (req: Request) => {
     const payload: Record<string, unknown> = {
       url: finalUrl,
       email: email || undefined,
+      authToken: ASAAS_WEBHOOK_TOKEN,
       sendType,
       name,
       enabled: true,
@@ -126,15 +127,46 @@ serve(async (req: Request) => {
       "access_token": ASAAS_ACCESS_TOKEN,
     };
 
-    const res = await fetch(`${baseUrl}/webhooks`, {
+    // Try to create, if already exists, update idempotently
+    const createRes = await fetch(`${baseUrl}/webhooks`, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
     });
-    const json = await res.json();
+    const createJson = await createRes.json();
+    if (createRes.ok) {
+      return new Response(JSON.stringify({ success: true, data: createJson }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const errDesc = Array.isArray(createJson?.errors) ? createJson.errors[0]?.description : "";
+    if (errDesc && (errDesc.includes("Já existe uma configuração") || errDesc.toLowerCase().includes("already"))) {
+      // Find existing webhook by URL or name and update it
+      const listRes = await fetch(`${baseUrl}/webhooks`, { method: "GET", headers });
+      const listJson = await listRes.json();
+      const existing = Array.isArray(listJson?.data) ? listJson.data.find((w: any) => w?.url === finalUrl || w?.name === name) : null;
+      if (existing?.id) {
+        const updateRes = await fetch(`${baseUrl}/webhooks/${existing.id}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(payload),
+        });
+        const updateJson = await updateRes.json();
+        return new Response(JSON.stringify({ success: updateRes.ok, data: updateJson }), {
+          status: updateRes.ok ? 200 : updateRes.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // If not found, return original error
+      return new Response(JSON.stringify({ success: false, data: createJson }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    return new Response(JSON.stringify({ success: res.ok, data: json }), {
-      status: res.ok ? 200 : res.status,
+    return new Response(JSON.stringify({ success: false, data: createJson }), {
+      status: createRes.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
