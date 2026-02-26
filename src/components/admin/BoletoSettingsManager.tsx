@@ -126,19 +126,15 @@ const BoletoSettingsManager = () => {
   const [testOrderNsu, setTestOrderNsu] = useState<string>("");
   const [testProviderPaymentId, setTestProviderPaymentId] = useState<string>("");
   const [testEvent, setTestEvent] = useState<string>("PAYMENT_CONFIRMED");
-  const [recentOrders, setRecentOrders] = useState<Array<{ order_nsu: string; provider_payment_id: string; status: string; inserted_at: string }>>([]);
+  const [recentOrders, setRecentOrders] = useState<Array<{ order_nsu: string; provider_payment_id?: string; status: string; inserted_at?: string; created_at?: string }>>([]);
   const loadRecentOrders = async () => {
     try {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("order_nsu, provider_payment_id, status, inserted_at")
-        .order("inserted_at", { ascending: false })
-        .limit(20);
-      if (error) {
+      const { data, error } = await supabase.functions.invoke("admin-orders-list", { body: {} });
+      if (error || data?.error) {
         sonnerToast.error("Falha ao carregar pedidos");
         return;
       }
-      setRecentOrders(data || []);
+      setRecentOrders((data?.data ?? []) as any);
     } catch {
       sonnerToast.error("Erro ao carregar pedidos");
     }
@@ -503,11 +499,15 @@ const BoletoSettingsManager = () => {
                       <SelectValue placeholder="Carregue e selecione um pedido" />
                     </SelectTrigger>
                     <SelectContent>
-                      {recentOrders.map((o) => (
-                        <SelectItem key={`${o.order_nsu}|${o.provider_payment_id}`} value={`${o.order_nsu}|${o.provider_payment_id || ""}`}>
-                          {o.order_nsu} · {o.status} · {new Date(o.inserted_at).toLocaleString()}
-                        </SelectItem>
-                      ))}
+                      {recentOrders.map((o) => {
+                        const dt = o.inserted_at || o.created_at || "";
+                        const when = dt ? new Date(dt).toLocaleString() : "";
+                        return (
+                          <SelectItem key={`${o.order_nsu}|${o.provider_payment_id || ""}`} value={`${o.order_nsu}|${o.provider_payment_id || ""}`}>
+                            {o.order_nsu} · {o.status} · {when}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
