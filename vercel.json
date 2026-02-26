@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/_functions/:path*",
-      "destination": "https://cfsxyladsuqicdoyvrab.supabase.co/functions/v1/:path*"
+      "destination": "/api/_functions/:path*"
     }
   ]
 }
