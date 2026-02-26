@@ -544,6 +544,7 @@ const BoletoSettingsManager = () => {
               <Input
                 id="beneficiary_name"
                 value={mode === "asaas" ? "" : settings.beneficiary_name}
+                disabled={mode === "asaas"}
                 onChange={(e) => {
                   if (mode !== "asaas") {
                     setSettings({ ...settings, beneficiary_name: e.target.value });
@@ -551,6 +552,11 @@ const BoletoSettingsManager = () => {
                 }}
                 placeholder="Nome completo ou razão social"
               />
+              {mode === "asaas" && (
+                <p className="text-xs text-muted-foreground">
+                  Asaas não requer dados do favorecido aqui
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -558,6 +564,7 @@ const BoletoSettingsManager = () => {
               <Input
                 id="beneficiary_document"
                 value={mode === "asaas" ? "" : settings.beneficiary_document}
+                disabled={mode === "asaas"}
                 onChange={(e) => {
                   if (mode !== "asaas") {
                     setSettings({ ...settings, beneficiary_document: e.target.value });
@@ -565,6 +572,11 @@ const BoletoSettingsManager = () => {
                 }}
                 placeholder="000.000.000-00 ou 00.000.000/0001-00"
               />
+              {mode === "asaas" && (
+                <p className="text-xs text-muted-foreground">
+                  Asaas identifica o pagador no próprio boleto
+                </p>
+              )}
             </div>
           </div>
 
