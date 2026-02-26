@@ -357,9 +357,10 @@ const BoletoSettingsManager = () => {
                         sonnerToast.error("Sessão expirada. Faça login como administrador.");
                         return;
                       }
+                      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
                       const { data, error } = await supabase.functions.invoke("asaas-webhook-register", {
                         body: {
-                          url: `${window.location.origin}/_functions/asaas-webhook`,
+                          url: `${supabaseUrl}/functions/v1/asaas-webhook`,
                           email: webhookEmail,
                           sendType: "SEQUENTIALLY",
                           name: "BOLETO SPECIES ALIMENTOS",
