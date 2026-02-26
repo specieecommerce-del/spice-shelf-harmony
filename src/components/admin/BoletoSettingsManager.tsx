@@ -131,12 +131,30 @@ const BoletoSettingsManager = () => {
     try {
       const { data, error } = await supabase.functions.invoke("admin-orders-list", { body: {} });
       if (error || data?.error) {
-        sonnerToast.error("Falha ao carregar pedidos");
+        const fb = await supabase
+          .from("orders")
+          .select("order_nsu, status, inserted_at, created_at")
+          .order("inserted_at", { ascending: false })
+          .limit(20);
+        if (fb.error) {
+          sonnerToast.error("Falha ao carregar pedidos");
+          return;
+        }
+        setRecentOrders((fb.data ?? []) as any);
         return;
       }
       setRecentOrders((data?.data ?? []) as any);
     } catch {
-      sonnerToast.error("Erro ao carregar pedidos");
+      const fb = await supabase
+        .from("orders")
+        .select("order_nsu, status, inserted_at, created_at")
+        .order("inserted_at", { ascending: false })
+        .limit(20);
+      if (fb.error) {
+        sonnerToast.error("Erro ao carregar pedidos");
+        return;
+      }
+      setRecentOrders((fb.data ?? []) as any);
     }
   };
 
@@ -433,12 +451,7 @@ const BoletoSettingsManager = () => {
                         return;
                       }
                       const { data, error } = await supabase.functions.invoke("asaas-webhook-register", {
-                        body: {
-                          url: `${window.location.origin}/_functions/asaas-webhook`,
-                          email: webhookEmail,
-                          sendType: "SEQUENTIALLY",
-                          name: "BOLETO SPECIES ALIMENTOS",
-                        },
+                        body: { url: `${window.location.origin}/_functions/asaas-webhook` },
                       });
                       const isOk = !error && (data?.success === true || Boolean((data as any)?.data?.id));
                       if (!isOk) {

@@ -62,8 +62,6 @@ serve(async (req: Request) => {
     }
 
     const webhookUrl = String(body["url"] || "").trim();
-    const email = String(body["email"] || "").trim();
-    const sendType = String(body["sendType"] || "SEQUENTIALLY").trim();
     const name = String(body["name"] || "BOLETO SPECIES ALIMENTOS").trim();
 
     if (!ASAAS_ACCESS_TOKEN) {
@@ -95,31 +93,7 @@ serve(async (req: Request) => {
         ? `${webhookUrl}&token=${ASAAS_WEBHOOK_TOKEN}`
         : `${webhookUrl}?token=${ASAAS_WEBHOOK_TOKEN}`);
 
-    const payload: Record<string, unknown> = {
-      url: finalUrl,
-      email: email || undefined,
-      authToken: ASAAS_WEBHOOK_TOKEN,
-      sendType,
-      name,
-      enabled: true,
-      interrupted: false,
-      events: [
-        "PAYMENT_CREATED",
-        "PAYMENT_UPDATED",
-        "PAYMENT_CONFIRMED",
-        "PAYMENT_RECEIVED",
-        "PAYMENT_OVERDUE",
-        "PAYMENT_DELETED",
-        "PAYMENT_RESTORED",
-        "PAYMENT_REFUNDED",
-        "PAYMENT_RECEIVED_IN_CASH_UNDONE",
-        "PAYMENT_CHARGEBACK_REQUESTED",
-        "PAYMENT_CHARGEBACK_DISPUTE",
-        "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
-        "PAYMENT_DUNNING_RECEIVED",
-        "PAYMENT_DUNNING_REQUESTED",
-      ],
-    };
+    const payload: Record<string, unknown> = { url: finalUrl, authToken: ASAAS_WEBHOOK_TOKEN, name };
 
     const headers = {
       "Content-Type": "application/json",
@@ -127,46 +101,24 @@ serve(async (req: Request) => {
       "access_token": ASAAS_ACCESS_TOKEN,
     };
 
-    // Try to create, if already exists, update idempotently
+    // Prefer GET first: if exists, do nothing; else create minimal
+    const listRes = await fetch(`${baseUrl}/webhooks`, { method: "GET", headers });
+    const listJson = await listRes.json();
+    const existing = Array.isArray(listJson?.data) ? listJson.data.find((w: any) => w?.url === finalUrl || w?.name === name) : null;
+    if (existing?.id) {
+      return new Response(JSON.stringify({ success: true, data: existing }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const createRes = await fetch(`${baseUrl}/webhooks`, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
     });
     const createJson = await createRes.json();
-    if (createRes.ok) {
-      return new Response(JSON.stringify({ success: true, data: createJson }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const errDesc = Array.isArray(createJson?.errors) ? createJson.errors[0]?.description : "";
-    if (errDesc && (errDesc.includes("Já existe uma configuração") || errDesc.toLowerCase().includes("already"))) {
-      // Find existing webhook by URL or name and update it
-      const listRes = await fetch(`${baseUrl}/webhooks`, { method: "GET", headers });
-      const listJson = await listRes.json();
-      const existing = Array.isArray(listJson?.data) ? listJson.data.find((w: any) => w?.url === finalUrl || w?.name === name) : null;
-      if (existing?.id) {
-        const updateRes = await fetch(`${baseUrl}/webhooks/${existing.id}`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify(payload),
-        });
-        const updateJson = await updateRes.json();
-        return new Response(JSON.stringify({ success: updateRes.ok, data: updateJson }), {
-          status: updateRes.ok ? 200 : updateRes.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      // If not found, return original error
-      return new Response(JSON.stringify({ success: false, data: createJson }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ success: false, data: createJson }), {
-      status: createRes.status,
+    return new Response(JSON.stringify({ success: createRes.ok, data: createJson }), {
+      status: createRes.ok ? 200 : createRes.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
