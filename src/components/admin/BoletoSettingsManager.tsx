@@ -133,41 +133,53 @@ const BoletoSettingsManager = () => {
         setSettings(data.settings);
         setMode("manual");
       }
-      const regRes = await supabase.functions.invoke("admin-boleto-registered-settings", {
-        body: { action: "get_settings" },
-      });
-      if (regRes.data?.settings) {
-        const s = regRes.data.settings as RegisteredSettings;
-        setRegSettings({
-          enabled: s.enabled ?? true,
-          provider: s.provider ?? "",
-          bank: {
-            code: s.bank?.code ?? "",
-            name: s.bank?.name ?? "",
-            wallet: s.bank?.wallet ?? "",
-            agreement: s.bank?.agreement ?? "",
-            agency: s.bank?.agency ?? "",
-            account: s.bank?.account ?? "",
-            account_dv: s.bank?.account_dv ?? "",
-            beneficiary_name: s.bank?.beneficiary_name ?? "",
-            beneficiary_document: s.bank?.beneficiary_document ?? "",
-          },
-          api: {
-            type: s.api?.type ?? "cnab",
-            environment: s.api?.environment ?? "homolog",
-            endpoint: s.api?.endpoint ?? "",
-            client_id: s.api?.client_id ?? "",
-            client_secret: "",
-            certificate_ref: s.api?.certificate_ref ?? "",
-          },
-          billing: {
-            days_to_expire: s.billing?.days_to_expire ?? 3,
-            fine_percent: s.billing?.fine_percent ?? 0,
-            interest_percent_month: s.billing?.interest_percent_month ?? 0,
-            instructions: s.billing?.instructions ?? "",
-          },
+      const { data: sessionData } = await supabase.auth.getSession();
+      const isLogged = Boolean(sessionData?.session);
+      if (isLogged) {
+        const regRes = await supabase.functions.invoke("admin-boleto-registered-settings", {
+          body: { action: "get_settings" },
         });
-        setMode("registered");
+        if (regRes.error) {
+          const msg = typeof regRes.error === "object" && (regRes.error as any).message ? (regRes.error as any).message : "";
+          if (msg.includes("Não autorizado") || msg.includes("Acesso negado")) {
+            toast.error("Faça login como administrador para editar Boleto Registrado");
+          }
+        }
+        if (regRes.data?.settings) {
+          const s = regRes.data.settings as RegisteredSettings;
+          setRegSettings({
+            enabled: s.enabled ?? true,
+            provider: s.provider ?? "",
+            bank: {
+              code: s.bank?.code ?? "",
+              name: s.bank?.name ?? "",
+              wallet: s.bank?.wallet ?? "",
+              agreement: s.bank?.agreement ?? "",
+              agency: s.bank?.agency ?? "",
+              account: s.bank?.account ?? "",
+              account_dv: s.bank?.account_dv ?? "",
+              beneficiary_name: s.bank?.beneficiary_name ?? "",
+              beneficiary_document: s.bank?.beneficiary_document ?? "",
+            },
+            api: {
+              type: s.api?.type ?? "cnab",
+              environment: s.api?.environment ?? "homolog",
+              endpoint: s.api?.endpoint ?? "",
+              client_id: s.api?.client_id ?? "",
+              client_secret: "",
+              certificate_ref: s.api?.certificate_ref ?? "",
+            },
+            billing: {
+              days_to_expire: s.billing?.days_to_expire ?? 3,
+              fine_percent: s.billing?.fine_percent ?? 0,
+              interest_percent_month: s.billing?.interest_percent_month ?? 0,
+              instructions: s.billing?.instructions ?? "",
+            },
+          });
+          setMode("registered");
+        }
+      } else {
+        toast.error("Sessão não encontrada. Faça login para editar Boleto Registrado.");
       }
     } catch (error) {
       try {
@@ -211,6 +223,12 @@ const BoletoSettingsManager = () => {
     setIsSaving(true);
     try {
       if (mode === "registered") {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session) {
+          toast.error("Sessão expirada. Faça login como administrador.");
+          setIsSaving(false);
+          return;
+        }
         const value: RegisteredSettings = {
           enabled: regSettings.enabled,
           provider: regSettings.provider,

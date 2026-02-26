@@ -67,11 +67,7 @@ const App = () => (
               </Routes>
               <ChatBot />
             </BrowserRouter>
-            {(
-              import.meta.env.VITE_ENABLE_SPEED_INSIGHTS === "true" ||
-              (!window.location.hostname.startsWith("localhost") &&
-               !/^192\.168\./.test(window.location.hostname))
-            ) && <SpeedInsights />}
+            {import.meta.env.VITE_ENABLE_SPEED_INSIGHTS === "true" && <SpeedInsights />}
           </CartProvider>
         </FavoritesProvider>
       </AuthProvider>
