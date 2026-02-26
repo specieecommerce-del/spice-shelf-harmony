@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, FileText, Save, Building2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { toast as sonnerToast } from "sonner";
 
 interface BoletoSettings {
   bank_code: string;
@@ -116,6 +117,7 @@ const BoletoSettingsManager = () => {
       instructions: "",
     },
   });
+  const [webhookEmail, setWebhookEmail] = useState<string>("specieecommerce@gmail.com");
 
   useEffect(() => {
     fetchSettings();
@@ -325,6 +327,54 @@ const BoletoSettingsManager = () => {
                 <Switch checked={regSettings.enabled} onCheckedChange={(checked) => setRegSettings((prev) => ({ ...prev, enabled: checked }))} />
               </div>
               {/* Asaas não precisa de credenciais na UI; parâmetros de boleto abaixo */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="webhookUrl">Webhook Asaas</Label>
+                  <Input id="webhookUrl" value={`${window.location.origin}/_functions/asaas-webhook`} disabled />
+                  <p className="text-xs text-muted-foreground">
+                    O token é gerenciado no servidor; o URL receberá ?token= automaticamente
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="webhookEmail">Email (opcional)</Label>
+                  <Input
+                    id="webhookEmail"
+                    value={webhookEmail}
+                    onChange={(e) => setWebhookEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const { data: sessionData } = await supabase.auth.getSession();
+                      if (!sessionData?.session) {
+                        sonnerToast.error("Sessão expirada. Faça login como administrador.");
+                        return;
+                      }
+                      const { data, error } = await supabase.functions.invoke("asaas-webhook-register", {
+                        body: {
+                          url: `${window.location.origin}/_functions/asaas-webhook`,
+                          email: webhookEmail,
+                          sendType: "SEQUENTIALLY",
+                          name: "BOLETO SPECIES ALIMENTOS",
+                        },
+                      });
+                      if (error || data?.error) {
+                        sonnerToast.error(data?.error || "Falha ao registrar webhook");
+                        return;
+                      }
+                      sonnerToast.success("Webhook Asaas registrado!");
+                    } catch (err) {
+                      sonnerToast.error("Erro ao registrar webhook");
+                    }
+                  }}
+                >
+                  Registrar webhook Asaas
+                </Button>
+              </div>
             </div>
           )}
 
