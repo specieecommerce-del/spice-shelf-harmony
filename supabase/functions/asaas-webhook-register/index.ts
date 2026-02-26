@@ -89,8 +89,14 @@ serve(async (req: Request) => {
       ? "https://api.asaas.com/api/v3"
       : "https://sandbox.asaas.com/api/v3";
 
+    const finalUrl = webhookUrl.includes("token=")
+      ? webhookUrl
+      : (webhookUrl.includes("?")
+        ? `${webhookUrl}&token=${ASAAS_WEBHOOK_TOKEN}`
+        : `${webhookUrl}?token=${ASAAS_WEBHOOK_TOKEN}`);
+
     const payload = {
-      url: webhookUrl,
+      url: finalUrl,
       email: email || undefined,
       authToken: ASAAS_WEBHOOK_TOKEN,
       sendType,
