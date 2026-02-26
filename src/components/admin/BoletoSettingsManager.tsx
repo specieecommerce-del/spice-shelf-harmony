@@ -243,19 +243,21 @@ const BoletoSettingsManager = () => {
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
       } else {
-        if (!settings.bank_code || !settings.agency || !settings.account || !settings.beneficiary_name || !settings.beneficiary_document) {
-          toast.error("Preencha todos os campos obrigatórios");
+        const bankName = (settings.bank_name || COMMON_BANKS[settings.bank_code] || settings.bank_code || "").trim();
+        if (!settings.bank_code || !bankName || !settings.agency || !settings.account || !settings.beneficiary_name || !settings.beneficiary_document) {
+          toast.error("Preencha todos os campos obrigatórios (banco, agência, conta, beneficiário e documento)");
+          setIsSaving(false);
           return;
         }
         const payload = {
           action: "save_boleto",
-          bank_code: settings.bank_code,
-          bank_name: settings.bank_name || COMMON_BANKS[settings.bank_code] || settings.bank_code,
-          agency: settings.agency,
-          account: settings.account,
+          bank_code: settings.bank_code.trim(),
+          bank_name: bankName,
+          agency: settings.agency.trim(),
+          account: settings.account.trim(),
           account_type: settings.account_type || "corrente",
-          beneficiary_name: settings.beneficiary_name,
-          beneficiary_document: settings.beneficiary_document,
+          beneficiary_name: settings.beneficiary_name.trim(),
+          beneficiary_document: settings.beneficiary_document.trim(),
           instructions: settings.instructions || "",
           days_to_expire: settings.days_to_expire || 3,
         };
