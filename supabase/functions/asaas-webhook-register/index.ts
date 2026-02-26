@@ -95,12 +95,29 @@ serve(async (req: Request) => {
         ? `${webhookUrl}&token=${ASAAS_WEBHOOK_TOKEN}`
         : `${webhookUrl}?token=${ASAAS_WEBHOOK_TOKEN}`);
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       url: finalUrl,
       email: email || undefined,
-      authToken: ASAAS_WEBHOOK_TOKEN,
       sendType,
       name,
+      enabled: true,
+      interrupted: false,
+      events: [
+        "PAYMENT_CREATED",
+        "PAYMENT_UPDATED",
+        "PAYMENT_CONFIRMED",
+        "PAYMENT_RECEIVED",
+        "PAYMENT_OVERDUE",
+        "PAYMENT_DELETED",
+        "PAYMENT_RESTORED",
+        "PAYMENT_REFUNDED",
+        "PAYMENT_RECEIVED_IN_CASH_UNDONE",
+        "PAYMENT_CHARGEBACK_REQUESTED",
+        "PAYMENT_CHARGEBACK_DISPUTE",
+        "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
+        "PAYMENT_DUNNING_RECEIVED",
+        "PAYMENT_DUNNING_REQUESTED",
+      ],
     };
 
     const headers = {

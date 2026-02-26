@@ -46,7 +46,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.admin-boleto-registered-settings]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-boleto-order]
 verify_jwt = false
