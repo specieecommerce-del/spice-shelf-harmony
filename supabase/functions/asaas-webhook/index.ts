@@ -52,10 +52,9 @@ serve(async (req: Request) => {
     else if (status === "CANCELED" || status === "CANCELLED") newStatus = "cancelled";
 
     if (newStatus && externalRef) {
-      await supabase
-        .from("orders")
-        .update({ status: newStatus, confirmation_source: "asaas_webhook" })
-        .eq("order_nsu", externalRef);
+      const update: Record<string, unknown> = { status: newStatus, confirmation_source: "asaas_webhook" };
+      if (newStatus === "paid") update["paid_at"] = new Date().toISOString();
+      await supabase.from("orders").update(update).eq("order_nsu", externalRef);
     }
 
     return new Response(JSON.stringify({ success: true }), {

@@ -183,6 +183,36 @@ serve(async (req: Request) => {
     const linhaDigitavel = paymentJson?.identificationField || "";
     const barcode = paymentJson?.barcode || "";
 
+    // Save order with boleto/provider metadata
+    const { data: insertedOrder, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        order_nsu: orderRef,
+        customer_name: customer.name.substring(0, 100),
+        customer_email: customer.email.substring(0, 255),
+        customer_phone: (customer.phone || "").substring(0, 20),
+        items: items,
+        total_amount: Math.round(totalAmount * 100),
+        status: "pending_boleto",
+        payment_method: "boleto",
+        payment_provider: "asaas",
+        provider_payment_id: String(paymentJson?.id || ""),
+        boleto_url: boletoUrl,
+        boleto_pdf_url: String(paymentJson?.bankSlipUrl || ""),
+        boleto_line: linhaDigitavel,
+        boleto_barcode: barcode,
+        boleto_due_date: new Date(dueDateStr).toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (orderError) {
+      return new Response(JSON.stringify({ error: "Erro ao salvar pedido" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
