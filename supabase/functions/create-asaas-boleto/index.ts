@@ -191,34 +191,61 @@ serve(async (req: Request) => {
     const linhaDigitavel = paymentJson?.identificationField || "";
     const barcode = paymentJson?.barcode || "";
 
-    // Save order with boleto/provider metadata
-    const { data: insertedOrder, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        order_nsu: orderRef,
-        customer_name: customer.name.substring(0, 100),
-        customer_email: customer.email.substring(0, 255),
-        customer_phone: (customer.phone || "").substring(0, 20),
-        items: items,
-        total_amount: Math.round(totalAmount * 100),
-        status: "pending_boleto",
-        payment_method: "boleto",
-      })
-      .select("id")
-      .single();
-
-    if (orderError) {
-      console.error("Order insert error:", orderError);
-      return new Response(JSON.stringify({ error: "Erro ao salvar pedido" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Save order with boleto/provider metadata (fallback if schema differs)
+    let insertedOrderId: any = null;
+    let orderInsertErr: any = null;
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .insert({
+          order_nsu: orderRef,
+          customer_name: customer.name.substring(0, 100),
+          customer_email: customer.email.substring(0, 255),
+          customer_phone: (customer.phone || "").substring(0, 20),
+          items: items,
+          total_amount: Math.round(totalAmount * 100),
+          status: "pending_boleto",
+          payment_method: "boleto",
+        })
+        .select("id")
+        .single();
+      if (!error) insertedOrderId = data?.id ?? null;
+      else orderInsertErr = error;
+    } catch (e) {
+      orderInsertErr = e;
+    }
+    if (orderInsertErr) {
+      console.warn("Order insert error, trying minimal columns:", orderInsertErr);
+      try {
+        const { data: d2, error: e2 } = await supabase
+          .from("orders")
+          .insert({
+            order_nsu: orderRef,
+            status: "pending_boleto",
+          })
+          .select("id")
+          .single();
+        if (!e2) insertedOrderId = d2?.id ?? null;
+        else {
+          console.error("Order minimal insert failed:", e2);
+          return new Response(JSON.stringify({ error: "Erro ao salvar pedido", detail: String(e2?.message || "") }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (e2) {
+        console.error("Order minimal insert exception:", e2);
+        return new Response(JSON.stringify({ error: "Erro ao salvar pedido" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Save payment title with boleto details
     try {
       await supabase.from("payment_titles").insert({
-        order_id: insertedOrder?.id,
+        order_id: insertedOrderId,
         method: "boleto",
         mode: "registered",
         provider: "asaas",
