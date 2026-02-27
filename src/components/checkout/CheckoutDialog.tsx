@@ -46,6 +46,11 @@ interface BoletoOrderData {
   orderNsu: string;
   totalAmount: number;
   dueDate: string;
+  invoiceUrl?: string;
+  bankSlipUrl?: string;
+  pdfUrl?: string;
+  linhaDigitavel?: string;
+  nossoNumero?: string;
   boletoData: {
     bankCode: string;
     bankName: string;
@@ -822,6 +827,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         return;
       }
 
+      console.log("create-asaas-boleto response", data);
       setBoletoOrderData(data);
       setShowBoletoPayment(true);
       
@@ -899,6 +905,24 @@ Pedido: ${boletoOrderData.orderNsu}`;
               <p className="text-xs text-center text-muted-foreground">
                 Vencimento: {format(new Date(boletoOrderData.dueDate), "dd/MM/yyyy", { locale: ptBR })}
               </p>
+              {boletoOrderData.linhaDigitavel && (
+                <div className="mt-2">
+                  <span className="text-muted-foreground text-xs">Linha digitável</span>
+                  <p className="text-sm font-mono break-all">{boletoOrderData.linhaDigitavel}</p>
+                </div>
+              )}
+              {(boletoOrderData.invoiceUrl || boletoOrderData.pdfUrl) && (
+                <div className="mt-2 text-center">
+                  <a
+                    href={boletoOrderData.invoiceUrl || boletoOrderData.pdfUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 underline text-sm"
+                  >
+                    Abrir boleto (Asaas)
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Bank Data */}
