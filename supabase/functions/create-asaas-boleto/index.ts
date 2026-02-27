@@ -29,6 +29,13 @@ serve(async (req: Request) => {
   }
 
   try {
+    const origin = (req.headers.get("origin") || "").toLowerCase();
+    if (origin && !origin.includes("speciesalimentos.com.br") && !origin.includes("localhost")) {
+      return new Response(JSON.stringify({ error: "Forbidden origin" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -222,9 +229,12 @@ serve(async (req: Request) => {
       });
     }
 
-    const boletoUrl = paymentJson?.bankSlipUrl || paymentJson?.invoiceUrl || "";
-    const linhaDigitavel = paymentJson?.identificationField || "";
-    const barcode = paymentJson?.barcode || "";
+    const invoiceUrl = String(paymentJson?.invoiceUrl || "");
+    const bankSlipUrl = String(paymentJson?.bankSlipUrl || "");
+    const boletoUrl = bankSlipUrl || invoiceUrl;
+    const linhaDigitavel = String(paymentJson?.identificationField || "");
+    const nossoNumero = String(paymentJson?.nossoNumero || "");
+    const barcode = String(paymentJson?.barcode || "");
 
     // Save order with boleto/provider metadata (fallback if schema differs)
     let insertedOrderId: any = null;
@@ -277,6 +287,23 @@ serve(async (req: Request) => {
       }
     }
 
+    try {
+      await supabase
+        .from("orders")
+        .update({
+          payment_provider: "asaas",
+          provider_payment_id: String(paymentJson?.id || ""),
+          boleto_pdf_url: boletoUrl,
+          boleto_invoice_url: invoiceUrl,
+          boleto_bank_slip_url: bankSlipUrl,
+          boleto_line: linhaDigitavel,
+          boleto_nosso_numero: nossoNumero,
+        })
+        .eq("order_nsu", orderRef);
+    } catch (e) {
+      console.warn("Order update with boleto details failed:", e);
+    }
+
     // Save payment title with boleto details
     try {
       await supabase.from("payment_titles").insert({
@@ -315,6 +342,9 @@ serve(async (req: Request) => {
         linhaDigitavel,
         barcode,
         pdfUrl: boletoUrl,
+        invoiceUrl,
+        bankSlipUrl,
+        nossoNumero,
         asaasPaymentId: paymentJson?.id || "",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
