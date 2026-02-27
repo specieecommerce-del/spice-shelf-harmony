@@ -68,6 +68,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     name: "",
     email: "",
     phone: "",
+    cpfCnpj: "",
   });
 
   // Coupon state
@@ -764,6 +765,27 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     setIsLoading(true);
 
     try {
+      if (boletoMode === "asaas") {
+        if (!customerInfo.cpfCnpj || String(customerInfo.cpfCnpj).trim() === "") {
+          toast({
+            title: "CPF/CNPJ obrigatório",
+            description: "Informe CPF ou CNPJ para emissão de boleto registrado.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+        const digits = String(customerInfo.cpfCnpj).replace(/\D/g, "");
+        if (!(digits.length === 11 || digits.length === 14)) {
+          toast({
+            title: "CPF/CNPJ inválido",
+            description: "Use 11 dígitos (CPF) ou 14 dígitos (CNPJ), sem máscara.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
       const payload = {
         items: items.map((item) => ({
           id: item.id,
@@ -777,6 +799,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
           name: customerInfo.name,
           email: customerInfo.email,
           phone: customerInfo.phone,
+          cpfCnpj: customerInfo.cpfCnpj,
         },
         coupon: appliedCoupon ? {
           code: appliedCoupon.code,
@@ -793,7 +816,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         console.error("Error creating boleto order:", error || data?.error);
         toast({
           title: "Erro ao criar pedido",
-          description: data?.error || "Tente novamente mais tarde.",
+          description: (data?.details && typeof data.details === "string" ? data.details : data?.error) || "Tente novamente mais tarde.",
           variant: "destructive",
         });
         return;
@@ -1318,6 +1341,19 @@ Pedido: ${boletoOrderData.orderNsu}`;
                 placeholder="(11) 99999-9999"
               />
             </div>
+            {boletoMode === "asaas" && (
+              <div>
+                <Label htmlFor="cpfcnpj">CPF/CNPJ *</Label>
+                <Input
+                  id="cpfcnpj"
+                  value={customerInfo.cpfCnpj}
+                  onChange={(e) =>
+                    setCustomerInfo({ ...customerInfo, cpfCnpj: e.target.value })
+                  }
+                  placeholder="000.000.000-00 ou 00.000.000/0001-00"
+                />
+              </div>
+            )}
           </div>
 
           {/* Payment Methods */}

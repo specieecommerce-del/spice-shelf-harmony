@@ -9,7 +9,7 @@ const corsHeaders = {
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 200, headers: { ...corsHeaders, "Access-Control-Allow-Methods": "POST, GET, OPTIONS" } });
   }
 
   try {
@@ -19,8 +19,8 @@ serve(async (req: Request) => {
 
     // Token verification using header or querystring and env
     const url = new URL(req.url);
-    const token = req.headers.get("x-webhook-token") || url.searchParams.get("token") || "";
-    const expected = Deno.env.get("ASAAS_WEBHOOK_TOKEN") || "";
+    const token = (req.headers.get("x-webhook-token") || url.searchParams.get("token") || "").trim();
+    const expected = (Deno.env.get("ASAAS_WEBHOOK_TOKEN") || "").trim();
     if (!expected || token !== expected) {
       return new Response(JSON.stringify({ error: "Unauthorized webhook" }), {
         status: 401,

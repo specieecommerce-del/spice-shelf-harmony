@@ -25,7 +25,7 @@ type Customer = {
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 200, headers: { ...corsHeaders, "Access-Control-Allow-Methods": "POST, GET, OPTIONS" } });
   }
 
   try {
@@ -55,6 +55,14 @@ serve(async (req: Request) => {
     const customer = (body.customer || {}) as Customer;
     if (!customer.name || !customer.email) {
       return new Response(JSON.stringify({ error: "Missing customer name/email" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const sanitizedCpf = String(customer.cpfCnpj || "").replace(/\D/g, "");
+    const sanitizedPhone = String(customer.phone || "").replace(/\D/g, "");
+    if (!sanitizedCpf || (sanitizedCpf.length !== 11 && sanitizedCpf.length !== 14)) {
+      return new Response(JSON.stringify({ error: "CPF/CNPJ é obrigatório para boleto registrado." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -113,8 +121,17 @@ serve(async (req: Request) => {
     try {
       const searchUrl = `${baseUrl}/customers?email=${encodeURIComponent(customer.email)}`;
       const searchRes = await fetch(searchUrl, { method: "GET", headers });
+      if (!searchRes.ok) {
+        const txt = await searchRes.text();
+        console.error("ASAAS SEARCH ERROR", searchRes.status, txt);
+        return new Response(JSON.stringify({ error: "Erro ao buscar cliente no Asaas", details: txt }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const searchJson = await searchRes.json();
-      const found = (searchJson?.data || []).find((c: any) => c?.email === customer.email);
+      const existing = Array.isArray(searchJson?.data) && searchJson.data.length > 0 ? searchJson.data[0] : null;
+      let found: any = existing;
       if (found?.id) {
         asaasCustomerId = String(found.id);
       } else {
@@ -124,14 +141,22 @@ serve(async (req: Request) => {
           body: JSON.stringify({
             name: customer.name,
             email: customer.email,
-            cpfCnpj: customer.cpfCnpj || undefined,
-            mobilePhone: customer.phone || undefined,
+            cpfCnpj: sanitizedCpf,
+            mobilePhone: sanitizedPhone || undefined,
           }),
         });
+        if (!createRes.ok) {
+          const asaasText = await createRes.text();
+          console.error("ASAAS ERROR", createRes.status, asaasText);
+          return new Response(JSON.stringify({ error: "Erro ao gerar boleto no Asaas", details: asaasText }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const createJson = await createRes.json();
-        if (!createRes.ok || !createJson?.id) {
-          return new Response(JSON.stringify({ error: "Failed to create Asaas customer", detail: createJson }), {
-            status: 502,
+        if (!createJson?.id) {
+          return new Response(JSON.stringify({ error: "Erro ao gerar boleto no Asaas", details: JSON.stringify(createJson) }), {
+            status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
@@ -143,8 +168,9 @@ serve(async (req: Request) => {
         const j = await (e as any)?.json?.();
         detail = JSON.stringify(j);
       } catch {}
-      return new Response(JSON.stringify({ error: "Asaas customer error", detail }), {
-        status: 502,
+      console.error("ASAAS ERROR customer", detail || String(e));
+      return new Response(JSON.stringify({ error: "Erro ao gerar boleto no Asaas", details: detail || String(e) }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -168,10 +194,18 @@ serve(async (req: Request) => {
           postalService: false,
         }),
       });
+      if (!payRes.ok) {
+        const asaasText = await payRes.text();
+        console.error("ASAAS ERROR", payRes.status, asaasText);
+        return new Response(JSON.stringify({ error: "Erro ao gerar boleto no Asaas", details: asaasText }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       paymentJson = await payRes.json();
-      if (!payRes.ok || !paymentJson?.id) {
-        return new Response(JSON.stringify({ error: "Failed to create Asaas payment", detail: paymentJson }), {
-          status: 502,
+      if (!paymentJson?.id) {
+        return new Response(JSON.stringify({ error: "Erro ao gerar boleto no Asaas", details: JSON.stringify(paymentJson) }), {
+          status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -181,8 +215,9 @@ serve(async (req: Request) => {
         const j = await (e as any)?.json?.();
         detail = JSON.stringify(j);
       } catch {}
-      return new Response(JSON.stringify({ error: "Asaas payment error", detail }), {
-        status: 502,
+      console.error("ASAAS ERROR payment", detail || String(e));
+      return new Response(JSON.stringify({ error: "Erro ao gerar boleto no Asaas", details: detail || String(e) }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
