@@ -791,6 +791,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
           return;
         }
       }
+      const digits = String(customerInfo.cpfCnpj).replace(/\D/g, "");
       const payload = {
         items: items.map((item) => ({
           id: item.id,
@@ -804,7 +805,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
           name: customerInfo.name,
           email: customerInfo.email,
           phone: customerInfo.phone,
-          cpfCnpj: customerInfo.cpfCnpj,
+          cpfCnpj: digits,
         },
         coupon: appliedCoupon ? {
           code: appliedCoupon.code,
