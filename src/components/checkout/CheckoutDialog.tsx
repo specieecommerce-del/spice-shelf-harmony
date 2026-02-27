@@ -912,15 +912,19 @@ Pedido: ${boletoOrderData.orderNsu}`;
                 </div>
               )}
               {(boletoOrderData.invoiceUrl || boletoOrderData.pdfUrl) && (
-                <div className="mt-2 text-center">
-                  <a
-                    href={boletoOrderData.invoiceUrl || boletoOrderData.pdfUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-600 underline text-sm"
+                <div className="mt-2 flex flex-col sm:flex-row gap-2 justify-center">
+                  <Button
+                    onClick={() => window.open(boletoOrderData.invoiceUrl || boletoOrderData.pdfUrl, "_blank")}
                   >
-                    Abrir boleto (Asaas)
-                  </a>
+                    Abrir boleto
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => window.open(boletoOrderData.bankSlipUrl || boletoOrderData.pdfUrl || "", "_blank")}
+                    disabled={!boletoOrderData.bankSlipUrl && !boletoOrderData.pdfUrl}
+                  >
+                    Baixar PDF
+                  </Button>
                 </div>
               )}
             </div>

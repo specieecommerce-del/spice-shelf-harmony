@@ -318,6 +318,11 @@ serve(async (req: Request) => {
         linha_digitavel: linhaDigitavel,
         barcode: barcode,
         pdf_url: boletoUrl,
+        provider_payload: {
+          invoiceUrl,
+          bankSlipUrl,
+          nossoNumero,
+        },
       });
     } catch (e) {
       console.error("Payment title insert error:", e);
