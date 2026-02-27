@@ -813,8 +813,13 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       };
 
       const useAsaas = boletoMode === "asaas";
+      const checkoutToken =
+        (import.meta as any).env?.VITE_CHECKOUT_TOKEN ||
+        (import.meta as any).env?.NEXT_PUBLIC_CHECKOUT_TOKEN ||
+        "";
       const { data, error } = await supabase.functions.invoke(useAsaas ? "create-asaas-boleto" : "create-boleto-order", {
         body: payload,
+        headers: checkoutToken ? { "x-checkout-token": checkoutToken } : undefined,
       });
 
       if (error || !data?.success) {
