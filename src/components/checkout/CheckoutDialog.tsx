@@ -46,11 +46,6 @@ interface BoletoOrderData {
   orderNsu: string;
   totalAmount: number;
   dueDate: string;
-  invoiceUrl?: string;
-  bankSlipUrl?: string;
-  pdfUrl?: string;
-  linhaDigitavel?: string;
-  nossoNumero?: string;
   boletoData: {
     bankCode: string;
     bankName: string;
@@ -73,7 +68,6 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     name: "",
     email: "",
     phone: "",
-    cpfCnpj: "",
   });
 
   // Coupon state
@@ -770,28 +764,6 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     setIsLoading(true);
 
     try {
-      if (boletoMode === "asaas") {
-        if (!customerInfo.cpfCnpj || String(customerInfo.cpfCnpj).trim() === "") {
-          toast({
-            title: "CPF/CNPJ obrigatório",
-            description: "Informe CPF ou CNPJ para emissão de boleto registrado.",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-        const digits = String(customerInfo.cpfCnpj).replace(/\D/g, "");
-        if (!(digits.length === 11 || digits.length === 14)) {
-          toast({
-            title: "CPF/CNPJ inválido",
-            description: "Use 11 dígitos (CPF) ou 14 dígitos (CNPJ), sem máscara.",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-      }
-      const digits = String(customerInfo.cpfCnpj).replace(/\D/g, "");
       const payload = {
         items: items.map((item) => ({
           id: item.id,
@@ -805,7 +777,6 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
           name: customerInfo.name,
           email: customerInfo.email,
           phone: customerInfo.phone,
-          cpfCnpj: digits,
         },
         coupon: appliedCoupon ? {
           code: appliedCoupon.code,
@@ -816,24 +787,18 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       const useAsaas = boletoMode === "asaas";
       const { data, error } = await supabase.functions.invoke(useAsaas ? "create-asaas-boleto" : "create-boleto-order", {
         body: payload,
-        headers: { "x-checkout-token": (import.meta as any).env.VITE_CHECKOUT_TOKEN },
       });
 
-      if (error) {
-        const body = (error as any)?.context?.body;
-        let parsed: any = null;
-        try {
-          parsed = body ? JSON.parse(body) : null;
-        } catch {}
-        const msg = (parsed?.error as string) || (parsed?.details as string) || (error.message as string) || "Erro ao gerar boleto";
-        throw new Error(msg);
-      }
-      if (!data?.success) {
-        const msg = (data?.details as string) || (data?.error as string) || "Erro ao gerar boleto";
-        throw new Error(msg);
+      if (error || !data?.success) {
+        console.error("Error creating boleto order:", error || data?.error);
+        toast({
+          title: "Erro ao criar pedido",
+          description: data?.error || "Tente novamente mais tarde.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      console.log("create-asaas-boleto response", data);
       setBoletoOrderData(data);
       setShowBoletoPayment(true);
       
@@ -842,8 +807,8 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     } catch (err) {
       console.error("Boleto checkout error:", err);
       toast({
-        title: "Erro ao criar pedido",
-        description: (err as any)?.message || "Erro ao gerar boleto",
+        title: "Erro inesperado",
+        description: "Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -911,28 +876,6 @@ Pedido: ${boletoOrderData.orderNsu}`;
               <p className="text-xs text-center text-muted-foreground">
                 Vencimento: {format(new Date(boletoOrderData.dueDate), "dd/MM/yyyy", { locale: ptBR })}
               </p>
-              {boletoOrderData.linhaDigitavel && (
-                <div className="mt-2">
-                  <span className="text-muted-foreground text-xs">Linha digitável</span>
-                  <p className="text-sm font-mono break-all">{boletoOrderData.linhaDigitavel}</p>
-                </div>
-              )}
-              {(boletoOrderData.invoiceUrl || boletoOrderData.pdfUrl) && (
-                <div className="mt-2 flex flex-col sm:flex-row gap-2 justify-center">
-                  <Button
-                    onClick={() => window.open(boletoOrderData.invoiceUrl || boletoOrderData.pdfUrl, "_blank")}
-                  >
-                    Abrir boleto
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => window.open(boletoOrderData.bankSlipUrl || boletoOrderData.pdfUrl || "", "_blank")}
-                    disabled={!boletoOrderData.bankSlipUrl && !boletoOrderData.pdfUrl}
-                  >
-                    Baixar PDF
-                  </Button>
-                </div>
-              )}
             </div>
 
             {/* Bank Data */}
@@ -1375,19 +1318,6 @@ Pedido: ${boletoOrderData.orderNsu}`;
                 placeholder="(11) 99999-9999"
               />
             </div>
-            {boletoMode === "asaas" && (
-              <div>
-                <Label htmlFor="cpfcnpj">CPF/CNPJ *</Label>
-                <Input
-                  id="cpfcnpj"
-                  value={customerInfo.cpfCnpj}
-                  onChange={(e) =>
-                    setCustomerInfo({ ...customerInfo, cpfCnpj: e.target.value })
-                  }
-                  placeholder="000.000.000-00 ou 00.000.000/0001-00"
-                />
-              </div>
-            )}
           </div>
 
           {/* Payment Methods */}

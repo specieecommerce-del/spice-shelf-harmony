@@ -10,7 +10,7 @@ const corsHeaders = {
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS' } });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {

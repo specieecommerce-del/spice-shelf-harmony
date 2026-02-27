@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/_functions/:path*",
-      "destination": "/api/_functions/:path*"
-    }
-  ]
-}
