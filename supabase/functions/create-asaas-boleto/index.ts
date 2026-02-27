@@ -80,8 +80,8 @@ serve(async (req: Request) => {
     }
 
     const provider = String(v["provider"] || (v["registered"] as any)?.["provider"] || "").toLowerCase();
-    const mode = String(v["mode"] || "manual").toLowerCase();
-    if ((mode !== "registered" && mode !== "asaas") || !provider.includes("asaas")) {
+    const mode = String(v["mode"] || "manual");
+    if (mode !== "registered" || !provider.includes("asaas")) {
       return new Response(JSON.stringify({ error: "Asaas not configured" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -195,35 +195,22 @@ serve(async (req: Request) => {
         total_amount: Math.round(totalAmount * 100),
         status: "pending_boleto",
         payment_method: "boleto",
+        payment_provider: "asaas",
+        provider_payment_id: String(paymentJson?.id || ""),
+        boleto_url: boletoUrl,
+        boleto_pdf_url: String(paymentJson?.bankSlipUrl || ""),
+        boleto_line: linhaDigitavel,
+        boleto_barcode: barcode,
+        boleto_due_date: new Date(dueDateStr).toISOString(),
       })
       .select("id")
       .single();
 
     if (orderError) {
-      console.error("Order insert error:", orderError);
       return new Response(JSON.stringify({ error: "Erro ao salvar pedido" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    }
-
-    // Save payment title with boleto details
-    try {
-      await supabase.from("payment_titles").insert({
-        order_id: insertedOrder?.id,
-        method: "boleto",
-        mode: "registered",
-        provider: "asaas",
-        provider_title_id: String(paymentJson?.id || ""),
-        status: "issued",
-        amount_cents: Math.round(totalAmount * 100),
-        due_date: dueDateStr,
-        linha_digitavel: linhaDigitavel,
-        barcode: barcode,
-        pdf_url: boletoUrl,
-      });
-    } catch (e) {
-      console.error("Payment title insert error:", e);
     }
 
     return new Response(
@@ -231,20 +218,12 @@ serve(async (req: Request) => {
         success: true,
         orderNsu: orderRef,
         totalAmount,
-        dueDate: new Date(dueDateStr).toISOString(),
-        boletoData: {
-          bankCode: "",
-          bankName: "Asaas",
-          agency: "",
-          account: "",
-          accountType: "",
-          beneficiaryName: "",
-          beneficiaryDocument: "",
-          instructions: `Boleto gerado via Asaas. Linha digitável: ${linhaDigitavel}`,
+        dueDate: dueDateStr,
+        boleto: {
+          url: boletoUrl,
+          linhaDigitavel,
+          barcode,
         },
-        linhaDigitavel,
-        barcode,
-        pdfUrl: boletoUrl,
         asaasPaymentId: paymentJson?.id || "",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

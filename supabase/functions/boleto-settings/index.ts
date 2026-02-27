@@ -435,8 +435,6 @@ serve(async (req: Request) => {
           account_type,
           beneficiary_name, 
           beneficiary_document,
-          wallet,
-          convenio,
           instructions,
           days_to_expire 
         } = body;
@@ -464,8 +462,6 @@ serve(async (req: Request) => {
             account_type: String(account_type || 'corrente'),
             beneficiary_name: String(beneficiary_name).trim(),
             beneficiary_document: String(beneficiary_document).trim(),
-              wallet: String(wallet || '').trim(),
-              convenio: String(convenio || '').trim(),
           },
           registered: {
             provider: '',
