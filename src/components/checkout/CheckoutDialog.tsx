@@ -814,23 +814,23 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       };
 
       const useAsaas = boletoMode === "asaas";
-      const checkoutToken =
-        (import.meta as any).env?.VITE_CHECKOUT_TOKEN ||
-        (import.meta as any).env?.NEXT_PUBLIC_CHECKOUT_TOKEN ||
-        "";
       const { data, error } = await supabase.functions.invoke(useAsaas ? "create-asaas-boleto" : "create-boleto-order", {
         body: payload,
-        headers: checkoutToken ? { "x-checkout-token": checkoutToken } : undefined,
+        headers: { "x-checkout-token": (import.meta as any).env.VITE_CHECKOUT_TOKEN },
       });
 
-      if (error || !data?.success) {
-        console.error("Error creating boleto order:", error || data?.error);
-        toast({
-          title: "Erro ao criar pedido",
-          description: (data?.details && typeof data.details === "string" ? data.details : data?.error) || "Tente novamente mais tarde.",
-          variant: "destructive",
-        });
-        return;
+      if (error) {
+        const body = (error as any)?.context?.body;
+        let parsed: any = null;
+        try {
+          parsed = body ? JSON.parse(body) : null;
+        } catch {}
+        const msg = (parsed?.error as string) || (parsed?.details as string) || (error.message as string) || "Erro ao gerar boleto";
+        throw new Error(msg);
+      }
+      if (!data?.success) {
+        const msg = (data?.details as string) || (data?.error as string) || "Erro ao gerar boleto";
+        throw new Error(msg);
       }
 
       console.log("create-asaas-boleto response", data);
@@ -842,8 +842,8 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
     } catch (err) {
       console.error("Boleto checkout error:", err);
       toast({
-        title: "Erro inesperado",
-        description: "Por favor, tente novamente.",
+        title: "Erro ao criar pedido",
+        description: (err as any)?.message || "Erro ao gerar boleto",
         variant: "destructive",
       });
     } finally {

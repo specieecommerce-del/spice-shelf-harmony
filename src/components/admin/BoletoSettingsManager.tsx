@@ -422,14 +422,12 @@ const BoletoSettingsManager = () => {
                   }}
                 />
               </div>
-              {/* Asaas não precisa de credenciais na UI; parâmetros de boleto abaixo */}
+              {/* Configuração de Webhook Asaas */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="webhookUrl">Webhook Asaas</Label>
-                  <Input id="webhookUrl" value={`${window.location.origin}/_functions/asaas-webhook`} disabled />
-                  <p className="text-xs text-muted-foreground">
-                    O token é gerenciado no servidor; o URL receberá ?token= automaticamente
-                  </p>
+                  <Input id="webhookUrl" value={`https://speciesalimentos.com.br/_functions/asaas-webhook`} disabled />
+                  <p className="text-xs text-muted-foreground">URL do webhook no domínio de produção</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="webhookEmail">Email (opcional)</Label>
@@ -437,6 +435,15 @@ const BoletoSettingsManager = () => {
                     id="webhookEmail"
                     value={webhookEmail}
                     onChange={(e) => setWebhookEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="webhookToken">Webhook Token</Label>
+                  <Input
+                    id="webhookToken"
+                    type="password"
+                    placeholder="Cole o token do Asaas"
+                    onChange={(e) => setWebhookToken(e.target.value)}
                   />
                 </div>
               </div>
@@ -451,7 +458,11 @@ const BoletoSettingsManager = () => {
                         return;
                       }
                       const { data, error } = await supabase.functions.invoke("asaas-webhook-register", {
-                        body: { url: `${window.location.origin}/_functions/asaas-webhook` },
+                        body: {
+                          url: `https://speciesalimentos.com.br/_functions/asaas-webhook`,
+                          email: webhookEmail,
+                          authToken: webhookToken,
+                        },
                       });
                       const isOk = !error && (data?.success === true || Boolean((data as any)?.data?.id));
                       if (!isOk) {

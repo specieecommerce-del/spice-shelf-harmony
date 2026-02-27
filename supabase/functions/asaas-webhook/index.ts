@@ -13,14 +13,19 @@ serve(async (req: Request) => {
   }
 
   try {
+    if (req.method !== "POST") {
+      return new Response(JSON.stringify({ error: "method not allowed" }), {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Token verification using header or querystring and env
     const url = new URL(req.url);
-    const token = (req.headers.get("x-webhook-token") || url.searchParams.get("token") || "").trim();
-    const expected = (Deno.env.get("ASAAS_WEBHOOK_TOKEN") || "").trim();
+    const token = (url.searchParams.get("token") || "").trim();
+    const expected = (Deno.env.get("CHECKOUT_TOKEN") || "").trim();
     if (!expected || token !== expected) {
       return new Response(JSON.stringify({ error: "Unauthorized webhook" }), {
         status: 401,

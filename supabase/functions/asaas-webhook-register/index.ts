@@ -63,6 +63,8 @@ serve(async (req: Request) => {
 
     const webhookUrl = String(body["url"] || "").trim();
     const name = String(body["name"] || "BOLETO SPECIES ALIMENTOS").trim();
+    const overrideEmail = String(body["email"] || "").trim();
+    const overrideToken = String(body["authToken"] || "").trim();
 
     if (!ASAAS_ACCESS_TOKEN) {
       return new Response(JSON.stringify({ error: "ASAAS_ACCESS_TOKEN não configurado" }), {
@@ -87,13 +89,19 @@ serve(async (req: Request) => {
       ? "https://api.asaas.com/api/v3"
       : "https://sandbox.asaas.com/api/v3";
 
+    const tokenToUse = overrideToken || ASAAS_WEBHOOK_TOKEN;
     const finalUrl = webhookUrl.includes("token=")
       ? webhookUrl
       : (webhookUrl.includes("?")
-        ? `${webhookUrl}&token=${ASAAS_WEBHOOK_TOKEN}`
-        : `${webhookUrl}?token=${ASAAS_WEBHOOK_TOKEN}`);
+        ? `${webhookUrl}&token=${tokenToUse}`
+        : `${webhookUrl}?token=${tokenToUse}`);
 
-    const payload: Record<string, unknown> = { url: finalUrl, authToken: ASAAS_WEBHOOK_TOKEN, name };
+    const payload: Record<string, unknown> = {
+      url: finalUrl,
+      authToken: tokenToUse,
+      name,
+      email: overrideEmail || undefined,
+    };
 
     const headers = {
       "Content-Type": "application/json",
