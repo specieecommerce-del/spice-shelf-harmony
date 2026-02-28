@@ -89,6 +89,7 @@ serve(async (req: Request) => {
       ? "https://api.asaas.com/api/v3"
       : "https://sandbox.asaas.com/api/v3";
 
+    // Use the URL as-is if it already contains a token, otherwise append one
     const finalUrl = webhookUrl.includes("token=")
       ? webhookUrl
       : (webhookUrl.includes("?")
