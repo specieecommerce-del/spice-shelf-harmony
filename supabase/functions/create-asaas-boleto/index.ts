@@ -64,7 +64,7 @@ serve(async (req: Request) => {
     const discount = body.coupon?.discountAmount ? Number(body.coupon.discountAmount) : 0;
     const totalAmount = Math.max(0, total - discount);
 
-    // Load boleto settings and Asaas credentials
+    // Load boleto settings
     const { data: settingsRow } = await supabase
       .from("store_settings")
       .select("value")
@@ -79,9 +79,10 @@ serve(async (req: Request) => {
       });
     }
 
-    const provider = String(v["provider"] || (v["registered"] as any)?.["provider"] || "").toLowerCase();
     const mode = String(v["mode"] || "manual");
-    if (mode !== "registered" || !provider.includes("asaas")) {
+    const provider = String(v["provider"] || "").toLowerCase();
+    // Accept mode "asaas" or "registered" with asaas provider
+    if (mode !== "asaas" && !(mode === "registered" && provider.includes("asaas"))) {
       return new Response(JSON.stringify({ error: "Asaas not configured" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -93,21 +94,21 @@ serve(async (req: Request) => {
     dueDate.setDate(dueDate.getDate() + daysToExpire);
     const dueDateStr = dueDate.toISOString().slice(0, 10);
 
-    const registered = (v["registered"] ?? {}) as Record<string, unknown>;
-    const credentials = (registered["credentials"] ?? {}) as Record<string, unknown>;
-    const apiKey = String(credentials["client_secret"] || credentials["api_key"] || "").trim();
-    const env = String(v["environment"] || "sandbox");
-    const baseUrl = env === "production" ? "https://api.asaas.com/api/v3" : "https://sandbox.asaas.com/api/v3";
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Asaas API key missing" }), {
-        status: 400,
+    // Use ASAAS_ACCESS_TOKEN from env secrets (not from stored credentials)
+    const ASAAS_ACCESS_TOKEN = (Deno.env.get("ASAAS_ACCESS_TOKEN") || "").trim();
+    const ASAAS_ENV = (Deno.env.get("ASAAS_ENV") || String(v["environment"] || "sandbox")).trim().toLowerCase();
+    const baseUrl = ASAAS_ENV === "production" ? "https://api.asaas.com/api/v3" : "https://sandbox.asaas.com/api/v3";
+
+    if (!ASAAS_ACCESS_TOKEN) {
+      return new Response(JSON.stringify({ error: "ASAAS_ACCESS_TOKEN não configurado" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const headers = {
       "Content-Type": "application/json",
-      "access_token": apiKey,
+      "access_token": ASAAS_ACCESS_TOKEN,
     };
 
     // Find or create customer in Asaas
@@ -146,7 +147,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const orderRef = body.externalReference || `ORDER_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const orderRef = body.externalReference || `BOL_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const description = body.description || `Pedido ${orderRef}`;
 
     // Create payment in Asaas
@@ -183,7 +184,7 @@ serve(async (req: Request) => {
     const linhaDigitavel = paymentJson?.identificationField || "";
     const barcode = paymentJson?.barcode || "";
 
-    // Save order with boleto/provider metadata
+    // Save order using only columns that exist in the orders table
     const { data: insertedOrder, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -191,26 +192,37 @@ serve(async (req: Request) => {
         customer_name: customer.name.substring(0, 100),
         customer_email: customer.email.substring(0, 255),
         customer_phone: (customer.phone || "").substring(0, 20),
-        items: items,
+        items: items as any,
         total_amount: Math.round(totalAmount * 100),
         status: "pending_boleto",
         payment_method: "boleto",
-        payment_provider: "asaas",
-        provider_payment_id: String(paymentJson?.id || ""),
-        boleto_url: boletoUrl,
-        boleto_pdf_url: String(paymentJson?.bankSlipUrl || ""),
-        boleto_line: linhaDigitavel,
-        boleto_barcode: barcode,
-        boleto_due_date: new Date(dueDateStr).toISOString(),
+        payment_link: boletoUrl,
       })
       .select("id")
       .single();
 
     if (orderError) {
-      return new Response(JSON.stringify({ error: "Erro ao salvar pedido" }), {
+      console.error("Order insert error:", orderError);
+      return new Response(JSON.stringify({ error: "Erro ao salvar pedido", detail: orderError.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Save boleto metadata in payment_titles table if it exists
+    try {
+      await supabase.from("payment_titles").insert({
+        order_id: insertedOrder.id,
+        provider: "asaas",
+        provider_title_id: String(paymentJson?.id || ""),
+        status: "pending",
+        boleto_url: boletoUrl,
+        boleto_line: linhaDigitavel,
+        boleto_barcode: barcode,
+        due_date: new Date(dueDateStr).toISOString(),
+      });
+    } catch {
+      // payment_titles table may not exist yet, not critical
     }
 
     return new Response(
@@ -229,6 +241,7 @@ serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    console.error("Unexpected error:", error);
     return new Response(JSON.stringify({ error: "Unexpected error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
