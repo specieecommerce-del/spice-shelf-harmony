@@ -67,6 +67,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
     email: "",
+    cpfCnpj: "",
     phone: "",
   });
 
@@ -761,6 +762,15 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       return;
     }
 
+    if (!customerInfo.cpfCnpj.trim()) {
+      toast({
+        title: "CPF/CNPJ obrigatório",
+        description: "Para gerar boleto, informe seu CPF ou CNPJ.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -776,6 +786,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         customer: {
           name: customerInfo.name,
           email: customerInfo.email,
+          cpfCnpj: customerInfo.cpfCnpj,
           phone: customerInfo.phone,
         },
         coupon: appliedCoupon ? {
@@ -799,9 +810,26 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         return;
       }
 
-      setBoletoOrderData(data);
+      const normalizedBoletoData = useAsaas && data?.boleto
+        ? {
+            ...data,
+            boletoData: {
+              bankCode: "ASAAS",
+              bankName: "Asaas",
+              agency: "-",
+              account: "-",
+              accountType: "boleto",
+              beneficiaryName: customerInfo.name,
+              beneficiaryDocument: customerInfo.cpfCnpj,
+              instructions: data?.boleto?.linhaDigitavel
+                ? `Linha digitável: ${data.boleto.linhaDigitavel}`
+                : "Abra o boleto no link para visualizar os dados completos.",
+            },
+          }
+        : data;
+
+      setBoletoOrderData(normalizedBoletoData);
       setShowBoletoPayment(true);
-      
       localStorage.setItem("lastOrderNsu", data.orderNsu);
 
     } catch (err) {
@@ -1304,6 +1332,18 @@ Pedido: ${boletoOrderData.orderNsu}`;
                   setCustomerInfo({ ...customerInfo, email: e.target.value })
                 }
                 placeholder="seu@email.com"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="cpfCnpj">CPF/CNPJ *</Label>
+              <Input
+                id="cpfCnpj"
+                value={customerInfo.cpfCnpj}
+                onChange={(e) =>
+                  setCustomerInfo({ ...customerInfo, cpfCnpj: e.target.value })
+                }
+                placeholder="000.000.000-00"
               />
             </div>
 
