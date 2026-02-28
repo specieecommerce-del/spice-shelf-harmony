@@ -333,9 +333,9 @@ const BoletoSettingsManager = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="webhookUrl">Webhook Asaas</Label>
-                  <Input id="webhookUrl" value={`${window.location.origin}/_functions/asaas-webhook`} disabled />
+                  <Input id="webhookUrl" value="https://speciesalimentos.com.br/_functions/asaas-webhook" disabled />
                   <p className="text-xs text-muted-foreground">
-                    O token é gerenciado no servidor; o URL receberá ?token= automaticamente
+                    URL fixa do domínio personalizado com token embutido
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -357,10 +357,9 @@ const BoletoSettingsManager = () => {
                         sonnerToast.error("Sessão expirada. Faça login como administrador.");
                         return;
                       }
-                      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
                       const { data, error } = await supabase.functions.invoke("asaas-webhook-register", {
                         body: {
-                          url: `${supabaseUrl}/functions/v1/asaas-webhook`,
+                          url: "https://speciesalimentos.com.br/_functions/asaas-webhook?token=$aeact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjY3OTgyYWQ1LTkzOGYtNDk3Mi1hYzViLTI0YTRlZGNiYzUwNzo6JGFlYWNoXzg4MDljNzQ4LTUzMWQtNDUwNi05OGFjLTNiODE2YjgzZjczOA==",
                           email: webhookEmail,
                           sendType: "SEQUENTIALLY",
                           name: "BOLETO SPECIES ALIMENTOS",
