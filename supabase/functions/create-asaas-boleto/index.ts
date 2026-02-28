@@ -60,6 +60,14 @@ serve(async (req: Request) => {
       });
     }
 
+    const sanitizedCpfCnpj = String(customer.cpfCnpj || "").replace(/\D/g, "");
+    if (sanitizedCpfCnpj.length < 11) {
+      return new Response(JSON.stringify({ error: "CPF/CNPJ é obrigatório para gerar boleto" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const total = items.reduce((sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0), 0);
     const discount = body.coupon?.discountAmount ? Number(body.coupon.discountAmount) : 0;
     const totalAmount = Math.max(0, total - discount);
@@ -120,15 +128,32 @@ serve(async (req: Request) => {
       const found = (searchJson?.data || []).find((c: any) => c?.email === customer.email);
       if (found?.id) {
         asaasCustomerId = String(found.id);
+
+        const updateRes = await fetch(`${baseUrl}/customers/${asaasCustomerId}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            cpfCnpj: sanitizedCpfCnpj,
+          }),
+        });
+
+        if (!updateRes.ok) {
+          const updateJson = await updateRes.json().catch(() => ({}));
+          return new Response(JSON.stringify({ error: "Failed to update Asaas customer", detail: updateJson }), {
+            status: 502,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       } else {
+        
+
         const createRes = await fetch(`${baseUrl}/customers`, {
           method: "POST",
           headers,
           body: JSON.stringify({
             name: customer.name,
             email: customer.email,
-            cpfCnpj: customer.cpfCnpj || undefined,
-            mobilePhone: customer.phone || undefined,
+            cpfCnpj: sanitizedCpfCnpj.length >= 11 ? sanitizedCpfCnpj : undefined,
           }),
         });
         const createJson = await createRes.json();
