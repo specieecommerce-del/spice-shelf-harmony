@@ -17,8 +17,8 @@ const gateways = [
   },
   {
     key: "boleto",
-    name: "Boleto / Depósito",
-    description: "Boleto bancário ou depósito manual",
+    name: "Boleto (Asaas)",
+    description: "Boleto registrado via Asaas com confirmação automática",
     icon: Receipt,
     enabled: true,
   },
