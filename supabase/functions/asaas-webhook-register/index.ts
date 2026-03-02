@@ -94,6 +94,7 @@ serve(async (req: Request) => {
       : (webhookUrl.includes("?")
         ? `${webhookUrl}&token=${ASAAS_WEBHOOK_TOKEN}`
         : `${webhookUrl}?token=${ASAAS_WEBHOOK_TOKEN}`);
+<<<<<<< HEAD
 
     const payload: Record<string, unknown> = {
       url: finalUrl,
@@ -119,6 +120,8 @@ serve(async (req: Request) => {
         "PAYMENT_DUNNING_REQUESTED",
       ],
     };
+=======
+>>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
 
     const headers = {
       "Content-Type": "application/json",
@@ -126,6 +129,75 @@ serve(async (req: Request) => {
       "access_token": ASAAS_ACCESS_TOKEN,
     };
 
+<<<<<<< HEAD
+=======
+    const events = [
+      "PAYMENT_CREATED",
+      "PAYMENT_UPDATED",
+      "PAYMENT_CONFIRMED",
+      "PAYMENT_RECEIVED",
+      "PAYMENT_OVERDUE",
+      "PAYMENT_DELETED",
+      "PAYMENT_RESTORED",
+      "PAYMENT_REFUNDED",
+      "PAYMENT_RECEIVED_IN_CASH_UNDONE",
+      "PAYMENT_CHARGEBACK_REQUESTED",
+      "PAYMENT_CHARGEBACK_DISPUTE",
+      "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
+      "PAYMENT_DUNNING_RECEIVED",
+      "PAYMENT_DUNNING_REQUESTED",
+    ];
+
+    // 1. List existing webhooks to check for duplicates
+    const listRes = await fetch(`${baseUrl}/webhooks`, { method: "GET", headers });
+    const listJson = await listRes.json();
+    const existingWebhooks = listJson?.data || [];
+
+    // Check if a webhook with similar URL already exists
+    const existing = existingWebhooks.find((wh: Record<string, unknown>) => {
+      const whUrl = String(wh.url || "");
+      // Match by base URL (ignore token param differences)
+      const baseWebhookUrl = webhookUrl.split("?")[0];
+      return whUrl.startsWith(baseWebhookUrl);
+    });
+
+    if (existing) {
+      // 2. Update existing webhook instead of creating a new one
+      const updatePayload = {
+        url: finalUrl,
+        email: email || undefined,
+        sendType,
+        name,
+        enabled: true,
+        interrupted: false,
+        events,
+      };
+
+      const updateRes = await fetch(`${baseUrl}/webhooks/${existing.id}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(updatePayload),
+      });
+      const updateJson = await updateRes.json();
+
+      return new Response(JSON.stringify({ success: updateRes.ok, data: updateJson, action: "updated" }), {
+        status: updateRes.ok ? 200 : updateRes.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 3. Create new webhook
+    const payload = {
+      url: finalUrl,
+      email: email || undefined,
+      sendType,
+      name,
+      enabled: true,
+      interrupted: false,
+      events,
+    };
+
+>>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
     const res = await fetch(`${baseUrl}/webhooks`, {
       method: "POST",
       headers,
@@ -133,7 +205,11 @@ serve(async (req: Request) => {
     });
     const json = await res.json();
 
+<<<<<<< HEAD
     return new Response(JSON.stringify({ success: res.ok, data: json }), {
+=======
+    return new Response(JSON.stringify({ success: res.ok, data: json, action: "created" }), {
+>>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
       status: res.ok ? 200 : res.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

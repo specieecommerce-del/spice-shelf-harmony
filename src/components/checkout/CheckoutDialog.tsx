@@ -67,6 +67,10 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
     email: "",
+<<<<<<< HEAD
+=======
+    cpfCnpj: "",
+>>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
     phone: "",
   });
 
@@ -176,32 +180,29 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         }
       }
 
-      // Check Boleto with direct DB fallback
+      // Check Boleto - always Asaas mode
       try {
         const { data: boletoData } = await supabase.functions.invoke("boleto-settings", {
           body: { action: "get_boleto_for_payment" },
         });
-        setBoletoConfigured(boletoData?.configured || false);
-        setBoletoMode(typeof boletoData?.mode === "string" ? String(boletoData.mode).toLowerCase() : null);
-        if (!boletoData?.configured) {
-          const { data: row } = await supabase
-            .from("store_settings")
-            .select("value")
-            .eq("key", "boleto_settings")
-            .maybeSingle();
-          const v = (row?.value ?? null) as Record<string, unknown> | null;
-          if (v) {
-            const enabled = Boolean(v["enabled"]);
-            const mode = String(v["mode"] || "manual");
-            const manual = (v["manual"] ?? {}) as Record<string, unknown>;
-            const registered = (v["registered"] ?? {}) as Record<string, unknown>;
-            const configured =
-              enabled &&
-              (mode === "manual"
-                ? Boolean(manual["bank_code"] && manual["beneficiary_name"] && manual["beneficiary_document"])
-                : Boolean(((registered["bank"] ?? {}) as Record<string, unknown>)["code"]));
-            setBoletoConfigured(configured);
-            setBoletoMode(mode.toLowerCase());
+        const configured = boletoData?.configured || false;
+        setBoletoConfigured(configured);
+        setBoletoMode("asaas");
+        if (!configured) {
+          // Fallback: check DB directly
+          try {
+            const { data: row } = await supabase
+              .from("store_settings")
+              .select("value")
+              .eq("key", "boleto_settings")
+              .maybeSingle();
+            const v = (row?.value ?? null) as Record<string, unknown> | null;
+            if (v && Boolean(v["enabled"])) {
+              setBoletoConfigured(true);
+              setBoletoMode("asaas");
+            }
+          } catch {
+            // ignore
           }
         }
       } catch {
@@ -212,18 +213,9 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
             .eq("key", "boleto_settings")
             .maybeSingle();
           const v = (row?.value ?? null) as Record<string, unknown> | null;
-          if (v) {
-            const enabled = Boolean(v["enabled"]);
-            const mode = String(v["mode"] || "manual");
-            const manual = (v["manual"] ?? {}) as Record<string, unknown>;
-            const registered = (v["registered"] ?? {}) as Record<string, unknown>;
-            const configured =
-              enabled &&
-              (mode === "manual"
-                ? Boolean(manual["bank_code"] && manual["beneficiary_name"] && manual["beneficiary_document"])
-                : Boolean(((registered["bank"] ?? {}) as Record<string, unknown>)["code"]));
-            setBoletoConfigured(configured);
-            setBoletoMode(mode.toLowerCase());
+          if (v && Boolean(v["enabled"])) {
+            setBoletoConfigured(true);
+            setBoletoMode("asaas");
           } else {
             setBoletoConfigured(false);
             setBoletoMode(null);
@@ -761,6 +753,16 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       return;
     }
 
+    const cleanCpfCnpj = customerInfo.cpfCnpj.replace(/\D/g, "");
+    if (cleanCpfCnpj.length < 11) {
+      toast({
+        title: "CPF/CNPJ inválido",
+        description: "Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -776,6 +778,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         customer: {
           name: customerInfo.name,
           email: customerInfo.email,
+          cpfCnpj: customerInfo.cpfCnpj,
           phone: customerInfo.phone,
         },
         coupon: appliedCoupon ? {
@@ -784,24 +787,55 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         } : null,
       };
 
-      const useAsaas = boletoMode === "asaas";
-      const { data, error } = await supabase.functions.invoke(useAsaas ? "create-asaas-boleto" : "create-boleto-order", {
+      const { data, error } = await supabase.functions.invoke("create-asaas-boleto", {
         body: payload,
       });
 
       if (error || !data?.success) {
         console.error("Error creating boleto order:", error || data?.error);
+<<<<<<< HEAD
         toast({
           title: "Erro ao criar pedido",
           description: data?.error || "Tente novamente mais tarde.",
+=======
+        const detail = data?.detail;
+        let errorMsg = data?.error || "Tente novamente mais tarde.";
+        if (detail?.errors && Array.isArray(detail.errors)) {
+          const descriptions = detail.errors.map((e: any) => e.description).filter(Boolean);
+          if (descriptions.length) errorMsg = descriptions.join("; ");
+        }
+        toast({
+          title: "Erro ao criar pedido",
+          description: errorMsg,
+>>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
           variant: "destructive",
         });
         return;
       }
 
+<<<<<<< HEAD
       setBoletoOrderData(data);
+=======
+      const normalizedBoletoData = {
+        ...data,
+        boletoUrl: data?.boleto?.url || "",
+        boletoData: {
+          bankCode: "ASAAS",
+          bankName: "Asaas",
+          agency: "-",
+          account: "-",
+          accountType: "boleto",
+          beneficiaryName: customerInfo.name,
+          beneficiaryDocument: customerInfo.cpfCnpj,
+          instructions: data?.boleto?.linhaDigitavel
+            ? `Linha digitável: ${data.boleto.linhaDigitavel}`
+            : "Abra o boleto no link para visualizar os dados completos.",
+        },
+      };
+
+      setBoletoOrderData(normalizedBoletoData);
+>>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
       setShowBoletoPayment(true);
-      
       localStorage.setItem("lastOrderNsu", data.orderNsu);
 
     } catch (err) {
@@ -921,6 +955,18 @@ Pedido: ${boletoOrderData.orderNsu}`;
                 </div>
               )}
             </div>
+
+            {/* Boleto PDF Link */}
+            {(boletoOrderData as any).boletoUrl && (
+              <Button
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                size="lg"
+                onClick={() => window.open((boletoOrderData as any).boletoUrl, '_blank')}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Abrir Boleto (PDF)
+              </Button>
+            )}
 
             <Button
               variant="hero"
@@ -1304,6 +1350,18 @@ Pedido: ${boletoOrderData.orderNsu}`;
                   setCustomerInfo({ ...customerInfo, email: e.target.value })
                 }
                 placeholder="seu@email.com"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="cpfCnpj">CPF/CNPJ *</Label>
+              <Input
+                id="cpfCnpj"
+                value={customerInfo.cpfCnpj}
+                onChange={(e) =>
+                  setCustomerInfo({ ...customerInfo, cpfCnpj: e.target.value })
+                }
+                placeholder="000.000.000-00"
               />
             </div>
 
