@@ -9,7 +9,7 @@ const corsHeaders = {
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: { ...corsHeaders, "Access-Control-Allow-Methods": "POST, GET, OPTIONS" } });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -62,9 +62,9 @@ serve(async (req: Request) => {
     }
 
     const webhookUrl = String(body["url"] || "").trim();
+    const email = String(body["email"] || "").trim();
+    const sendType = String(body["sendType"] || "SEQUENTIALLY").trim();
     const name = String(body["name"] || "BOLETO SPECIES ALIMENTOS").trim();
-    const overrideEmail = String(body["email"] || "").trim();
-    const overrideToken = String(body["authToken"] || "").trim();
 
     if (!ASAAS_ACCESS_TOKEN) {
       return new Response(JSON.stringify({ error: "ASAAS_ACCESS_TOKEN não configurado" }), {
@@ -89,18 +89,35 @@ serve(async (req: Request) => {
       ? "https://api.asaas.com/api/v3"
       : "https://sandbox.asaas.com/api/v3";
 
-    const tokenToUse = overrideToken || ASAAS_WEBHOOK_TOKEN;
     const finalUrl = webhookUrl.includes("token=")
       ? webhookUrl
       : (webhookUrl.includes("?")
-        ? `${webhookUrl}&token=${tokenToUse}`
-        : `${webhookUrl}?token=${tokenToUse}`);
+        ? `${webhookUrl}&token=${ASAAS_WEBHOOK_TOKEN}`
+        : `${webhookUrl}?token=${ASAAS_WEBHOOK_TOKEN}`);
 
     const payload: Record<string, unknown> = {
       url: finalUrl,
-      authToken: tokenToUse,
+      email: email || undefined,
+      sendType,
       name,
-      email: overrideEmail || undefined,
+      enabled: true,
+      interrupted: false,
+      events: [
+        "PAYMENT_CREATED",
+        "PAYMENT_UPDATED",
+        "PAYMENT_CONFIRMED",
+        "PAYMENT_RECEIVED",
+        "PAYMENT_OVERDUE",
+        "PAYMENT_DELETED",
+        "PAYMENT_RESTORED",
+        "PAYMENT_REFUNDED",
+        "PAYMENT_RECEIVED_IN_CASH_UNDONE",
+        "PAYMENT_CHARGEBACK_REQUESTED",
+        "PAYMENT_CHARGEBACK_DISPUTE",
+        "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
+        "PAYMENT_DUNNING_RECEIVED",
+        "PAYMENT_DUNNING_REQUESTED",
+      ],
     };
 
     const headers = {
@@ -109,24 +126,15 @@ serve(async (req: Request) => {
       "access_token": ASAAS_ACCESS_TOKEN,
     };
 
-    // Prefer GET first: if exists, do nothing; else create minimal
-    const listRes = await fetch(`${baseUrl}/webhooks`, { method: "GET", headers });
-    const listJson = await listRes.json();
-    const existing = Array.isArray(listJson?.data) ? listJson.data.find((w: any) => w?.url === finalUrl || w?.name === name) : null;
-    if (existing?.id) {
-      return new Response(JSON.stringify({ success: true, data: existing }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const createRes = await fetch(`${baseUrl}/webhooks`, {
+    const res = await fetch(`${baseUrl}/webhooks`, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
     });
-    const createJson = await createRes.json();
-    return new Response(JSON.stringify({ success: createRes.ok, data: createJson }), {
-      status: createRes.ok ? 200 : createRes.status,
+    const json = await res.json();
+
+    return new Response(JSON.stringify({ success: res.ok, data: json }), {
+      status: res.ok ? 200 : res.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

@@ -19,8 +19,6 @@ interface BoletoSettings {
   account_type: string;
   beneficiary_name: string;
   beneficiary_document: string;
-  wallet?: string;
-  agreement?: string;
   instructions: string;
   days_to_expire: number;
 }
@@ -87,8 +85,6 @@ const BoletoSettingsManager = () => {
     account_type: "corrente",
     beneficiary_name: "",
     beneficiary_document: "",
-    wallet: "",
-    agreement: "",
     instructions: "Após efetuar o pagamento, envie o comprovante por WhatsApp ou email.",
     days_to_expire: 3,
   });
@@ -123,40 +119,6 @@ const BoletoSettingsManager = () => {
   });
   const [webhookEmail, setWebhookEmail] = useState<string>("specieecommerce@gmail.com");
   const [webhookInfo, setWebhookInfo] = useState<Record<string, unknown> | null>(null);
-  const [testOrderNsu, setTestOrderNsu] = useState<string>("");
-  const [testProviderPaymentId, setTestProviderPaymentId] = useState<string>("");
-  const [testEvent, setTestEvent] = useState<string>("PAYMENT_CONFIRMED");
-  const [recentOrders, setRecentOrders] = useState<Array<{ order_nsu: string; provider_payment_id?: string; status: string; inserted_at?: string; created_at?: string }>>([]);
-  const loadRecentOrders = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke("admin-orders-list", { body: {} });
-      if (error || data?.error) {
-        const fb = await supabase
-          .from("orders")
-          .select("order_nsu, status, inserted_at, created_at")
-          .order("inserted_at", { ascending: false })
-          .limit(20);
-        if (fb.error) {
-          sonnerToast.error("Falha ao carregar pedidos");
-          return;
-        }
-        setRecentOrders((fb.data ?? []) as any);
-        return;
-      }
-      setRecentOrders((data?.data ?? []) as any);
-    } catch {
-      const fb = await supabase
-        .from("orders")
-        .select("order_nsu, status, inserted_at, created_at")
-        .order("inserted_at", { ascending: false })
-        .limit(20);
-      if (fb.error) {
-        sonnerToast.error("Erro ao carregar pedidos");
-        return;
-      }
-      setRecentOrders((fb.data ?? []) as any);
-    }
-  };
 
   useEffect(() => {
     fetchSettings();
@@ -172,8 +134,7 @@ const BoletoSettingsManager = () => {
 
       if (data?.settings) {
         setSettings(data.settings);
-        const m = String((data.settings as any)?.mode || "manual").toLowerCase();
-        setMode(m === "asaas" ? "asaas" : "manual");
+        setMode("manual");
       }
       const { data: sessionData } = await supabase.auth.getSession();
       const isLogged = Boolean(sessionData?.session);
@@ -240,8 +201,6 @@ const BoletoSettingsManager = () => {
             account_type: String(v["manual"]?.["account_type"] || "corrente"),
             beneficiary_name: String(v["manual"]?.["beneficiary_name"] || ""),
             beneficiary_document: String(v["manual"]?.["beneficiary_document"] || ""),
-            wallet: String(v["manual"]?.["wallet"] || ""),
-            agreement: String(v["manual"]?.["convenio"] || ""),
             instructions: String(v["manual"]?.["instructions"] || "Após efetuar o pagamento, envie o comprovante por WhatsApp ou email."),
             days_to_expire: Number(v["manual"]?.["days_to_expire"] || 3),
           });
@@ -300,8 +259,6 @@ const BoletoSettingsManager = () => {
           account_type: settings.account_type || "corrente",
           beneficiary_name: settings.beneficiary_name.trim(),
           beneficiary_document: settings.beneficiary_document.trim(),
-          wallet: (settings.wallet || "").trim(),
-          convenio: (settings.agreement || "").trim(),
           instructions: settings.instructions || "",
           days_to_expire: settings.days_to_expire || 3,
         };
@@ -348,38 +305,7 @@ const BoletoSettingsManager = () => {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label>Modo</Label>
-            <Select
-              value={mode}
-              onValueChange={async (m) => {
-                const newMode = m as Mode;
-                setMode(newMode);
-                if (newMode === "asaas") {
-                  try {
-                    const { data: sessionData } = await supabase.auth.getSession();
-                    if (!sessionData?.session) {
-                      sonnerToast.error("Sessão expirada. Faça login como administrador.");
-                      return;
-                    }
-                    const { data, error } = await supabase.functions.invoke("boleto-settings", {
-                      body: {
-                        action: "save_boleto",
-                        mode: "asaas",
-                        enabled: true,
-                        days_to_expire: regSettings.billing.days_to_expire,
-                        instructions: regSettings.billing.instructions,
-                      },
-                    });
-                    if (error || data?.error) {
-                      sonnerToast.error(data?.error || "Falha ao salvar modo Asaas");
-                      return;
-                    }
-                    sonnerToast.success("Modo Asaas ativado e salvo");
-                  } catch {
-                    sonnerToast.error("Erro ao salvar modo Asaas");
-                  }
-                }
-              }}
-            >
+            <Select value={mode} onValueChange={(m) => setMode(m as Mode)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -401,33 +327,16 @@ const BoletoSettingsManager = () => {
                     Ative para receber pagamentos com emissão registrada
                   </p>
                 </div>
-                <Switch
-                  checked={regSettings.enabled}
-                  onCheckedChange={async (checked) => {
-                    setRegSettings((prev) => ({ ...prev, enabled: checked }));
-                    try {
-                      const { data, error } = await supabase.functions.invoke("boleto-settings", {
-                        body: { action: "set_enabled", enabled: checked },
-                      });
-                      if (error || data?.error) {
-                        sonnerToast.error("Falha ao atualizar status do boleto");
-                        setRegSettings((prev) => ({ ...prev, enabled: !checked }));
-                        return;
-                      }
-                      sonnerToast.success(checked ? "Boleto (Asaas) ativado" : "Boleto (Asaas) desativado");
-                    } catch {
-                      sonnerToast.error("Erro ao atualizar status do boleto");
-                      setRegSettings((prev) => ({ ...prev, enabled: !checked }));
-                    }
-                  }}
-                />
+                <Switch checked={regSettings.enabled} onCheckedChange={(checked) => setRegSettings((prev) => ({ ...prev, enabled: checked }))} />
               </div>
-              {/* Configuração de Webhook Asaas */}
+              {/* Asaas não precisa de credenciais na UI; parâmetros de boleto abaixo */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="webhookUrl">Webhook Asaas</Label>
-                  <Input id="webhookUrl" value={`https://speciesalimentos.com.br/_functions/asaas-webhook`} disabled />
-                  <p className="text-xs text-muted-foreground">URL do webhook no domínio de produção</p>
+                  <Input id="webhookUrl" value={`${window.location.origin}/_functions/asaas-webhook`} disabled />
+                  <p className="text-xs text-muted-foreground">
+                    O token é gerenciado no servidor; o URL receberá ?token= automaticamente
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="webhookEmail">Email (opcional)</Label>
@@ -435,15 +344,6 @@ const BoletoSettingsManager = () => {
                     id="webhookEmail"
                     value={webhookEmail}
                     onChange={(e) => setWebhookEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="webhookToken">Webhook Token</Label>
-                  <Input
-                    id="webhookToken"
-                    type="password"
-                    placeholder="Cole o token do Asaas"
-                    onChange={(e) => setWebhookToken(e.target.value)}
                   />
                 </div>
               </div>
@@ -457,119 +357,28 @@ const BoletoSettingsManager = () => {
                         sonnerToast.error("Sessão expirada. Faça login como administrador.");
                         return;
                       }
+                      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
                       const { data, error } = await supabase.functions.invoke("asaas-webhook-register", {
                         body: {
-                          url: `https://speciesalimentos.com.br/_functions/asaas-webhook`,
+                          url: `${supabaseUrl}/functions/v1/asaas-webhook`,
                           email: webhookEmail,
-                          authToken: webhookToken,
+                          sendType: "SEQUENTIALLY",
+                          name: "BOLETO SPECIES ALIMENTOS",
                         },
                       });
-                      const isOk = !error && (data?.success === true || Boolean((data as any)?.data?.id));
-                      if (!isOk) {
-                        const msg =
-                          (data?.error as string) ||
-                          (Array.isArray((data as any)?.data?.errors) ? (data as any).data.errors[0]?.description : "") ||
-                          "Falha ao registrar webhook";
-                        sonnerToast.error(msg);
+                      if (error || data?.error) {
+                        sonnerToast.error(data?.error || "Falha ao registrar webhook");
                         setWebhookInfo(null);
                         return;
                       }
                       sonnerToast.success("Webhook Asaas registrado!");
-                      setWebhookInfo((data as any)?.data ?? null);
+                      setWebhookInfo(data?.data ?? null);
                     } catch (err) {
                       sonnerToast.error("Erro ao registrar webhook");
                     }
                   }}
                 >
                   Registrar webhook Asaas
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="testEvent">Evento de teste</Label>
-                  <Select value={testEvent} onValueChange={(v) => setTestEvent(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PAYMENT_CONFIRMED">PAYMENT_CONFIRMED</SelectItem>
-                      <SelectItem value="PAYMENT_RECEIVED">PAYMENT_RECEIVED</SelectItem>
-                      <SelectItem value="PAYMENT_OVERDUE">PAYMENT_OVERDUE</SelectItem>
-                      <SelectItem value="PAYMENT_DELETED">PAYMENT_DELETED</SelectItem>
-                      <SelectItem value="PAYMENT_CANCELLED">PAYMENT_CANCELLED</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="testOrderNsu">Order NSU</Label>
-                  <Input id="testOrderNsu" value={testOrderNsu} onChange={(e) => setTestOrderNsu(e.target.value)} placeholder="BOL_..." />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="testProviderPaymentId">Provider Payment ID</Label>
-                  <Input id="testProviderPaymentId" value={testProviderPaymentId} onChange={(e) => setTestProviderPaymentId(e.target.value)} placeholder="pay_..." />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Selecionar pedido</Label>
-                  <Select
-                    onValueChange={(v) => {
-                      const [nsu, pid] = v.split("|");
-                      setTestOrderNsu(nsu);
-                      setTestProviderPaymentId(pid);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Carregue e selecione um pedido" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {recentOrders.map((o) => {
-                        const dt = o.inserted_at || o.created_at || "";
-                        const when = dt ? new Date(dt).toLocaleString() : "";
-                        return (
-                          <SelectItem key={`${o.order_nsu}|${o.provider_payment_id || ""}`} value={`${o.order_nsu}|${o.provider_payment_id || ""}`}>
-                            {o.order_nsu} · {o.status} · {when}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Button variant="outline" onClick={loadRecentOrders}>Carregar pedidos</Button>
-                </div>
-              </div>
-              <div>
-                <Button
-                  onClick={async () => {
-                    try {
-                      const { data: sessionData } = await supabase.auth.getSession();
-                      if (!sessionData?.session) {
-                        sonnerToast.error("Sessão expirada. Faça login como administrador.");
-                        return;
-                      }
-                      if (!testOrderNsu && !testProviderPaymentId) {
-                        sonnerToast.error("Informe Order NSU ou Provider Payment ID");
-                        return;
-                      }
-                      const { data, error } = await supabase.functions.invoke("asaas-webhook-test", {
-                        body: {
-                          event: testEvent,
-                          externalReference: testOrderNsu,
-                          providerPaymentId: testProviderPaymentId,
-                        },
-                      });
-                      if (error || data?.error) {
-                        sonnerToast.error(data?.error || "Falha ao testar webhook");
-                        return;
-                      }
-                      sonnerToast.success("Webhook simulado com sucesso");
-                    } catch {
-                      sonnerToast.error("Erro ao simular webhook");
-                    }
-                  }}
-                >
-                  Testar webhook
                 </Button>
               </div>
               {webhookInfo && (
@@ -712,8 +521,8 @@ const BoletoSettingsManager = () => {
                 <Label htmlFor="wallet">Carteira</Label>
                 <Input
                   id="wallet"
-                  value={settings.wallet || ""}
-                  onChange={(e) => setSettings({ ...settings, wallet: e.target.value })}
+                  value=""
+                  onChange={() => {}}
                   placeholder="Ex.: 17"
                 />
               </div>
@@ -721,8 +530,8 @@ const BoletoSettingsManager = () => {
                 <Label htmlFor="agreement">Convênio</Label>
                 <Input
                   id="agreement"
-                  value={settings.agreement || ""}
-                  onChange={(e) => setSettings({ ...settings, agreement: e.target.value })}
+                  value=""
+                  onChange={() => {}}
                   placeholder="Ex.: 123456"
                 />
               </div>

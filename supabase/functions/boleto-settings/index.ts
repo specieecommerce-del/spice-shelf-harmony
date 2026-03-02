@@ -10,7 +10,7 @@ const corsHeaders = {
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS' } });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -435,8 +435,6 @@ serve(async (req: Request) => {
           account_type,
           beneficiary_name, 
           beneficiary_document,
-          wallet,
-          convenio,
           instructions,
           days_to_expire 
         } = body;
@@ -464,8 +462,6 @@ serve(async (req: Request) => {
             account_type: String(account_type || 'corrente'),
             beneficiary_name: String(beneficiary_name).trim(),
             beneficiary_document: String(beneficiary_document).trim(),
-              wallet: String(wallet || '').trim(),
-              convenio: String(convenio || '').trim(),
           },
           registered: {
             provider: '',

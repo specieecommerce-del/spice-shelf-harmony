@@ -9,23 +9,18 @@ const corsHeaders = {
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: { ...corsHeaders, "Access-Control-Allow-Methods": "POST, GET, OPTIONS" } });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "method not allowed" }), {
-        status: 405,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Token verification using header or querystring and env
     const url = new URL(req.url);
-    const token = (url.searchParams.get("token") || "").trim();
-    const expected = (Deno.env.get("CHECKOUT_TOKEN") || "").trim();
+    const token = req.headers.get("x-webhook-token") || url.searchParams.get("token") || "";
+    const expected = Deno.env.get("ASAAS_WEBHOOK_TOKEN") || "";
     if (!expected || token !== expected) {
       return new Response(JSON.stringify({ error: "Unauthorized webhook" }), {
         status: 401,
@@ -47,55 +42,16 @@ serve(async (req: Request) => {
     const payment = payload?.payment || {};
     const status = String(payment?.status || "").toUpperCase();
     const externalRef = String(payment?.externalReference || "");
-    const asaasId = String(payment?.id || "");
-    const valueNum = payment?.value ? Number(payment.value) : null;
-    const amountCents = valueNum && !Number.isNaN(valueNum) ? Math.round(valueNum * 100) : null;
 
-    const isPaidEvent = new Set(["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"]).has(event);
-    const isPaidStatus = status === "RECEIVED" || status === "CONFIRMED";
-    const isOverdueStatus = status === "OVERDUE";
-    const isCancelledStatus = status === "CANCELED" || status === "CANCELLED";
+    let newStatus = "";
+    if (status === "RECEIVED" || status === "CONFIRMED") newStatus = "paid";
+    else if (status === "OVERDUE") newStatus = "overdue";
+    else if (status === "CANCELED" || status === "CANCELLED") newStatus = "cancelled";
 
-    if (isPaidEvent || isPaidStatus) {
-      // Find payment title by provider id
-      const { data: title } = await supabase
-        .from("payment_titles")
-        .select("id, order_id")
-        .eq("provider", "asaas")
-        .eq("provider_title_id", asaasId)
-        .maybeSingle();
-
-      let orderId = title?.order_id ?? null;
-      if (!orderId && externalRef) {
-        const { data: order } = await supabase
-          .from("orders")
-          .select("id")
-          .eq("order_nsu", externalRef)
-          .maybeSingle();
-        orderId = order?.id ?? null;
-      }
-
-      if (!orderId) {
-        return new Response(JSON.stringify({ ok: true, ignored: true, reason: "order_not_found" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const paidAt = new Date().toISOString();
-      const orderUpdate: Record<string, unknown> = { status: "paid", paid_at: paidAt, confirmation_source: "asaas_webhook" };
-      if (amountCents) orderUpdate["paid_amount"] = amountCents;
-      await supabase.from("orders").update(orderUpdate).eq("id", orderId);
-
-      if (title?.id) {
-        const titleUpdate: Record<string, unknown> = { status: "paid", paid_at: paidAt };
-        if (amountCents) titleUpdate["paid_amount_cents"] = amountCents;
-        await supabase.from("payment_titles").update(titleUpdate).eq("id", title.id);
-      }
-    } else if (isOverdueStatus && externalRef) {
-      await supabase.from("orders").update({ status: "overdue", confirmation_source: "asaas_webhook" }).eq("order_nsu", externalRef);
-    } else if (isCancelledStatus && externalRef) {
-      await supabase.from("orders").update({ status: "cancelled", confirmation_source: "asaas_webhook" }).eq("order_nsu", externalRef);
+    if (newStatus && externalRef) {
+      const update: Record<string, unknown> = { status: newStatus, confirmation_source: "asaas_webhook" };
+      if (newStatus === "paid") update["paid_at"] = new Date().toISOString();
+      await supabase.from("orders").update(update).eq("order_nsu", externalRef);
     }
 
     return new Response(JSON.stringify({ success: true }), {
