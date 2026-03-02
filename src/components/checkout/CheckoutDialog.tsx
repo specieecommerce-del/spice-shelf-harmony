@@ -177,32 +177,29 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         }
       }
 
-      // Check Boleto with direct DB fallback
+      // Check Boleto - always Asaas mode
       try {
         const { data: boletoData } = await supabase.functions.invoke("boleto-settings", {
           body: { action: "get_boleto_for_payment" },
         });
-        setBoletoConfigured(boletoData?.configured || false);
-        setBoletoMode(typeof boletoData?.mode === "string" ? String(boletoData.mode).toLowerCase() : null);
-        if (!boletoData?.configured) {
-          const { data: row } = await supabase
-            .from("store_settings")
-            .select("value")
-            .eq("key", "boleto_settings")
-            .maybeSingle();
-          const v = (row?.value ?? null) as Record<string, unknown> | null;
-          if (v) {
-            const enabled = Boolean(v["enabled"]);
-            const mode = String(v["mode"] || "manual");
-            const manual = (v["manual"] ?? {}) as Record<string, unknown>;
-            const registered = (v["registered"] ?? {}) as Record<string, unknown>;
-            const configured =
-              enabled &&
-              (mode === "manual"
-                ? Boolean(manual["bank_code"] && manual["beneficiary_name"] && manual["beneficiary_document"])
-                : Boolean(((registered["bank"] ?? {}) as Record<string, unknown>)["code"]));
-            setBoletoConfigured(configured);
-            setBoletoMode(mode.toLowerCase());
+        const configured = boletoData?.configured || false;
+        setBoletoConfigured(configured);
+        setBoletoMode("asaas");
+        if (!configured) {
+          // Fallback: check DB directly
+          try {
+            const { data: row } = await supabase
+              .from("store_settings")
+              .select("value")
+              .eq("key", "boleto_settings")
+              .maybeSingle();
+            const v = (row?.value ?? null) as Record<string, unknown> | null;
+            if (v && Boolean(v["enabled"])) {
+              setBoletoConfigured(true);
+              setBoletoMode("asaas");
+            }
+          } catch {
+            // ignore
           }
         }
       } catch {
@@ -213,18 +210,9 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
             .eq("key", "boleto_settings")
             .maybeSingle();
           const v = (row?.value ?? null) as Record<string, unknown> | null;
-          if (v) {
-            const enabled = Boolean(v["enabled"]);
-            const mode = String(v["mode"] || "manual");
-            const manual = (v["manual"] ?? {}) as Record<string, unknown>;
-            const registered = (v["registered"] ?? {}) as Record<string, unknown>;
-            const configured =
-              enabled &&
-              (mode === "manual"
-                ? Boolean(manual["bank_code"] && manual["beneficiary_name"] && manual["beneficiary_document"])
-                : Boolean(((registered["bank"] ?? {}) as Record<string, unknown>)["code"]));
-            setBoletoConfigured(configured);
-            setBoletoMode(mode.toLowerCase());
+          if (v && Boolean(v["enabled"])) {
+            setBoletoConfigured(true);
+            setBoletoMode("asaas");
           } else {
             setBoletoConfigured(false);
             setBoletoMode(null);
@@ -762,10 +750,11 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       return;
     }
 
-    if (!customerInfo.cpfCnpj.trim()) {
+    const cleanCpfCnpj = customerInfo.cpfCnpj.replace(/\D/g, "");
+    if (cleanCpfCnpj.length < 11) {
       toast({
-        title: "CPF/CNPJ obrigatório",
-        description: "Para gerar boleto, informe seu CPF ou CNPJ.",
+        title: "CPF/CNPJ inválido",
+        description: "Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.",
         variant: "destructive",
       });
       return;
@@ -795,38 +784,41 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         } : null,
       };
 
-      const useAsaas = boletoMode === "asaas";
-      const { data, error } = await supabase.functions.invoke(useAsaas ? "create-asaas-boleto" : "create-boleto-order", {
+      const { data, error } = await supabase.functions.invoke("create-asaas-boleto", {
         body: payload,
       });
 
       if (error || !data?.success) {
         console.error("Error creating boleto order:", error || data?.error);
+        const detail = data?.detail;
+        let errorMsg = data?.error || "Tente novamente mais tarde.";
+        if (detail?.errors && Array.isArray(detail.errors)) {
+          const descriptions = detail.errors.map((e: any) => e.description).filter(Boolean);
+          if (descriptions.length) errorMsg = descriptions.join("; ");
+        }
         toast({
           title: "Erro ao criar pedido",
-          description: data?.error || "Tente novamente mais tarde.",
+          description: errorMsg,
           variant: "destructive",
         });
         return;
       }
 
-      const normalizedBoletoData = useAsaas && data?.boleto
-        ? {
-            ...data,
-            boletoData: {
-              bankCode: "ASAAS",
-              bankName: "Asaas",
-              agency: "-",
-              account: "-",
-              accountType: "boleto",
-              beneficiaryName: customerInfo.name,
-              beneficiaryDocument: customerInfo.cpfCnpj,
-              instructions: data?.boleto?.linhaDigitavel
-                ? `Linha digitável: ${data.boleto.linhaDigitavel}`
-                : "Abra o boleto no link para visualizar os dados completos.",
-            },
-          }
-        : data;
+      const normalizedBoletoData = {
+        ...data,
+        boletoData: {
+          bankCode: "ASAAS",
+          bankName: "Asaas",
+          agency: "-",
+          account: "-",
+          accountType: "boleto",
+          beneficiaryName: customerInfo.name,
+          beneficiaryDocument: customerInfo.cpfCnpj,
+          instructions: data?.boleto?.linhaDigitavel
+            ? `Linha digitável: ${data.boleto.linhaDigitavel}`
+            : "Abra o boleto no link para visualizar os dados completos.",
+        },
+      };
 
       setBoletoOrderData(normalizedBoletoData);
       setShowBoletoPayment(true);
