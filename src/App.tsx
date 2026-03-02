@@ -29,6 +29,8 @@ import ProductDetail from "./pages/ProductDetail";
 import CategoryProducts from "./pages/CategoryProducts";
 import ChatBot from "@/components/chat/ChatBot";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import DeliveryPolicy from "./pages/DeliveryPolicy";
+import PaymentPolicy from "./pages/PaymentPolicy";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +56,8 @@ const App = () => (
                 <Route path="/trocas-devolucoes" element={<ReturnsPolicy />} />
                 <Route path="/privacidade" element={<PrivacyPolicy />} />
                 <Route path="/termos" element={<TermsOfUse />} />
+                <Route path="/entregas" element={<DeliveryPolicy />} />
+                <Route path="/pagamento" element={<PaymentPolicy />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/quem-somos" element={<AboutUs />} />
                 <Route path="/receitas" element={<Recipes />} />

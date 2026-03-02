@@ -87,6 +87,16 @@ const Footer = () => {
                   Termos de Uso
                 </a>
               </li>
+              <li>
+                <a href="/entregas" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
+                  Política de Entrega
+                </a>
+              </li>
+              <li>
+                <a href="/pagamento" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
+                  Política de Pagamento
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -113,6 +123,12 @@ const Footer = () => {
                 <a href="mailto:contato@species.com.br" className="text-spice-cream/80 hover:text-spice-gold transition-colors">
                   ​specieecommerce@gmail.com 
                 </a>
+              </li>
+              <li className="flex items-center gap-3">
+                <Shield size={18} className="text-spice-gold" />
+                <span className="text-spice-cream/80">
+                  CNPJ: 00.000.000/0001-00
+                </span>
               </li>
             </ul>
           </div>

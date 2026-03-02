@@ -99,6 +99,61 @@ const ProductDetail = () => {
     fetchProduct();
   }, [id]);
 
+  useEffect(() => {
+    if (!product) return;
+    const title = `${product.name} | Species Alimentos`;
+    document.title = title;
+    const desc =
+      product.short_description ||
+      product.description ||
+      "Compre temperos e especiarias premium com entrega rápida.";
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "description");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", desc);
+    // canonical
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", `https://speciesalimentos.com.br/produto/${id}`);
+    // Product JSON-LD
+    const jsonLd = {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      name: product.name,
+      image: product.image_url ? [product.image_url] : undefined,
+      description: desc,
+      brand: { "@type": "Brand", name: "Species" },
+      aggregateRating: product.rating
+        ? { "@type": "AggregateRating", ratingValue: product.rating, reviewCount: product.reviews || 0 }
+        : undefined,
+      offers: {
+        "@type": "Offer",
+        priceCurrency: "BRL",
+        price: product.price,
+        availability:
+          product.stock_quantity && product.stock_quantity > 0
+            ? "https://schema.org/InStock"
+            : "https://schema.org/OutOfStock",
+        url: `https://speciesalimentos.com.br/produto/${id}`
+      }
+    };
+    const scriptId = "product-jsonld";
+    let script = document.getElementById(scriptId);
+    if (!script) {
+      script = document.createElement("script");
+      script.setAttribute("type", "application/ld+json");
+      script.id = scriptId;
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify(jsonLd);
+  }, [product, id]);
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
