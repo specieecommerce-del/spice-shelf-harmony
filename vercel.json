@@ -5,7 +5,4 @@
       "destination": "/api/_functions/:path*"
     }
   ],
-  "routes": [
-    { "src": "/sitemap.xml", "dest": "/api/sitemap" }
-  ]
-}
+  
