@@ -806,6 +806,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
 
       const normalizedBoletoData = {
         ...data,
+        boletoUrl: data?.boleto?.url || "",
         boletoData: {
           bankCode: "ASAAS",
           bankName: "Asaas",
@@ -941,6 +942,18 @@ Pedido: ${boletoOrderData.orderNsu}`;
                 </div>
               )}
             </div>
+
+            {/* Boleto PDF Link */}
+            {(boletoOrderData as any).boletoUrl && (
+              <Button
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                size="lg"
+                onClick={() => window.open((boletoOrderData as any).boletoUrl, '_blank')}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Abrir Boleto (PDF)
+              </Button>
+            )}
 
             <Button
               variant="hero"
