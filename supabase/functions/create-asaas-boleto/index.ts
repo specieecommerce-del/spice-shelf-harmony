@@ -104,9 +104,7 @@ serve(async (req: Request) => {
     const dueDateStr = dueDate.toISOString().slice(0, 10);
 
     // ===== DEFINIÇÃO DE AMBIENTE =====
-    const envFromBody = String(body.environment || "")
-      .trim()
-      .toLowerCase();
+    const envFromBody = "production";
     const isProd = envFromBody === "production";
     // ===== CHAVES =====
     const ASAAS_API_KEY = isProd
