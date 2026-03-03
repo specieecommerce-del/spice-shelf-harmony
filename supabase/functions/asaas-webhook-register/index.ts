@@ -94,34 +94,6 @@ serve(async (req: Request) => {
       : (webhookUrl.includes("?")
         ? `${webhookUrl}&token=${ASAAS_WEBHOOK_TOKEN}`
         : `${webhookUrl}?token=${ASAAS_WEBHOOK_TOKEN}`);
-<<<<<<< HEAD
-
-    const payload: Record<string, unknown> = {
-      url: finalUrl,
-      email: email || undefined,
-      sendType,
-      name,
-      enabled: true,
-      interrupted: false,
-      events: [
-        "PAYMENT_CREATED",
-        "PAYMENT_UPDATED",
-        "PAYMENT_CONFIRMED",
-        "PAYMENT_RECEIVED",
-        "PAYMENT_OVERDUE",
-        "PAYMENT_DELETED",
-        "PAYMENT_RESTORED",
-        "PAYMENT_REFUNDED",
-        "PAYMENT_RECEIVED_IN_CASH_UNDONE",
-        "PAYMENT_CHARGEBACK_REQUESTED",
-        "PAYMENT_CHARGEBACK_DISPUTE",
-        "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
-        "PAYMENT_DUNNING_RECEIVED",
-        "PAYMENT_DUNNING_REQUESTED",
-      ],
-    };
-=======
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
 
     const headers = {
       "Content-Type": "application/json",
@@ -129,8 +101,6 @@ serve(async (req: Request) => {
       "access_token": ASAAS_ACCESS_TOKEN,
     };
 
-<<<<<<< HEAD
-=======
     const events = [
       "PAYMENT_CREATED",
       "PAYMENT_UPDATED",
@@ -156,7 +126,6 @@ serve(async (req: Request) => {
     // Check if a webhook with similar URL already exists
     const existing = existingWebhooks.find((wh: Record<string, unknown>) => {
       const whUrl = String(wh.url || "");
-      // Match by base URL (ignore token param differences)
       const baseWebhookUrl = webhookUrl.split("?")[0];
       return whUrl.startsWith(baseWebhookUrl);
     });
@@ -197,7 +166,6 @@ serve(async (req: Request) => {
       events,
     };
 
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
     const res = await fetch(`${baseUrl}/webhooks`, {
       method: "POST",
       headers,
@@ -205,11 +173,7 @@ serve(async (req: Request) => {
     });
     const json = await res.json();
 
-<<<<<<< HEAD
-    return new Response(JSON.stringify({ success: res.ok, data: json }), {
-=======
     return new Response(JSON.stringify({ success: res.ok, data: json, action: "created" }), {
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
       status: res.ok ? 200 : res.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
