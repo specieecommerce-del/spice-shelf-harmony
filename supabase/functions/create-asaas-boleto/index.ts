@@ -59,8 +59,6 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-<<<<<<< HEAD
-=======
 
     const sanitizedCpfCnpj = String(customer.cpfCnpj || "").replace(/\D/g, "");
     if (sanitizedCpfCnpj.length < 11) {
@@ -69,7 +67,6 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
 
     const total = items.reduce((sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0), 0);
     const discount = body.coupon?.discountAmount ? Number(body.coupon.discountAmount) : 0;
@@ -90,16 +87,9 @@ serve(async (req: Request) => {
       });
     }
 
-<<<<<<< HEAD
-    const provider = String(v["provider"] || (v["registered"] as any)?.["provider"] || "").toLowerCase();
-    const mode = String(v["mode"] || "manual");
-    if (mode !== "registered" || !provider.includes("asaas")) {
-=======
     const mode = String(v["mode"] || "manual");
     const provider = String(v["provider"] || "").toLowerCase();
-    // Accept mode "asaas" or "registered" with asaas provider
     if (mode !== "asaas" && !(mode === "registered" && provider.includes("asaas"))) {
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
       return new Response(JSON.stringify({ error: "Asaas not configured" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -111,17 +101,6 @@ serve(async (req: Request) => {
     dueDate.setDate(dueDate.getDate() + daysToExpire);
     const dueDateStr = dueDate.toISOString().slice(0, 10);
 
-<<<<<<< HEAD
-    const registered = (v["registered"] ?? {}) as Record<string, unknown>;
-    const credentials = (registered["credentials"] ?? {}) as Record<string, unknown>;
-    const apiKey = String(credentials["client_secret"] || credentials["api_key"] || "").trim();
-    const env = String(v["environment"] || "sandbox");
-    const baseUrl = env === "production" ? "https://api.asaas.com/api/v3" : "https://sandbox.asaas.com/api/v3";
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Asaas API key missing" }), {
-        status: 400,
-=======
-    // Use ASAAS_ACCESS_TOKEN from env secrets (not from stored credentials)
     const ASAAS_ACCESS_TOKEN = (Deno.env.get("ASAAS_ACCESS_TOKEN") || "").trim();
     const ASAAS_ENV = (Deno.env.get("ASAAS_ENV") || String(v["environment"] || "sandbox")).trim().toLowerCase();
     const baseUrl = ASAAS_ENV === "production" ? "https://api.asaas.com/api/v3" : "https://sandbox.asaas.com/api/v3";
@@ -129,7 +108,6 @@ serve(async (req: Request) => {
     if (!ASAAS_ACCESS_TOKEN) {
       return new Response(JSON.stringify({ error: "ASAAS_ACCESS_TOKEN não configurado" }), {
         status: 500,
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -152,9 +130,7 @@ serve(async (req: Request) => {
         const updateRes = await fetch(`${baseUrl}/customers/${asaasCustomerId}`, {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            cpfCnpj: sanitizedCpfCnpj,
-          }),
+          body: JSON.stringify({ cpfCnpj: sanitizedCpfCnpj }),
         });
 
         if (!updateRes.ok) {
@@ -165,20 +141,13 @@ serve(async (req: Request) => {
           });
         }
       } else {
-        
-
         const createRes = await fetch(`${baseUrl}/customers`, {
           method: "POST",
           headers,
           body: JSON.stringify({
             name: customer.name,
             email: customer.email,
-<<<<<<< HEAD
-            cpfCnpj: customer.cpfCnpj || undefined,
-            mobilePhone: customer.phone || undefined,
-=======
             cpfCnpj: sanitizedCpfCnpj.length >= 11 ? sanitizedCpfCnpj : undefined,
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
           }),
         });
         const createJson = await createRes.json();
@@ -234,11 +203,7 @@ serve(async (req: Request) => {
     const linhaDigitavel = paymentJson?.identificationField || "";
     const barcode = paymentJson?.barcode || "";
 
-<<<<<<< HEAD
-    // Save order with boleto/provider metadata
-=======
-    // Save order using only columns that exist in the orders table
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
+    // Save order
     const { data: insertedOrder, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -246,28 +211,6 @@ serve(async (req: Request) => {
         customer_name: customer.name.substring(0, 100),
         customer_email: customer.email.substring(0, 255),
         customer_phone: (customer.phone || "").substring(0, 20),
-<<<<<<< HEAD
-        items: items,
-        total_amount: Math.round(totalAmount * 100),
-        status: "pending_boleto",
-        payment_method: "boleto",
-        payment_provider: "asaas",
-        provider_payment_id: String(paymentJson?.id || ""),
-        boleto_url: boletoUrl,
-        boleto_pdf_url: String(paymentJson?.bankSlipUrl || ""),
-        boleto_line: linhaDigitavel,
-        boleto_barcode: barcode,
-        boleto_due_date: new Date(dueDateStr).toISOString(),
-      })
-      .select("id")
-      .single();
-
-    if (orderError) {
-      return new Response(JSON.stringify({ error: "Erro ao salvar pedido" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-=======
         items: items as any,
         total_amount: Math.round(totalAmount * 100),
         status: "pending_boleto",
@@ -299,7 +242,6 @@ serve(async (req: Request) => {
       });
     } catch {
       // payment_titles table may not exist yet, not critical
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
     }
 
     return new Response(
