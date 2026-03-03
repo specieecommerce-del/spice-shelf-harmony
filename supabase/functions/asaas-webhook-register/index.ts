@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, accept, prefer",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req: Request) => {
@@ -15,9 +16,7 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const ASAAS_ACCESS_TOKEN = (Deno.env.get("ASAAS_ACCESS_TOKEN") || "").trim();
     const ASAAS_WEBHOOK_TOKEN = (Deno.env.get("ASAAS_WEBHOOK_TOKEN") || "").trim();
-    const ASAAS_ENV = (Deno.env.get("ASAAS_ENV") || "sandbox").trim().toLowerCase();
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -65,8 +64,11 @@ serve(async (req: Request) => {
     const email = String(body["email"] || "").trim();
     const sendType = String(body["sendType"] || "SEQUENTIALLY").trim();
     const name = String(body["name"] || "BOLETO SPECIES ALIMENTOS").trim();
+    const envFromBody = String(body["environment"] || "").trim().toLowerCase();
+    const isProd = envFromBody === "production";
+    const ASAAS_API_KEY = (isProd ? Deno.env.get("ASAAS_API_KEY_PROD") : Deno.env.get("ASAAS_API_KEY_SANDBOX")) || Deno.env.get("ASAAS_ACCESS_TOKEN") || "";
 
-    if (!ASAAS_ACCESS_TOKEN) {
+    if (!ASAAS_API_KEY || ASAAS_API_KEY.trim() === "") {
       return new Response(JSON.stringify({ error: "ASAAS_ACCESS_TOKEN não configurado" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -85,9 +87,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const baseUrl = ASAAS_ENV === "production"
-      ? "https://api.asaas.com/api/v3"
-      : "https://sandbox.asaas.com/api/v3";
+    const baseUrl = isProd ? "https://api.asaas.com/api/v3" : "https://sandbox.asaas.com/api/v3";
 
     const finalUrl = webhookUrl.includes("token=")
       ? webhookUrl
@@ -98,7 +98,7 @@ serve(async (req: Request) => {
     const headers = {
       "Content-Type": "application/json",
       "accept": "application/json",
-      "access_token": ASAAS_ACCESS_TOKEN,
+      "access_token": ASAAS_API_KEY.trim(),
     };
 
     const events = [

@@ -4,12 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-<<<<<<< HEAD
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, accept, prefer, x-checkout-token",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-=======
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, accept, prefer, x-checkout-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
->>>>>>> 84fd8bea94830354f98368f8647d4ace8e76d071
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 type Item = {
@@ -54,6 +50,7 @@ serve(async (req: Request) => {
       coupon?: { code: string; discountAmount: number } | null;
       externalReference?: string;
       description?: string;
+      environment?: string;
     };
 
     const items = Array.isArray(body.items) ? body.items : [];
@@ -106,11 +103,12 @@ serve(async (req: Request) => {
     dueDate.setDate(dueDate.getDate() + daysToExpire);
     const dueDateStr = dueDate.toISOString().slice(0, 10);
 
-    const ASAAS_ACCESS_TOKEN = (Deno.env.get("ASAAS_ACCESS_TOKEN") || "").trim();
-    const ASAAS_ENV = (Deno.env.get("ASAAS_ENV") || String(v["environment"] || "sandbox")).trim().toLowerCase();
-    const baseUrl = ASAAS_ENV === "production" ? "https://api.asaas.com/api/v3" : "https://sandbox.asaas.com/api/v3";
+    const envFromBody = String(body.environment || "").trim().toLowerCase();
+    const isProd = envFromBody === "production";
+    const ASAAS_API_KEY = (isProd ? Deno.env.get("ASAAS_API_KEY_PROD") : Deno.env.get("ASAAS_API_KEY_SANDBOX")) || Deno.env.get("ASAAS_ACCESS_TOKEN") || "";
+    const baseUrl = isProd ? "https://api.asaas.com/api/v3" : "https://sandbox.asaas.com/api/v3";
 
-    if (!ASAAS_ACCESS_TOKEN) {
+    if (!ASAAS_API_KEY || ASAAS_API_KEY.trim() === "") {
       return new Response(JSON.stringify({ error: "ASAAS_ACCESS_TOKEN não configurado" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -119,7 +117,7 @@ serve(async (req: Request) => {
 
     const headers = {
       "Content-Type": "application/json",
-      "access_token": ASAAS_ACCESS_TOKEN,
+      "access_token": ASAAS_API_KEY.trim(),
     };
 
     // Find or create customer in Asaas

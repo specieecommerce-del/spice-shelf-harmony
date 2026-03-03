@@ -154,6 +154,7 @@ const BoletoSettingsManager = () => {
         body: {
           action: "save_boleto",
           mode: "asaas",
+          environment: regSettings.api.environment,
           enabled,
           days_to_expire: daysToExpire,
           instructions,
@@ -184,6 +185,7 @@ const BoletoSettingsManager = () => {
           email: webhookEmail,
           sendType: "SEQUENTIALLY",
           name: "BOLETO SPECIES ALIMENTOS",
+          environment: regSettings.api.environment,
         },
       });
       if (error || data?.error) {
