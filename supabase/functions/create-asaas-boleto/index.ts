@@ -4,8 +4,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+<<<<<<< HEAD
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, accept, prefer, x-checkout-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+=======
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, accept, prefer, x-checkout-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+>>>>>>> 84fd8bea94830354f98368f8647d4ace8e76d071
 };
 
 type Item = {

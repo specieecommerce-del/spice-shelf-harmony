@@ -790,8 +790,22 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
 
       if (error || !data?.success) {
         console.error("Error creating boleto order:", error || data?.error);
-        const detail = data?.detail;
         let errorMsg = data?.error || "Tente novamente mais tarde.";
+        
+        // Try to extract detailed error from edge function response
+        if (error && typeof error === 'object' && 'context' in error) {
+          try {
+            const errBody = await (error as any).context.json();
+            if (errBody?.detail?.errors && Array.isArray(errBody.detail.errors)) {
+              const descriptions = errBody.detail.errors.map((e: any) => e.description).filter(Boolean);
+              if (descriptions.length) errorMsg = descriptions.join("; ");
+            } else if (errBody?.error) {
+              errorMsg = errBody.error;
+            }
+          } catch { /* ignore parse errors */ }
+        }
+        
+        const detail = data?.detail;
         if (detail?.errors && Array.isArray(detail.errors)) {
           const descriptions = detail.errors.map((e: any) => e.description).filter(Boolean);
           if (descriptions.length) errorMsg = descriptions.join("; ");
