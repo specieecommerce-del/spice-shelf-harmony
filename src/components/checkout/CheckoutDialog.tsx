@@ -786,7 +786,6 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
 
       const { data, error } = await supabase.functions.invoke("create-asaas-boleto", {
         body: payload,
-        headers: { "x-checkout-token": (import.meta as any).env?.VITE_CHECKOUT_TOKEN },
       });
 
       if (error || !data?.success) {
