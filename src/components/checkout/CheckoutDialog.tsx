@@ -782,6 +782,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
           code: appliedCoupon.code,
           discountAmount: appliedCoupon.discountAmount,
         } : null,
+        environment: "production",
       };
 
       const { data, error } = await supabase.functions.invoke("create-asaas-boleto", {
