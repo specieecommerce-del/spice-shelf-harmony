@@ -103,20 +103,34 @@ serve(async (req: Request) => {
     dueDate.setDate(dueDate.getDate() + daysToExpire);
     const dueDateStr = dueDate.toISOString().slice(0, 10);
 
-    const envFromBody = String(body.environment || "").trim().toLowerCase();
+    // ===== DEFINIÇÃO DE AMBIENTE =====
+    const envFromBody = String(body.environment || "")
+      .trim()
+      .toLowerCase();
     const isProd = envFromBody === "production";
-    const ASAAS_API_KEY = (isProd ? Deno.env.get("ASAAS_API_KEY_PROD") : Deno.env.get("ASAAS_API_KEY_SANDBOX")) || Deno.env.get("ASAAS_ACCESS_TOKEN") || "";
-    const baseUrl = isProd ? "https://api.asaas.com/api/v3" : "https://sandbox.asaas.com/api/v3";
-
-    if (!ASAAS_API_KEY || ASAAS_API_KEY.trim() === "") {
-      return new Response(JSON.stringify({ error: "ASAAS_ACCESS_TOKEN não configurado" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // ===== CHAVES =====
+    const ASAAS_API_KEY = isProd
+      ? Deno.env.get("ASAAS_API_KEY_PROD")
+      : Deno.env.get("ASAAS_API_KEY_SANDBOX");
+    // ===== URL CORRETA DO ASAAS =====
+    const baseUrl = isProd
+      ? "https://api.asaas.com/v3"
+      : "https://api-sandbox.asaas.com/v3";
+    if (!ASAAS_API_KEY) {
+      return new Response(
+        JSON.stringify({
+          error: "ASAAS_API_KEY não configurada para o ambiente selecionado",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
-
+    // ===== HEADERS CORRETOS =====
     const headers = {
       "Content-Type": "application/json",
+      "User-Agent": "speciesalimentos.com.br",
       "access_token": ASAAS_API_KEY.trim(),
     };
 

@@ -87,7 +87,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const baseUrl = isProd ? "https://api.asaas.com/api/v3" : "https://sandbox.asaas.com/api/v3";
+    const baseUrl = isProd ? "https://api.asaas.com/v3" : "https://api-sandbox.asaas.com/v3";
 
     const finalUrl = webhookUrl.includes("token=")
       ? webhookUrl
