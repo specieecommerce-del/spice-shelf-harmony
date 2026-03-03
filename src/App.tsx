@@ -32,6 +32,7 @@ import ChatBot from "@/components/chat/ChatBot";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import DeliveryPolicy from "./pages/DeliveryPolicy";
 import PaymentPolicy from "./pages/PaymentPolicy";
+import LocalSeoSP from "./pages/LocalSeoSP";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => (
                 <Route path="/categoria/:slug" element={<CategoryProducts />} />
                 <Route path="/kits-presentes" element={<KitsGifts />} />
                 <Route path="/promocoes" element={<Promotions />} />
+                <Route path="/temperos-naturais-sao-paulo" element={<LocalSeoSP />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
