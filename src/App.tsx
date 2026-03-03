@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
@@ -43,6 +44,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <GATracker />
               <CartDrawer />
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -78,5 +80,17 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
+
+const GATracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    const id = (import.meta as any).env?.VITE_GA_ID || "G-ZZTSLQBNRN";
+    const g = (window as any).gtag;
+    if (typeof g === "function" && id) {
+      g("config", id, { page_path: location.pathname });
+    }
+  }, [location.pathname]);
+  return null;
+};
 
 export default App;
