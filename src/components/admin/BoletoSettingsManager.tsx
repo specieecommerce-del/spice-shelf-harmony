@@ -103,7 +103,7 @@ const BoletoSettingsManager = () => {
     },
     api: {
       type: "cnab",
-      environment: "homolog",
+      environment: "production",
       endpoint: "",
       client_id: "",
       client_secret: "",
