@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2, FileText, Save, CheckCircle2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
-<<<<<<< HEAD
 interface BoletoSettings {
   bank_code: string;
   bank_name: string;
@@ -71,14 +70,11 @@ const COMMON_BANKS: Record<string, string> = {
   "380": "PicPay",
   "323": "Mercado Pago",
 };
-=======
-const FIXED_WEBHOOK_URL = "https://speciesalimentos.com.br/_functions/asaas-webhook?token=$aeact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjY3OTgyYWQ1LTkzOGYtNDk3Mi1hYzViLTI0YTRlZGNiYzUwNzo6JGFlYWNoXzg4MDljNzQ4LTUzMWQtNDUwNi05OGFjLTNiODE2YjgzZjczOA==";
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
+const FIXED_WEBHOOK_URL = "https://speciesalimentos.com.br/_functions/asaas-webhook";
 
 const BoletoSettingsManager = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-<<<<<<< HEAD
   const [mode, setMode] = useState<Mode>("manual");
   const [settings, setSettings] = useState<BoletoSettings>({
     bank_code: "",
@@ -122,14 +118,12 @@ const BoletoSettingsManager = () => {
   });
   const [webhookEmail, setWebhookEmail] = useState<string>("specieecommerce@gmail.com");
   const [webhookInfo, setWebhookInfo] = useState<Record<string, unknown> | null>(null);
-=======
   const [enabled, setEnabled] = useState(true);
   const [daysToExpire, setDaysToExpire] = useState(3);
   const [instructions, setInstructions] = useState("");
   const [webhookEmail, setWebhookEmail] = useState("specieecommerce@gmail.com");
   const [webhookInfo, setWebhookInfo] = useState<Record<string, unknown> | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
 
   useEffect(() => {
     fetchSettings();
@@ -137,8 +131,6 @@ const BoletoSettingsManager = () => {
 
   const fetchSettings = async () => {
     try {
-<<<<<<< HEAD
-      const { data, error } = await supabase.functions.invoke("boleto-settings", {
         body: { action: "get_boleto" },
       });
 
@@ -220,8 +212,6 @@ const BoletoSettingsManager = () => {
         }
       } catch (e) {
         console.error("Error fetching boleto settings:", e);
-=======
-      const { data: row } = await supabase
         .from("store_settings")
         .select("value")
         .eq("key", "boleto_settings")
@@ -231,8 +221,6 @@ const BoletoSettingsManager = () => {
         setEnabled(Boolean(v["enabled"] ?? true));
         setDaysToExpire(Number(v["days_to_expire"] ?? 3));
         setInstructions(String(v["instructions"] ?? ""));
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
-      }
     } catch (e) {
       console.error("Error fetching boleto settings:", e);
     } finally {
@@ -246,7 +234,6 @@ const BoletoSettingsManager = () => {
       const { data, error } = await supabase.functions.invoke("boleto-settings", {
         body: {
           action: "save_boleto",
-<<<<<<< HEAD
           bank_code: settings.bank_code.trim(),
           bank_name: bankName,
           agency: settings.agency.trim(),
@@ -268,7 +255,6 @@ const BoletoSettingsManager = () => {
         if (data?.error) throw new Error(data.error);
       }
 
-=======
           mode: "asaas",
           enabled,
           days_to_expire: daysToExpire,
@@ -277,7 +263,6 @@ const BoletoSettingsManager = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
       toast.success("Configurações salvas!");
     } catch (error: any) {
       console.error("Error saving boleto settings:", error);
@@ -338,7 +323,6 @@ const BoletoSettingsManager = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-<<<<<<< HEAD
           <div className="space-y-2">
             <Label>Modo</Label>
             <Select value={mode} onValueChange={(m) => setMode(m as Mode)}>
@@ -439,7 +423,6 @@ const BoletoSettingsManager = () => {
                   </Card>
                 </div>
               )}
-=======
           {/* Enable/Disable */}
           <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
             <div className="space-y-1">
@@ -457,7 +440,7 @@ const BoletoSettingsManager = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Webhook Asaas (fixo)</Label>
-              <Input value="https://speciesalimentos.com.br/_functions/asaas-webhook" disabled />
+              <Input value={FIXED_WEBHOOK_URL} disabled />
               <p className="text-xs text-muted-foreground">
                 URL fixa com token de autenticação embutido
               </p>
@@ -479,7 +462,6 @@ const BoletoSettingsManager = () => {
                   "Registrar Webhook Asaas"
                 )}
               </Button>
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
             </div>
 
             {webhookInfo && (
@@ -506,7 +488,6 @@ const BoletoSettingsManager = () => {
             </div>
           </div>
 
-<<<<<<< HEAD
           {/* Account Info */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -637,8 +618,6 @@ const BoletoSettingsManager = () => {
           </div>
 
           {/* Instructions */}
-=======
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
           <div className="space-y-2">
             <Label htmlFor="instructions">Instruções para o cliente</Label>
             <Textarea

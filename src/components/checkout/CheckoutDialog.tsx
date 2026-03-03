@@ -67,10 +67,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
     email: "",
-<<<<<<< HEAD
-=======
     cpfCnpj: "",
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
     phone: "",
   });
 
@@ -789,15 +786,11 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
 
       const { data, error } = await supabase.functions.invoke("create-asaas-boleto", {
         body: payload,
+        headers: { "x-checkout-token": (import.meta as any).env?.VITE_CHECKOUT_TOKEN },
       });
 
       if (error || !data?.success) {
         console.error("Error creating boleto order:", error || data?.error);
-<<<<<<< HEAD
-        toast({
-          title: "Erro ao criar pedido",
-          description: data?.error || "Tente novamente mais tarde.",
-=======
         const detail = data?.detail;
         let errorMsg = data?.error || "Tente novamente mais tarde.";
         if (detail?.errors && Array.isArray(detail.errors)) {
@@ -807,15 +800,11 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
         toast({
           title: "Erro ao criar pedido",
           description: errorMsg,
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
           variant: "destructive",
         });
         return;
       }
 
-<<<<<<< HEAD
-      setBoletoOrderData(data);
-=======
       const normalizedBoletoData = {
         ...data,
         boletoUrl: data?.boleto?.url || "",
@@ -826,7 +815,7 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
           account: "-",
           accountType: "boleto",
           beneficiaryName: customerInfo.name,
-          beneficiaryDocument: customerInfo.cpfCnpj,
+          beneficiaryDocument: cleanCpfCnpj,
           instructions: data?.boleto?.linhaDigitavel
             ? `Linha digitável: ${data.boleto.linhaDigitavel}`
             : "Abra o boleto no link para visualizar os dados completos.",
@@ -834,7 +823,6 @@ const CheckoutDialog = ({ open, onOpenChange }: CheckoutDialogProps) => {
       };
 
       setBoletoOrderData(normalizedBoletoData);
->>>>>>> 41cb06f7524bc03209ba1b98827d1ec764f687e6
       setShowBoletoPayment(true);
       localStorage.setItem("lastOrderNsu", data.orderNsu);
 
