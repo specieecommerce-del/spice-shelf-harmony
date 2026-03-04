@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, FileText, Save, CheckCircle2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 interface BoletoSettings {
   bank_code: string;
@@ -139,6 +140,11 @@ const BoletoSettingsManager = () => {
         setEnabled(Boolean(v["enabled"] ?? true));
         setDaysToExpire(Number(v["days_to_expire"] ?? 3));
         setInstructions(String(v["instructions"] ?? ""));
+        const env = String(v["environment"] ?? regSettings.api.environment);
+        setRegSettings((prev) => ({
+          ...prev,
+          api: { ...prev.api, environment: env === "production" ? "production" : "homolog" },
+        }));
       }
     } catch (e) {
       console.error("Error fetching boleto settings:", e);
@@ -236,24 +242,38 @@ const BoletoSettingsManager = () => {
             <Switch checked={enabled} onCheckedChange={setEnabled} />
           </div>
 
-          {/* Webhook */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Webhook Asaas (fixo)</Label>
               <Input value={FIXED_WEBHOOK_URL} disabled />
-              <p className="text-xs text-muted-foreground">
-                URL fixa com token de autenticação embutido
-              </p>
+              <p className="text-xs text-muted-foreground">URL fixa com token de autenticação embutido</p>
             </div>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+              <div className="space-y-2">
+                <Label>Ambiente</Label>
+                <Select
+                  value={regSettings.api.environment === "production" ? "production" : "sandbox"}
+                  onValueChange={(val) =>
+                    setRegSettings((prev) => ({
+                      ...prev,
+                      api: { ...prev.api, environment: val === "production" ? "production" : "homolog" },
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="production">Produção</SelectItem>
+                    <SelectItem value="sandbox">Sandbox</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
               <div className="space-y-2">
                 <Label htmlFor="webhookEmail">Email de notificação (opcional)</Label>
-                <Input
-                  id="webhookEmail"
-                  value={webhookEmail}
-                  onChange={(e) => setWebhookEmail(e.target.value)}
-                />
+                <Input id="webhookEmail" value={webhookEmail} onChange={(e) => setWebhookEmail(e.target.value)} />
               </div>
               <Button variant="outline" onClick={handleRegisterWebhook} disabled={isRegistering}>
                 {isRegistering ? (
@@ -263,7 +283,6 @@ const BoletoSettingsManager = () => {
                 )}
               </Button>
             </div>
-
             {webhookInfo && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
                 <CheckCircle2 className="h-4 w-4" />
