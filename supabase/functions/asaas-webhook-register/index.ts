@@ -98,7 +98,8 @@ serve(async (req: Request) => {
     const headers = {
       "Content-Type": "application/json",
       "accept": "application/json",
-      "Authorization": `Bearer ${ASAAS_API_KEY.trim()}`,
+      "User-Agent": "speciesalimentos.com.br",
+      "access_token": ASAAS_API_KEY.trim(),
     };
 
     const events = [
@@ -178,7 +179,8 @@ serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: "Erro inesperado" }), {
+    console.error("asaas-webhook-register error:", error);
+    return new Response(JSON.stringify({ error: "Erro inesperado", detail: String(error) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
