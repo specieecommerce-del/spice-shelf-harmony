@@ -68,6 +68,8 @@ serve(async (req: Request) => {
     const isProd = envFromBody === "production";
     const ASAAS_API_KEY = (isProd ? Deno.env.get("ASAAS_API_KEY_PROD") : Deno.env.get("ASAAS_API_KEY_SANDBOX")) || Deno.env.get("ASAAS_ACCESS_TOKEN") || "";
 
+    console.log(`[webhook-register] isProd=${isProd}, keySource=${isProd ? "ASAAS_API_KEY_PROD" : "ASAAS_API_KEY_SANDBOX"}, keyLen=${ASAAS_API_KEY.length}, keyPrefix=${ASAAS_API_KEY.substring(0, 8)}...`);
+
     if (!ASAAS_API_KEY || ASAAS_API_KEY.trim() === "") {
       return new Response(JSON.stringify({ error: "ASAAS_ACCESS_TOKEN não configurado" }), {
         status: 500,
