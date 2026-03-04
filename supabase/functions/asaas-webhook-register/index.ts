@@ -98,7 +98,7 @@ serve(async (req: Request) => {
     const headers = {
       "Content-Type": "application/json",
       "accept": "application/json",
-      "access_token": ASAAS_API_KEY.trim(),
+      "Authorization": `Bearer ${ASAAS_API_KEY.trim()}`,
     };
 
     const events = [
